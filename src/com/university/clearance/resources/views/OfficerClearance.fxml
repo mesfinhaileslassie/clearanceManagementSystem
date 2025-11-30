@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="25" alignment="CENTER"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.university.clearance.controller.OfficerClearanceController">
+
+    <padding>
+        <Insets top="30" right="40" bottom="30" left="40"/>
+    </padding>
+
+    <Label fx:id="lblWelcome"
+           style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+
+    <TableView fx:id="tableRequests" prefHeight="500">
+        <columns>
+            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="120"/>
+            <TableColumn fx:id="colFullName" text="Full Name" prefWidth="250"/>
+            <TableColumn fx:id="colDepartment" text="Department" prefWidth="180"/>
+            <TableColumn fx:id="colDate" text="Request Date" prefWidth="140"/>
+            <TableColumn fx:id="colMyStatus" text="Your Status" prefWidth="160"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="20" alignment="CENTER">
+        <Button text="APPROVE SELECTED"
+                onAction="#approveSelected"
+                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"
+                prefWidth="220" prefHeight="50"/>
+        <Button text="REJECT SELECTED"
+                onAction="#rejectSelected"
+                style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"
+                prefWidth="220" prefHeight="50"/>
+        <Button text="REFRESH"
+                onAction="#refreshData"
+                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 16px;"
+                prefWidth="150" prefHeight="50"/>
+    </HBox>
+
+    <Label fx:id="lblMessage"
+           style="-fx-font-size: 16px; -fx-text-fill: green;" wrapText="true"/>
+</VBox>

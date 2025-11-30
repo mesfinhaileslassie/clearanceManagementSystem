@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox alignment="CENTER" spacing="40"
+      style="-fx-background-color: linear-gradient(to bottom, #1e3c72, #2a5298);"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1.0"
+      fx:controller="com.university.clearance.controller.LoginController">
+
+    <padding>
+        <Insets top="80" right="50" bottom="50" left="50"/>
+    </padding>
+
+    <Label text="UNIVERSITY CLEARANCE SYSTEM"
+           style="-fx-text-fill: white; -fx-font-size: 34px; -fx-font-weight: bold;"/>
+
+    <VBox spacing="25" style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 50;"
+          prefWidth="450" alignment="CENTER">
+
+        <Label text="LOGIN" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e3c72;"/>
+
+        <TextField fx:id="txtUsername" promptText="Username" prefHeight="50" prefWidth="380"/>
+        <PasswordField fx:id="txtPassword" promptText="Password" prefHeight="50" prefWidth="380"/>
+        <ComboBox fx:id="cmbRole" promptText="Select Role" prefWidth="380" prefHeight="50"/>
+
+        <Button fx:id="loginbtn" text="LOGIN →" onAction="#handleLogin"
+                style="-fx-background-color: #1e3c72; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"
+                prefWidth="380" prefHeight="55"/>
+
+        <Label fx:id="lblMessage" style="-fx-text-fill: red; -fx-font-size: 15px;" alignment="CENTER"/>
+    </VBox>
+</VBox>

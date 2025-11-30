@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.university.clearance.controller.CafeteriaDashboardController" 
+      spacing="10" style="-fx-padding: 20; -fx-background-color: #f8f9fa;">
+
+    <HBox spacing="20" alignment="CENTER_LEFT">
+        <Label fx:id="lblWelcome" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
+               text="Welcome, Cafeteria Office"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="🔄 Refresh" onAction="#refreshRequests" 
+                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
+        <Button text="📊 Generate Report" onAction="#generateCafeteriaReport" 
+                style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <Label fx:id="lblPendingCount" style="-fx-font-size: 16px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;"
+           text="Pending Cafeteria Clearances: 0"/>
+
+    <Separator/>
+
+    <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
+           text="Pending Cafeteria Clearance Requests"/>
+    
+    <TableView fx:id="tableRequests" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
+            <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
+            <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
+            <TableColumn fx:id="colMealPlan" text="Meal Plan" prefWidth="150"/>
+            <TableColumn fx:id="colCafeteriaStatus" text="Cafeteria Status" prefWidth="200"/>
+            <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
+            <TableColumn fx:id="colActions" text="Actions" prefWidth="280"/>
+        </columns>
+    </TableView>
+
+    <Separator/>
+
+    <Label fx:id="lblStudentInfo" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"
+           text="Select a student to view cafeteria records"/>
+
+    <Label fx:id="lblCafeteriaStatus" style="-fx-font-size: 14px; -fx-font-weight: bold;"
+           text="Cafeteria status summary will appear here"/>
+
+    <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
+           text="Cafeteria Records"/>
+    
+    <TableView fx:id="tableCafeteriaRecords" prefHeight="200">
+        <columns>
+            <TableColumn fx:id="colRecordType" text="Record Type" prefWidth="150"/>
+            <TableColumn fx:id="colDescription" text="Description" prefWidth="200"/>
+            <TableColumn fx:id="colAmount" text="Amount" prefWidth="100"/>
+            <TableColumn fx:id="colTransactionDate" text="Date" prefWidth="100"/>
+            <TableColumn fx:id="colRecordStatus" text="Status" prefWidth="100"/>
+        </columns>
+    </TableView>
+
+</VBox>

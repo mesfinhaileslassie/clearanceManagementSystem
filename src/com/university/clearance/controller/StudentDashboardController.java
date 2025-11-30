@@ -18,7 +18,7 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.ResourceBundle;
-
+import com.university.clearance.service.PDFCertificateService;
 import com.university.clearance.service.SimpleCertificateService;
 
 public class StudentDashboardController implements Initializable {
@@ -46,6 +46,65 @@ public class StudentDashboardController implements Initializable {
     }
     
     
+    
+    
+    @FXML
+    private void generatePDFCertificate() {
+        if (currentRequestId == -1) {
+            showAlert("No Clearance", "You don't have a completed clearance request to generate a certificate.");
+            return;
+        }
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Check if clearance is fully approved
+            String checkSql = "SELECT status FROM clearance_requests WHERE id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, currentRequestId);
+            ResultSet rs = checkStmt.executeQuery();
+            
+            if (rs.next()) {
+                String status = rs.getString("status");
+                
+                if (!"FULLY_CLEARED".equals(status)) {
+                    showAlert("Not Ready", "Your clearance is not fully approved yet. Current status: " + status);
+                    return;
+                }
+                
+                // Generate PDF certificate
+                PDFCertificateService pdfService = new PDFCertificateService();
+                String filePath = pdfService.generatePDFCertificate(currentUser.getId(), currentRequestId);
+                
+                if (filePath != null) {
+                    Alert success = new Alert(Alert.AlertType.INFORMATION);
+                    success.setTitle("PDF Certificate Generated");
+                    success.setHeaderText("🎉 PDF Clearance Certificate Ready!");
+                    success.setContentText("Your professional PDF clearance certificate has been generated successfully!\n\n" +
+                                        "Saved to: " + filePath + "\n\n" +
+                                        "The PDF certificate has been saved to your Downloads folder.");
+                    success.showAndWait();
+                    
+                    // Open the PDF file
+                    try {
+                        java.awt.Desktop.getDesktop().open(new File(filePath));
+                    } catch (Exception e) {
+                        System.out.println("Could not open PDF automatically");
+                    }
+                } else {
+                    showAlert("Error", "Failed to generate PDF certificate. Please try again.");
+                }
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "PDF certificate generation failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    
+    
+    
+    
+    
     @FXML
     private void generateCertificate() {
         if (currentRequestId == -1) {
@@ -68,23 +127,28 @@ public class StudentDashboardController implements Initializable {
                     return;
                 }
                 
-                // Ask user for format choice
-                ChoiceDialog<String> formatDialog = new ChoiceDialog<>("HTML", "HTML", "Text");
+                // Ask user for format choice - NOW INCLUDES PDF
+                ChoiceDialog<String> formatDialog = new ChoiceDialog<>("PDF", "PDF", "HTML", "Text");
                 formatDialog.setTitle("Certificate Format");
                 formatDialog.setHeaderText("Choose Certificate Format");
-                formatDialog.setContentText("Select format:");
+                formatDialog.setContentText("Select your preferred certificate format:");
                 
                 Optional<String> formatResult = formatDialog.showAndWait();
                 if (formatResult.isPresent()) {
                     String format = formatResult.get();
                     String filePath;
                     
-                    SimpleCertificateService certificateService = new SimpleCertificateService();
-                    
-                    if ("HTML".equals(format)) {
-                        filePath = certificateService.generateHTMLCertificate(currentUser.getId(), currentRequestId);
+                    if ("PDF".equals(format)) {
+                        // Generate PDF certificate
+                        PDFCertificateService pdfService = new PDFCertificateService();
+                        filePath = pdfService.generatePDFCertificate(currentUser.getId(), currentRequestId);
                     } else {
-                        filePath = certificateService.generateClearanceCertificate(currentUser.getId(), currentRequestId);
+                        SimpleCertificateService certificateService = new SimpleCertificateService();
+                        if ("HTML".equals(format)) {
+                            filePath = certificateService.generateHTMLCertificate(currentUser.getId(), currentRequestId);
+                        } else {
+                            filePath = certificateService.generateClearanceCertificate(currentUser.getId(), currentRequestId);
+                        }
                     }
                     
                     if (filePath != null) {
@@ -104,7 +168,7 @@ public class StudentDashboardController implements Initializable {
                             System.out.println("Could not open file automatically");
                         }
                     } else {
-                        showAlert("Error", "Failed to generate certificate. Please try again.");
+                        showAlert("Error", "Failed to generate " + format + " certificate. Please try again.");
                     }
                 }
             }
@@ -114,7 +178,6 @@ public class StudentDashboardController implements Initializable {
             e.printStackTrace();
         }
     }
-    
 
     public void setCurrentUser(User user) {
         this.currentUser = user;

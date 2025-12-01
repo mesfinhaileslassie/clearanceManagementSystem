@@ -39,6 +39,10 @@ public class CafeteriaDashboardController implements Initializable {
     @FXML private TableColumn<CafeteriaRecord, String> colTransactionDate;
     @FXML private TableColumn<CafeteriaRecord, String> colRecordStatus;
 
+
+    @FXML private TabPane mainTabPane;
+    
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<CafeteriaRecord> cafeteriaData = FXCollections.observableArrayList();

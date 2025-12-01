@@ -39,6 +39,9 @@ public class DepartmentHeadDashboardController implements Initializable {
     @FXML private TableColumn<DepartmentRequirement, String> colCompletedDate;
     @FXML private TableColumn<DepartmentRequirement, String> colRemarks;
 
+ // Add this to your DepartmentHeadDashboardController class
+    @FXML private TabPane mainTabPane;
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<DepartmentRequirement> requirementData = FXCollections.observableArrayList();

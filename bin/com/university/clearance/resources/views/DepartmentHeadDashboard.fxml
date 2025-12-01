@@ -3,60 +3,252 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+<?import javafx.scene.text.TextFlow?>
 
-<VBox xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
-      fx:controller="com.university.clearance.controller.DepartmentHeadDashboardController" 
-      spacing="10" style="-fx-padding: 20; -fx-background-color: #f8f9fa;">
-
-    <HBox spacing="20" alignment="CENTER_LEFT">
-        <Label fx:id="lblWelcome" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
-               text="Welcome, Department Head"/>
-        <Region HBox.hgrow="ALWAYS"/>
-        <Button text="🔄 Refresh" onAction="#refreshRequests" 
-                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
-        <Button text="📊 Generate Report" onAction="#generateDepartmentReport" 
-                style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"/>
-    </HBox>
-
-    <Label fx:id="lblPendingCount" style="-fx-font-size: 16px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;"
-           text="Pending Department Clearances: 0"/>
-
-    <Separator/>
-
-    <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
-           text="Pending Department Clearance Requests"/>
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.university.clearance.controller.DepartmentHeadDashboardController">
     
-    <TableView fx:id="tableRequests" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
-            <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
-            <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
-            <TableColumn fx:id="colYearLevel" text="Year Level" prefWidth="80"/>
-            <TableColumn fx:id="colGPA" text="GPA" prefWidth="80"/>
-            <TableColumn fx:id="colDepartmentStatus" text="Department Status" prefWidth="200"/>
-            <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
-            <TableColumn fx:id="colActions" text="Actions" prefWidth="280"/>
-        </columns>
-    </TableView>
-
-    <Separator/>
-
-    <Label fx:id="lblStudentInfo" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"
-           text="Select a student to view department requirements"/>
-
-    <Label fx:id="lblDepartmentRequirements" style="-fx-font-size: 14px; -fx-font-weight: bold;"
-           text="Requirements summary will appear here"/>
-
-    <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" 
-           text="Department Requirements"/>
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
+            <children>
+                <Label text="Department Head Clearance Dashboard" textFill="WHITE">
+                    <font>
+                        <Font name="System Bold" size="18.0" />
+                    </font>
+                </Label>
+                <Label fx:id="lblWelcome" textFill="WHITE" />
+                <Region HBox.hgrow="ALWAYS" />
+                <HBox spacing="10" alignment="CENTER_RIGHT">
+                    <Label fx:id="lblPendingCount" text="Pending Department Clearances: 0" 
+                           style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;"/>
+                    <Button text="📊 Generate Report" onAction="#generateDepartmentReport" 
+                            style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                </HBox>
+            </children>
+        </HBox>
+    </top>
     
-    <TableView fx:id="tableRequirements" prefHeight="200">
-        <columns>
-            <TableColumn fx:id="colRequirement" text="Requirement" prefWidth="200"/>
-            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
-            <TableColumn fx:id="colCompletedDate" text="Completed Date" prefWidth="120"/>
-            <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="200"/>
-        </columns>
-    </TableView>
-
-</VBox>
+    <left>
+        <VBox spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;" minWidth="220">
+            <children>
+                <!-- Clearance Actions -->
+                <Label text="DEPARTMENT ACTIONS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <Button onAction="#refreshRequests" text="Refresh Requests" 
+                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200;" />
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <!-- Department Status Guide -->
+                <Label text="STATUS GUIDE" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                        <Label text="Approve:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                        <Label text="All requirements completed" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
+                        <Label text="Warning:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                        <Label text="Some requirements pending" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                        <Label text="Reject:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                        <Label text="No requirements completed" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                </VBox>
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <!-- Quick Reports -->
+                <Label text="QUICK REPORTS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <Button onAction="#generateDepartmentReport" text="Student Report" 
+                        style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200;" />
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <!-- Requirements Legend -->
+                <Label text="REQUIREMENT STATUS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <VBox spacing="3" style="-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                        <Label text="Completed" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
+                        <Label text="In Progress" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                        <Label text="Not Started" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                </VBox>
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <!-- GPA Thresholds -->
+                <Label text="GPA THRESHOLDS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <VBox spacing="3" style="-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                        <Label text="3.0+ : Excellent" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
+                        <Label text="2.0-2.9 : Good" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                    <HBox spacing="5">
+                        <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                        <Label text="Below 2.0 : Concern" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                    </HBox>
+                </VBox>
+                
+            </children>
+        </VBox>
+    </left>
+    
+    <center>
+        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" style="-fx-padding: 10;">
+            
+            <!-- Dashboard Home Tab -->
+            <Tab text="Dashboard">
+                <ScrollPane fitToWidth="true">
+                    <VBox spacing="20" style="-fx-padding: 20;">
+                        <Label text="Department Head Clearance Overview" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+                        
+                        <!-- Status Cards -->
+                        <HBox spacing="20">
+                            <VBox style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                <Label text="Pending Clearances" style="-fx-text-fill: white; -fx-font-size: 16px;" />
+                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                            </VBox>
+                            
+                            <VBox style="-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                <Label text="Cleared Students" style="-fx-text-fill: white; -fx-font-size: 16px;" />
+                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                            </VBox>
+                            
+                            <VBox style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                <Label text="Requirements Pending" style="-fx-text-fill: white; -fx-font-size: 16px;" />
+                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                            </VBox>
+                        </HBox>
+                        
+                        <!-- Quick Actions -->
+                        <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-background-radius: 10;">
+                            <Label text="Quick Actions" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+                            <HBox spacing="10">
+                                <Button onAction="#refreshRequests" text="Refresh All" 
+                                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" />
+                                <Button onAction="#generateDepartmentReport" text="Generate Report" 
+                                        style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;" />
+                            </HBox>
+                            <Label fx:id="lblStudentInfo" text="Select a student to view department requirements" 
+                                   style="-fx-text-fill: #7f8c8d; -fx-padding: 10; -fx-background-color: white; -fx-background-radius: 5;" />
+                            <Label fx:id="lblDepartmentRequirements" text="Requirements summary will appear here"
+                                   style="-fx-text-fill: #2c3e50; -fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;" />
+                        </VBox>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+            
+            <!-- Clearance Requests Tab -->
+            <Tab text="Clearance Requests">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <!-- Header -->
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="Pending Department Clearances" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    </HBox>
+                    
+                    <!-- Clearance Requests Table -->
+                    <TableView fx:id="tableRequests" prefHeight="400">
+                        <columns>
+                            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
+                            <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
+                            <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
+                            <TableColumn fx:id="colYearLevel" text="Year Level" prefWidth="80"/>
+                            <TableColumn fx:id="colGPA" text="GPA" prefWidth="80"/>
+                            <TableColumn fx:id="colDepartmentStatus" text="Department Status" prefWidth="200"/>
+                            <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
+                            <TableColumn fx:id="colActions" text="Actions" prefWidth="280"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                        </columnResizePolicy>
+                    </TableView>
+                    
+                    <!-- Table Info -->
+                    <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                        <Label text="Click 'Requirements' to see detailed requirements below" 
+                               style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" />
+                    </HBox>
+                </VBox>
+            </Tab>
+            
+            <!-- Department Requirements Tab -->
+            <Tab text="Department Requirements">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <!-- Header -->
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="Student Department Requirements" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                    </HBox>
+                    
+                    <!-- Instructions -->
+                    <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #e8f4f8; -fx-background-radius: 5;">
+                        <Label text="Instructions:" style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" />
+                        <Label text="1. Select a student from the Clearance Requests tab" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="2. Click 'Requirements' to see their department requirements" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="3. Use Approve/Reject buttons in Clearance Requests tab" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="4. Check requirements status and remarks for each item" 
+                               style="-fx-text-fill: #2c3e50;" />
+                    </VBox>
+                    
+                    <!-- Requirements Table -->
+                    <TableView fx:id="tableRequirements" prefHeight="400">
+                        <columns>
+                            <TableColumn fx:id="colRequirement" text="Requirement" prefWidth="200"/>
+                            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
+                            <TableColumn fx:id="colCompletedDate" text="Completed Date" prefWidth="120"/>
+                            <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="200"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                        </columnResizePolicy>
+                    </TableView>
+                    
+                    <!-- Status Legend -->
+                    <HBox spacing="15" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                        <Label text="Status Colors:" style="-fx-font-weight: bold;"/>
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                            <Label text="Completed" />
+                        </HBox>
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
+                            <Label text="In Progress" />
+                        </HBox>
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                            <Label text="Not Started" />
+                        </HBox>
+                    </HBox>
+                </VBox>
+            </Tab>
+            
+        </TabPane>
+    </center>
+    
+</BorderPane>

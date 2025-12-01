@@ -9,6 +9,7 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 
 import java.net.URL;
@@ -20,8 +21,11 @@ public class StudentAssociationDashboardController implements Initializable {
 
     @FXML private Label lblWelcome;
     @FXML private Label lblPendingCount;
+    @FXML private Label lblContentTitle;
     @FXML private Label lblStudentInfo;
     @FXML private Label lblAssociationStatus;
+    @FXML private Label lblCurrentUser;
+    @FXML private Label lblLastUpdated;
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -47,12 +51,28 @@ public class StudentAssociationDashboardController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         setupTableColumns();
         setupAssociationTableColumns();
+        updateTimestamp();
+        
+        // Initially hide student records section
+        hideStudentRecordsSection();
+        
+        // Set up table selection listener
+        tableRequests.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    viewStudentAssociationRecords(newSelection);
+                }
+            }
+        );
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Student Association");
-        loadPendingRequests();
+        lblCurrentUser.setText(user.getFullName());
+        
+        // Start with pending requests view
+        showPendingRequests();
     }
 
     private void setupTableColumns() {
@@ -80,6 +100,7 @@ public class StudentAssociationDashboardController implements Initializable {
                 btnViewDetails.setOnAction(event -> {
                     ClearanceRequest request = getTableView().getItems().get(getIndex());
                     viewStudentAssociationRecords(request);
+                    showStudentRecords();
                 });
                 
                 btnApprove.setOnAction(event -> {
@@ -160,10 +181,95 @@ public class StudentAssociationDashboardController implements Initializable {
         });
     }
 
+    // Sidebar navigation methods
+    @FXML
+    private void showPendingRequests() {
+        lblContentTitle.setText("Pending Student Association Clearance Requests");
+        showPendingRequestsSection();
+        hideStudentRecordsSection();
+        loadPendingRequests();
+    }
+
+    @FXML
+    private void showStudentRecords() {
+        ClearanceRequest selected = tableRequests.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            lblContentTitle.setText("Student Association Records");
+            hidePendingRequestsSection();
+            showStudentRecordsSection();
+            viewStudentAssociationRecords(selected);
+        } else {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("No Student Selected");
+            alert.setHeaderText("Please select a student first");
+            alert.setContentText("You need to select a student from the pending requests table to view their association records.");
+            alert.showAndWait();
+        }
+    }
+
+    @FXML
+    private void handleSidebarButtonHover(MouseEvent event) {
+        Button button = (Button) event.getSource();
+        button.setStyle("-fx-background-color: #2c3e50; -fx-text-fill: white; -fx-font-size: 14px; " +
+                        "-fx-alignment: CENTER_LEFT; -fx-padding: 12; -fx-cursor: hand; " +
+                        "-fx-background-radius: 5;");
+    }
+
+    @FXML
+    private void handleSidebarButtonExit(MouseEvent event) {
+        Button button = (Button) event.getSource();
+        button.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; " +
+                        "-fx-alignment: CENTER_LEFT; -fx-padding: 12; -fx-cursor: hand;");
+    }
+
+    // Helper methods for showing/hiding sections
+    private void showPendingRequestsSection() {
+        tableRequests.setVisible(true);
+        tableRequests.setManaged(true);
+    }
+
+    private void hidePendingRequestsSection() {
+        tableRequests.setVisible(false);
+        tableRequests.setManaged(false);
+    }
+
+    private void showStudentRecordsSection() {
+        tableAssociationRecords.setVisible(true);
+        tableAssociationRecords.setManaged(true);
+        lblStudentInfo.setVisible(true);
+        lblStudentInfo.setManaged(true);
+        lblAssociationStatus.setVisible(true);
+        lblAssociationStatus.setManaged(true);
+        // Show the separator and title for student records
+        // (These are always in the VBox, we just need to make sure they're visible)
+    }
+
+    private void hideStudentRecordsSection() {
+        tableAssociationRecords.setVisible(false);
+        tableAssociationRecords.setManaged(false);
+        lblStudentInfo.setVisible(false);
+        lblStudentInfo.setManaged(false);
+        lblAssociationStatus.setVisible(false);
+        lblAssociationStatus.setManaged(false);
+    }
+
+    private void updateTimestamp() {
+        lblLastUpdated.setText(java.time.LocalDateTime.now().format(
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+    }
+
     @FXML
     private void refreshRequests() {
-        loadPendingRequests();
-        showAlert("Refreshed", "Student Association clearance requests refreshed successfully!");
+        if (tableRequests.isVisible()) {
+            loadPendingRequests();
+        } else {
+            ClearanceRequest selected = tableRequests.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                viewStudentAssociationRecords(selected);
+            }
+        }
+        updateTimestamp();
+        showAlert("Refreshed", "Data refreshed successfully!");
     }
 
     private void loadPendingRequests() {

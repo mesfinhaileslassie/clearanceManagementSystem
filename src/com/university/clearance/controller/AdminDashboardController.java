@@ -2,7 +2,7 @@ package com.university.clearance.controller;
 
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
-import com.university.clearance.model.ClearanceRequest; // Add this import
+import com.university.clearance.model.ClearanceRequest;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -15,14 +15,29 @@ import javafx.stage.Stage;
 import javafx.geometry.Insets;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 public class AdminDashboardController {
 
+    // Top Section
+    @FXML private Label lblWelcome;
+    @FXML private Label lblTotalRequests;
+    @FXML private Label lblFullyCleared;
+    
+    // Dashboard Cards
+    @FXML private Label lblTotalRequestsCard;
+    @FXML private Label lblFullyClearedCard;
+    
+    // Main Tab Pane
+    @FXML private TabPane mainTabPane;
+    
+    // Clearance Requests Tab
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
     @FXML private TableColumn<ClearanceRequest, String> colName;
@@ -30,30 +45,20 @@ public class AdminDashboardController {
     @FXML private TableColumn<ClearanceRequest, String> colStatus;
     @FXML private TableColumn<ClearanceRequest, String> colDate;
     @FXML private TableColumn<ClearanceRequest, Integer> colApproved;
-
     @FXML private TextField txtSearch;
     @FXML private Button btnRefresh;
-    @FXML private Label lblTotalRequests;
-    @FXML private Label lblFullyCleared;
-    @FXML private Label lblWelcome;
-
+    
+    // User Management Tab
     @FXML private TableView<User> tableUsers;
     @FXML private TableColumn<User, String> colUserId;
     @FXML private TableColumn<User, String> colUserName;
     @FXML private TableColumn<User, String> colUserRole;
     @FXML private TableColumn<User, String> colUserDepartment;
     @FXML private TableColumn<User, String> colUserStatus;
-
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> masterData = FXCollections.observableArrayList();
     private ObservableList<User> userData = FXCollections.observableArrayList();
-
-    public void setCurrentUser(User user) {
-        this.currentUser = user;
-        lblWelcome.setText("Welcome, " + user.getFullName() + " (Admin)");
-        loadAllRequests();
-        loadAllUsers();
-    }
 
     @FXML
     private void initialize() {
@@ -61,76 +66,33 @@ public class AdminDashboardController {
         setupUserTable();
     }
     
-    
- // Add this method to AdminDashboardController
-    @FXML
-    private void verifyCertificate() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Verify Certificate");
-        dialog.setHeaderText("Verify Clearance Certificate");
-        dialog.setContentText("Enter Student ID or Certificate ID:");
-        
-        dialog.showAndWait().ifPresent(input -> {
-            verifyCertificateInDatabase(input);
-        });
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+        lblWelcome.setText("Welcome, " + user.getFullName() + " (Admin)");
+        loadAllRequests();
+        loadAllUsers();
+        updateDashboardCards();
     }
-
-    private void verifyCertificateInDatabase(String searchTerm) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT 
-                    u.full_name,
-                    u.username as student_id,
-                    u.department,
-                    cr.request_date,
-                    cr.completion_date,
-                    cr.status,
-                    COUNT(ca.id) as approved_count
-                FROM users u
-                JOIN clearance_requests cr ON u.id = cr.student_id
-                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.status = 'APPROVED'
-                WHERE (u.username = ? OR u.id = ?) AND cr.status = 'FULLY_CLEARED'
-                GROUP BY u.id, cr.id
-                ORDER BY cr.completion_date DESC 
-                LIMIT 1
-                """;
-            
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, searchTerm);
-            try {
-                ps.setInt(2, Integer.parseInt(searchTerm));
-            } catch (NumberFormatException e) {
-                ps.setInt(2, -1);
-            }
-            
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                String result = "✅ CERTIFICATE VERIFICATION SUCCESSFUL\n\n" +
-                              "Student: " + rs.getString("full_name") + "\n" +
-                              "Student ID: " + rs.getString("student_id") + "\n" +
-                              "Department: " + rs.getString("department") + "\n" +
-                              "Clearance Status: " + rs.getString("status") + "\n" +
-                              "Request Date: " + rs.getDate("request_date") + "\n" +
-                              "Completion Date: " + rs.getDate("completion_date") + "\n" +
-                              "Approvals: " + rs.getInt("approved_count") + "/6 departments\n\n" +
-                              "This certificate is VALID and verified in our system.";
-                
-                showAlert("Certificate Verified", result);
-            } else {
-                showAlert("Not Found", "No valid clearance certificate found for: " + searchTerm + 
-                                    "\n\nPossible reasons:\n" +
-                                    "• Student ID is incorrect\n" +
-                                    "• Clearance is not fully approved\n" +
-                                    "• No clearance request exists");
-            }
-            
-        } catch (Exception e) {
-            showAlert("Error", "Verification failed: " + e.getMessage());
+    
+    // ==================== DASHBOARD METHODS ====================
+    private void updateDashboardCards() {
+        int totalRequests = masterData.size();
+        long cleared = masterData.stream().filter(r -> "FULLY_CLEARED".equals(r.getStatus())).count();
+        
+        // Update main labels
+        lblTotalRequests.setText("Total Requests: " + totalRequests);
+        lblFullyCleared.setText("Fully Cleared: " + cleared);
+        
+        // Update dashboard cards
+        if (lblTotalRequestsCard != null) {
+            lblTotalRequestsCard.setText(String.valueOf(totalRequests));
+        }
+        if (lblFullyClearedCard != null) {
+            lblFullyClearedCard.setText(String.valueOf(cleared));
         }
     }
     
-
+    // ==================== CLEARANCE TABLE SETUP ====================
     private void setupClearanceTable() {
         colStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
@@ -139,18 +101,65 @@ public class AdminDashboardController {
         colDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         colApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
         
-        loadAllRequests();
+        // Color coding for status column
+        colStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    switch (item) {
+                        case "FULLY_CLEARED":
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                            break;
+                        case "IN_PROGRESS":
+                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                            break;
+                        case "REJECTED":
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                            break;
+                        case "PENDING":
+                            setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                            break;
+                        default:
+                            setStyle("");
+                    }
+                }
+            }
+        });
     }
-
+    
     private void setupUserTable() {
         colUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
         colUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         colUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         colUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        
+        // Color coding for user status
+        colUserStatus.setCellFactory(column -> new TableCell<User, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("ACTIVE".equals(item)) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    }
+                }
+            }
+        });
     }
-
-    // ==================== CLEARANCE MANAGEMENT ====================
+    
+    // ==================== LOAD DATA METHODS ====================
     private void loadAllRequests() {
         masterData.clear();
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -178,7 +187,7 @@ public class AdminDashboardController {
                 masterData.add(req);
             }
 
-            updateStatistics();
+            updateDashboardCards();
             tableRequests.setItems(masterData);
 
         } catch (Exception e) {
@@ -186,16 +195,16 @@ public class AdminDashboardController {
             e.printStackTrace();
         }
     }
-
-    private void updateStatistics() {
-        long total = masterData.size();
-        long cleared = masterData.stream().filter(r -> "FULLY_CLEARED".equals(r.getStatus())).count();
-        lblTotalRequests.setText("Total Requests: " + total);
-        lblFullyCleared.setText("Fully Cleared: " + cleared);
+    
+    @FXML
+    private void handleRefresh() {
+        loadAllRequests();
+        loadAllUsers();
+        updateDashboardCards();
+        showAlert("Refreshed", "Data updated successfully!");
     }
-
-    // ==================== 1.1 STUDENT REGISTRATION ====================
- // ==================== 1.1 STUDENT REGISTRATION ====================
+    
+    // ==================== 1. STUDENT REGISTRATION ====================
     @FXML
     private void openRegisterStudent() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -218,6 +227,7 @@ public class AdminDashboardController {
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             loadAllUsers();
+            showAlert("Success", "Student registered successfully!");
         }
     }
 
@@ -238,11 +248,9 @@ public class AdminDashboardController {
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email");
         
-        // Phone number components
         ComboBox<String> cmbPhonePrefix = new ComboBox<>();
         cmbPhonePrefix.getItems().addAll("09", "07");
-        cmbPhonePrefix.setPromptText("Prefix");
-        cmbPhonePrefix.setValue("09"); // Default value
+        cmbPhonePrefix.setValue("09");
         
         TextField txtPhoneSuffix = new TextField();
         txtPhoneSuffix.setPromptText("12345678");
@@ -251,12 +259,10 @@ public class AdminDashboardController {
         Label lblFullPhone = new Label();
         lblFullPhone.setStyle("-fx-font-weight: bold; -fx-text-fill: #2c3e50;");
         
-        // Update full phone display when prefix or suffix changes
         cmbPhonePrefix.setOnAction(e -> updateFullPhoneDisplay(cmbPhonePrefix, txtPhoneSuffix, lblFullPhone));
         txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> 
             updateFullPhoneDisplay(cmbPhonePrefix, txtPhoneSuffix, lblFullPhone));
         
-        // Phone input container
         HBox phoneBox = new HBox(5, cmbPhonePrefix, new Label("-"), txtPhoneSuffix);
         phoneBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
@@ -288,7 +294,6 @@ public class AdminDashboardController {
         grid.add(new Label("Year Level*:"), 0, 8);
         grid.add(cmbYear, 1, 8);
 
-        // Store references for later access
         grid.setUserData(new Object[]{txtStudentId, txtFullName, txtUsername, txtPassword, 
                                     txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear});
 
@@ -300,9 +305,7 @@ public class AdminDashboardController {
         String suffix = txtPhoneSuffix.getText().trim();
         
         if (prefix != null && !suffix.isEmpty()) {
-            // Remove any non-digit characters from suffix
             String cleanSuffix = suffix.replaceAll("\\D", "");
-            
             if (cleanSuffix.length() == 8) {
                 lblFullPhone.setText(prefix + cleanSuffix);
                 lblFullPhone.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
@@ -348,29 +351,25 @@ public class AdminDashboardController {
             return false;
         }
 
-        // Validate phone number
         String cleanPhoneSuffix = phoneSuffix.replaceAll("\\D", "");
         if (cleanPhoneSuffix.length() != 8) {
-            showAlert("Error", "Phone number must be exactly 8 digits after the prefix!\n\nYou entered: " + cleanPhoneSuffix.length() + " digits");
+            showAlert("Error", "Phone number must be exactly 8 digits after the prefix!");
             return false;
         }
 
         String phone = phonePrefix + cleanPhoneSuffix;
 
-        // Validate password strength
         if (password.length() < 6) {
             showAlert("Error", "Password must be at least 6 characters long!");
             return false;
         }
 
-        // Validate email format if provided
         if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             showAlert("Error", "Invalid email format!");
             return false;
         }
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if username or student ID already exists
             String checkSql = "SELECT id FROM users WHERE username = ? OR username = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
@@ -382,18 +381,16 @@ public class AdminDashboardController {
                 return false;
             }
 
-            // Check if phone number already exists
             String checkPhoneSql = "SELECT id FROM users WHERE phone = ?";
             PreparedStatement checkPhoneStmt = conn.prepareStatement(checkPhoneSql);
             checkPhoneStmt.setString(1, phone);
             ResultSet checkPhoneRs = checkPhoneStmt.executeQuery();
             
             if (checkPhoneRs.next()) {
-                showAlert("Error", "Phone number " + phone + " already exists in the system!");
+                showAlert("Error", "Phone number " + phone + " already exists!");
                 return false;
             }
 
-            // Insert student - FIXED: using year_level instead of year_level
             String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, year_level) " +
                         "VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -406,21 +403,11 @@ public class AdminDashboardController {
             stmt.setString(7, year);
 
             int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                String successMessage = "🎉 Student registered successfully!\n\n" +
-                                      "📝 Student ID: " + studentId + "\n" +
-                                      "👤 Username: " + username + "\n" +
-                                      "🔑 Password: " + password + "\n" +
-                                      "📱 Phone: " + phone + "\n" +
-                                      "🎓 Department: " + department + "\n" +
-                                      "📅 Year: " + year;
-                showAlert("Success", successMessage);
-                return true;
-            }
+            return rows > 0;
 
         } catch (SQLException e) {
             if (e.getMessage().contains("Duplicate entry") && e.getMessage().contains("phone")) {
-                showAlert("Error", "Phone number " + phone + " already exists in the system!");
+                showAlert("Error", "Phone number " + phone + " already exists!");
             } else {
                 showAlert("Error", "Registration failed: " + e.getMessage());
             }
@@ -431,7 +418,8 @@ public class AdminDashboardController {
         }
         return false;
     }
-    // ==================== 1.2 OFFICER MANAGEMENT ====================
+    
+    // ==================== 2. OFFICER MANAGEMENT ====================
     @FXML
     private void openManageOfficers() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -454,6 +442,7 @@ public class AdminDashboardController {
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             loadAllUsers();
+            showAlert("Success", "Officer registered successfully!");
         }
     }
 
@@ -533,18 +522,15 @@ public class AdminDashboardController {
             stmt.setString(6, department);
 
             int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                showAlert("Success", "Officer registered successfully!\nRole: " + role);
-                return true;
-            }
+            return rows > 0;
 
         } catch (Exception e) {
             showAlert("Error", "Failed to register officer: " + e.getMessage());
         }
         return false;
     }
-
-    // ==================== 1.3 USER MANAGEMENT ====================
+    
+    // ==================== 3. USER MANAGEMENT ====================
     @FXML
     private void loadAllUsers() {
         userData.clear();
@@ -642,8 +628,8 @@ public class AdminDashboardController {
             }
         }
     }
-
-    // ==================== 4.2 WORKFLOW MANAGEMENT ====================
+    
+    // ==================== 4. WORKFLOW MANAGEMENT ====================
     @FXML
     private void openWorkflowManagement() {
         Dialog<String> dialog = new Dialog<>();
@@ -658,14 +644,13 @@ public class AdminDashboardController {
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Use List instead of array for type safety
         List<ComboBox<String>> steps = new ArrayList<>();
         String[] roles = {"LIBRARIAN", "CAFETERIA", "DORMITORY", "ASSOCIATION", "REGISTRAR", "DEPARTMENT_HEAD"};
 
         for (int i = 0; i < 6; i++) {
             ComboBox<String> stepComboBox = new ComboBox<>();
             stepComboBox.getItems().addAll(roles);
-            stepComboBox.setValue(roles[i]); // Default order
+            stepComboBox.setValue(roles[i]);
             steps.add(stepComboBox);
             grid.add(new Label("Step " + (i + 1) + ":"), 0, i);
             grid.add(stepComboBox, 1, i);
@@ -676,12 +661,10 @@ public class AdminDashboardController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButton) {
                 try (Connection conn = DatabaseConnection.getConnection()) {
-                    // Clear existing workflow
                     String clearSql = "DELETE FROM workflow_config";
                     PreparedStatement clearStmt = conn.prepareStatement(clearSql);
                     clearStmt.executeUpdate();
 
-                    // Insert new workflow
                     String insertSql = "INSERT INTO workflow_config (role, sequence_order) VALUES (?, ?)";
                     PreparedStatement insertStmt = conn.prepareStatement(insertSql);
                     
@@ -707,8 +690,8 @@ public class AdminDashboardController {
             showAlert("Workflow Management", result);
         });
     }
-
-    // ==================== 4.3 ACADEMIC SESSION MANAGEMENT ====================
+    
+    // ==================== 5. ACADEMIC SESSION MANAGEMENT ====================
     @FXML
     private void openSessionManagement() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -763,7 +746,6 @@ public class AdminDashboardController {
         }
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Deactivate other sessions if this one is active
             if (isActive) {
                 String deactivateSql = "UPDATE academic_sessions SET is_active = false";
                 PreparedStatement deactivateStmt = conn.prepareStatement(deactivateSql);
@@ -789,8 +771,8 @@ public class AdminDashboardController {
         }
         return false;
     }
-
-    // ==================== 8.1 CERTIFICATE GENERATION ====================
+    
+    // ==================== 6. CERTIFICATE GENERATION ====================
     @FXML
     private void generateClearanceCertificates() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -878,8 +860,8 @@ public class AdminDashboardController {
             showAlert("Error", "Failed to generate certificates: " + e.getMessage());
         }
     }
-
-    // ==================== 8.2 CERTIFICATE VERIFICATION ====================
+    
+    // ==================== 7. CERTIFICATE VERIFICATION ====================
     @FXML
     private void openCertificateVerification() {
         TextInputDialog dialog = new TextInputDialog();
@@ -887,58 +869,83 @@ public class AdminDashboardController {
         dialog.setHeaderText("Verify Clearance Certificate");
         dialog.setContentText("Enter Student ID:");
 
-        dialog.showAndWait().ifPresent(this::verifyCertificate);
+        dialog.showAndWait().ifPresent(studentId -> {
+            verifyCertificateWithId(studentId);
+        });
+    }
+    
+    @FXML
+    private void verifyCertificate() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Verify Certificate");
+        dialog.setHeaderText("Verify Clearance Certificate");
+        dialog.setContentText("Enter Student ID or Certificate ID:");
+        
+        dialog.showAndWait().ifPresent(input -> {
+            verifyCertificateInDatabase(input);
+        });
     }
 
-    private void verifyCertificate(String studentId) {
+    private void verifyCertificateWithId(String studentId) {
+        verifyCertificateInDatabase(studentId);
+    }
+
+    private void verifyCertificateInDatabase(String searchTerm) {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
-                SELECT u.full_name, u.department, cr.status, cr.request_date, 
-                       COUNT(ca.id) as approval_count
+                SELECT 
+                    u.full_name,
+                    u.username as student_id,
+                    u.department,
+                    cr.request_date,
+                    cr.completion_date,
+                    cr.status,
+                    COUNT(ca.id) as approved_count
                 FROM users u
-                LEFT JOIN clearance_requests cr ON u.id = cr.student_id
+                JOIN clearance_requests cr ON u.id = cr.student_id
                 LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.status = 'APPROVED'
-                WHERE u.username = ? OR u.id = ?
+                WHERE (u.username = ? OR u.id = ?) AND cr.status = 'FULLY_CLEARED'
                 GROUP BY u.id, cr.id
-                ORDER BY cr.request_date DESC LIMIT 1
+                ORDER BY cr.completion_date DESC 
+                LIMIT 1
                 """;
-
+            
             PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, studentId);
+            ps.setString(1, searchTerm);
             try {
-                ps.setInt(2, Integer.parseInt(studentId));
+                ps.setInt(2, Integer.parseInt(searchTerm));
             } catch (NumberFormatException e) {
                 ps.setInt(2, -1);
             }
-
+            
             ResultSet rs = ps.executeQuery();
-
+            
             if (rs.next()) {
-                String status = rs.getString("status");
-                String name = rs.getString("full_name");
-                int approvals = rs.getInt("approval_count");
-
-                String result = "VERIFICATION RESULT:\n\n" +
-                              "Student: " + name + "\n" +
+                String result = "✅ CERTIFICATE VERIFICATION SUCCESSFUL\n\n" +
+                              "Student: " + rs.getString("full_name") + "\n" +
+                              "Student ID: " + rs.getString("student_id") + "\n" +
                               "Department: " + rs.getString("department") + "\n" +
-                              "Status: " + (status != null ? status : "No clearance request") + "\n" +
-                              "Approvals: " + approvals + "/6 departments\n" +
-                              "Request Date: " + rs.getDate("request_date") + "\n\n" +
-                              "VERDICT: " + 
-                              ("FULLY_CLEARED".equals(status) ? "✅ VALID CERTIFICATE" : 
-                               status != null ? "❌ INCOMPLETE" : "❌ NO CLEARANCE FOUND");
-
-                showAlert("Verification Complete", result);
+                              "Clearance Status: " + rs.getString("status") + "\n" +
+                              "Request Date: " + rs.getDate("request_date") + "\n" +
+                              "Completion Date: " + rs.getDate("completion_date") + "\n" +
+                              "Approvals: " + rs.getInt("approved_count") + "/6 departments\n\n" +
+                              "This certificate is VALID and verified in our system.";
+                
+                showAlert("Certificate Verified", result);
             } else {
-                showAlert("Not Found", "No student found with ID: " + studentId);
+                showAlert("Not Found", "No valid clearance certificate found for: " + searchTerm + 
+                                    "\n\nPossible reasons:\n" +
+                                    "• Student ID is incorrect\n" +
+                                    "• Clearance is not fully approved\n" +
+                                    "• No clearance request exists");
             }
-
+            
         } catch (Exception e) {
             showAlert("Error", "Verification failed: " + e.getMessage());
         }
     }
-
-    // ==================== 9.1 SEMESTER ROLLOVER ====================
+    
+    // ==================== 8. SEMESTER ROLLOVER ====================
     @FXML
     private void processSemesterRollover() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -1025,15 +1032,8 @@ public class AdminDashboardController {
             showAlert("Rollover Error", "Failed to process rollover: " + e.getMessage());
         }
     }
-
+    
     // ==================== UTILITY METHODS ====================
-    @FXML
-    private void handleRefresh() {
-        loadAllRequests();
-        loadAllUsers();
-        showAlert("Refreshed", "Data updated successfully!");
-    }
-
     @FXML
     private void handleLogout() {
         try {
@@ -1055,4 +1055,3 @@ public class AdminDashboardController {
         alert.showAndWait();
     }
 }
-

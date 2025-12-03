@@ -15,6 +15,10 @@ public class LoginController {
 
     @FXML private TextField txtUsername;
     @FXML private PasswordField txtPassword;
+    // NEW FXML COMPONENTS
+    @FXML private TextField txtPasswordVisible;
+    @FXML private CheckBox chkShowPassword;
+    
     @FXML private ComboBox<String> cmbRole;
     @FXML private Label lblMessage;
     @FXML private Button loginbtn;
@@ -27,12 +31,33 @@ public class LoginController {
             "STUDENT", "LIBRARIAN", "CAFETERIA", "DORMITORY",
              "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
         ));
+        
+        // --- NEW LOGIC FOR SHOW/HIDE PASSWORD ---
+
+        // 1. Synchronize text content between the two fields
+        // Typing in one field updates the other instantly.
+        txtPasswordVisible.textProperty().bindBidirectional(txtPassword.textProperty());
+
+        // 2. Bind visibility and management based on checkbox state
+        // When selected, hide PasswordField and show TextField
+        txtPasswordVisible.visibleProperty().bind(chkShowPassword.selectedProperty());
+        txtPasswordVisible.managedProperty().bind(chkShowPassword.selectedProperty());
+        
+        // When selected, show PasswordField and hide TextField
+        txtPassword.visibleProperty().bind(chkShowPassword.selectedProperty().not());
+        txtPassword.managedProperty().bind(chkShowPassword.selectedProperty().not());
+
+        // 3. Ensure the visible field has the same prompt text
+        txtPasswordVisible.setPromptText(txtPassword.getPromptText());
     }
 
     @FXML
     private void handleLogin() {
         String username = txtUsername.getText().trim();
+        
+        // Get the password from the synchronized text property
         String password = txtPassword.getText();
+        
         String role = cmbRole.getValue();
 
         System.out.println("=== LOGIN ATTEMPT ===");
@@ -148,6 +173,7 @@ public class LoginController {
     private void clearForm() {
         txtUsername.clear();
         txtPassword.clear();
+        // Clearing txtPassword also clears txtPasswordVisible due to bidirectional binding
         cmbRole.setValue(null);
         lblMessage.setText("");
     }

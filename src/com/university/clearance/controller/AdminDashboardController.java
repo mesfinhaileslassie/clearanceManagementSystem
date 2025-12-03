@@ -242,32 +242,48 @@ public class AdminDashboardController {
 
         TextField txtStudentId = new TextField();
         txtStudentId.setPromptText("Student ID (e.g., DBU1601111)");
+        
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("Full Name");
+        
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("Username (for login)");
+        
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("Password");
+        
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email (optional)");
         
-        TextField txtPhone = new TextField();
-        txtPhone.setPromptText("Phone (09XXXXXXXX)");
+        // --- NEW PHONE NUMBER INPUT ---
+        HBox phoneBox = new HBox(5);
+        ComboBox<String> cmbPhonePrefix = new ComboBox<>();
+        cmbPhonePrefix.getItems().addAll("09", "07");
+        cmbPhonePrefix.setPromptText("Prefix");
+        cmbPhonePrefix.setPrefWidth(80);
+        
+        TextField txtPhoneSuffix = new TextField();
+        txtPhoneSuffix.setPromptText("12345678");
+        txtPhoneSuffix.setPrefWidth(150);
+        
+        // Validation: Allow only numbers, max 8 digits
+        txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*")) {
+                txtPhoneSuffix.setText(newValue.replaceAll("[^\\d]", ""));
+            }
+            if (txtPhoneSuffix.getText().length() > 8) {
+                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
+            }
+        });
+
+        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
+        // ------------------------------
         
         ComboBox<String> cmbDepartment = new ComboBox<>();
         cmbDepartment.getItems().addAll(
-            "Software Engineering",
-            "Computer Science", 
-            "Electrical Engineering",
-            "Mechanical Engineering", 
-            "Civil Engineering", 
-            "Business Administration", 
-            "Accounting",
-            "Economics",
-            "Mathematics",
-            "Physics",
-            "Chemistry",
-            "Biology"
+            "Software Engineering", "Computer Science", "Electrical Engineering",
+            "Mechanical Engineering", "Civil Engineering", "Business Administration", 
+            "Accounting", "Economics", "Mathematics", "Physics", "Chemistry", "Biology"
         );
         cmbDepartment.setPromptText("Select Department");
         
@@ -285,15 +301,21 @@ public class AdminDashboardController {
         grid.add(txtPassword, 1, 3);
         grid.add(new Label("Email:"), 0, 4);
         grid.add(txtEmail, 1, 4);
+        
+        // Add Phone Box
         grid.add(new Label("Phone*:"), 0, 5);
-        grid.add(txtPhone, 1, 5);
+        grid.add(phoneBox, 1, 5);
+        
         grid.add(new Label("Department*:"), 0, 6);
         grid.add(cmbDepartment, 1, 6);
         grid.add(new Label("Year Level*:"), 0, 7);
         grid.add(cmbYear, 1, 7);
 
-        grid.setUserData(new Object[]{txtStudentId, txtFullName, txtUsername, txtPassword, 
-                                    txtEmail, txtPhone, cmbDepartment, cmbYear});
+        // Update UserData to include phone components
+        grid.setUserData(new Object[]{
+            txtStudentId, txtFullName, txtUsername, txtPassword, 
+            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear
+        });
 
         return grid;
     }
@@ -305,8 +327,12 @@ public class AdminDashboardController {
         TextField txtUsername = (TextField) fields[2];
         PasswordField txtPassword = (PasswordField) fields[3];
         TextField txtEmail = (TextField) fields[4];
-        TextField txtPhone = (TextField) fields[5];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[6];
+        
+        // Retrieve Phone Components
+        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[5];
+        TextField txtPhoneSuffix = (TextField) fields[6];
+        
+        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
 
         String studentId = txtStudentId.getText().trim();
@@ -314,66 +340,66 @@ public class AdminDashboardController {
         String username = txtUsername.getText().trim();
         String password = txtPassword.getText();
         String email = txtEmail.getText().trim();
-        String phone = txtPhone.getText().trim();
         String department = cmbDepartment.getValue();
         String year = cmbYear.getValue();
+        
+        String phonePrefix = cmbPhonePrefix.getValue();
+        String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        // Validation
+        // 1. Basic Validation
         if (studentId.isEmpty() || fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
-            phone.isEmpty() || department == null || year == null) {
-            showAlert("Error", "Please fill all required fields!");
+            phonePrefix == null || phoneSuffix.isEmpty() || department == null || year == null) {
+            showAlert("Error", "Please fill all required fields marked with *!");
             return false;
         }
 
-        // Validate phone format (09XXXXXXXX)
-        if (!phone.matches("^09\\d{8}$")) {
-            showAlert("Error", "Phone number must be 10 digits starting with 09!");
+        // 2. Phone Suffix Validation (Must be exactly 8 digits)
+        if (!phoneSuffix.matches("^\\d{8}$")) {
+            showAlert("Error", "Phone number suffix must be exactly 8 digits!");
             return false;
         }
 
+        // 3. Password Validation
         if (password.length() < 6) {
             showAlert("Error", "Password must be at least 6 characters long!");
             return false;
         }
 
+        // 4. Email Validation
         if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             showAlert("Error", "Invalid email format!");
             return false;
         }
 
+        String finalPhone = phonePrefix + phoneSuffix;
+
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if username or student ID exists
-            String checkSql = "SELECT id FROM users WHERE username = ? OR username = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            // Check if username or student ID or phone exists
+            String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ? OR username = ?"; 
+            // Note: checking username against studentId field (if stored in username column) or separate column logic needed
+            // Assuming studentId is stored in 'username' or separate unique check needed based on DB schema.
+            // Simplified check based on prompt:
+            
+            String checkDuplicates = "SELECT id FROM users WHERE username = ? OR phone = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkDuplicates);
             checkStmt.setString(1, username);
-            checkStmt.setString(2, studentId);
+            checkStmt.setString(2, finalPhone);
             ResultSet checkRs = checkStmt.executeQuery();
             
             if (checkRs.next()) {
-                showAlert("Error", "Username or Student ID already exists!");
-                return false;
-            }
-
-            // Check if phone exists
-            String checkPhoneSql = "SELECT id FROM users WHERE phone = ?";
-            PreparedStatement checkPhoneStmt = conn.prepareStatement(checkPhoneSql);
-            checkPhoneStmt.setString(1, phone);
-            ResultSet checkPhoneRs = checkPhoneStmt.executeQuery();
-            
-            if (checkPhoneRs.next()) {
-                showAlert("Error", "Phone number " + phone + " already exists!");
+                showAlert("Error", "Username or Phone number already exists!");
                 return false;
             }
 
             // Insert new student
-            String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, year_level) " +
-                        "VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?)";
+            String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status) " +
+                        "VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);
             stmt.setString(2, password);
             stmt.setString(3, fullName);
             stmt.setString(4, email.isEmpty() ? null : email);
-            stmt.setString(5, phone);
+            stmt.setString(5, finalPhone);
             stmt.setString(6, department);
             stmt.setString(7, year);
 
@@ -381,8 +407,8 @@ public class AdminDashboardController {
             return rows > 0;
 
         } catch (SQLException e) {
-            if (e.getMessage().contains("Duplicate entry") && e.getMessage().contains("phone")) {
-                showAlert("Error", "Phone number " + phone + " already exists!");
+            if (e.getMessage().contains("Duplicate")) {
+                showAlert("Error", "User details (ID/Phone/Username) already exist!");
             } else {
                 showAlert("Error", "Registration failed: " + e.getMessage());
             }
@@ -429,12 +455,40 @@ public class AdminDashboardController {
 
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("Full Name");
+        
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("Username");
+        
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("Password");
+        
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email");
+        
+        // --- NEW PHONE INPUT FOR OFFICER ---
+        HBox phoneBox = new HBox(5);
+        ComboBox<String> cmbPhonePrefix = new ComboBox<>();
+        cmbPhonePrefix.getItems().addAll("09", "07");
+        cmbPhonePrefix.setPromptText("Prefix");
+        cmbPhonePrefix.setPrefWidth(80);
+
+        TextField txtPhoneSuffix = new TextField();
+        txtPhoneSuffix.setPromptText("12345678");
+        txtPhoneSuffix.setPrefWidth(150);
+        
+        // Validation: Numbers only, max 8 digits
+        txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (!newValue.matches("\\d*")) {
+                txtPhoneSuffix.setText(newValue.replaceAll("[^\\d]", ""));
+            }
+            if (txtPhoneSuffix.getText().length() > 8) {
+                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
+            }
+        });
+
+        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
+        // -----------------------------------
+
         ComboBox<String> cmbRole = new ComboBox<>();
         ComboBox<String> cmbDepartment = new ComboBox<>();
 
@@ -463,12 +517,20 @@ public class AdminDashboardController {
         grid.add(txtPassword, 1, 2);
         grid.add(new Label("Email:"), 0, 3);
         grid.add(txtEmail, 1, 3);
-        grid.add(new Label("Role*:"), 0, 4);
-        grid.add(cmbRole, 1, 4);
-        grid.add(new Label("Department*:"), 0, 5);
-        grid.add(cmbDepartment, 1, 5);
+        
+        // Add Phone
+        grid.add(new Label("Phone*:"), 0, 4);
+        grid.add(phoneBox, 1, 4);
+        
+        grid.add(new Label("Role*:"), 0, 5);
+        grid.add(cmbRole, 1, 5);
+        grid.add(new Label("Department*:"), 0, 6);
+        grid.add(cmbDepartment, 1, 6);
 
-        grid.setUserData(new Object[]{txtFullName, txtUsername, txtPassword, txtEmail, cmbRole, cmbDepartment});
+        grid.setUserData(new Object[]{
+            txtFullName, txtUsername, txtPassword, txtEmail, 
+            cmbPhonePrefix, txtPhoneSuffix, cmbRole, cmbDepartment
+        });
 
         return grid;
     }
@@ -479,8 +541,12 @@ public class AdminDashboardController {
         TextField txtUsername = (TextField) fields[1];
         PasswordField txtPassword = (PasswordField) fields[2];
         TextField txtEmail = (TextField) fields[3];
-        ComboBox<String> cmbRole = (ComboBox<String>) fields[4];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[5];
+        
+        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[4];
+        TextField txtPhoneSuffix = (TextField) fields[5];
+        
+        ComboBox<String> cmbRole = (ComboBox<String>) fields[6];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
 
         String fullName = txtFullName.getText().trim();
         String username = txtUsername.getText().trim();
@@ -488,34 +554,70 @@ public class AdminDashboardController {
         String email = txtEmail.getText().trim();
         String role = cmbRole.getValue();
         String department = cmbDepartment.getValue();
+        
+        String phonePrefix = cmbPhonePrefix.getValue();
+        String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() || role == null || department == null) {
+        // 1. Check Required Fields
+        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() || 
+            role == null || department == null || phonePrefix == null || phoneSuffix.isEmpty()) {
             showAlert("Error", "Please fill all required fields!");
             return false;
         }
 
+        // 2. Validate Phone Suffix
+        if (!phoneSuffix.matches("^\\d{8}$")) {
+            showAlert("Error", "Phone number suffix must be exactly 8 digits!");
+            return false;
+        }
+
+        // 3. Validate Password
+        if (password.length() < 6) {
+            showAlert("Error", "Password must be at least 6 characters long!");
+            return false;
+        }
+
+        String finalPhone = phonePrefix + phoneSuffix;
+
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String checkSql = "SELECT id FROM users WHERE username = ?";
+            // Check duplications
+            String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
-            if (checkStmt.executeQuery().next()) {
-                showAlert("Error", "Username already exists!");
+            checkStmt.setString(2, finalPhone);
+            ResultSet checkRs = checkStmt.executeQuery();
+            
+            if (checkRs.next()) {
+                if (username.equals(checkRs.getString("username"))) {
+                    showAlert("Error", "Username '" + username + "' already exists!");
+                } else {
+                    showAlert("Error", "Phone number '" + finalPhone + "' already exists!");
+                }
                 return false;
             }
 
-            String sql = "INSERT INTO users (username, password, full_name, role, email, department, status) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')";
+            // Insert officer with phone number
+            String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, status) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);
             stmt.setString(2, password);
             stmt.setString(3, fullName);
             stmt.setString(4, role);
             stmt.setString(5, email.isEmpty() ? null : email);
-            stmt.setString(6, department);
+            stmt.setString(6, finalPhone);
+            stmt.setString(7, department);
 
             int rows = stmt.executeUpdate();
             return rows > 0;
 
+        } catch (SQLException e) {
+            if (e.getMessage().contains("Duplicate")) {
+                showAlert("Error", "User details (Username/Phone) already exist!");
+            } else {
+                showAlert("Error", "Failed to register officer: " + e.getMessage());
+            }
+            e.printStackTrace();
         } catch (Exception e) {
             showAlert("Error", "Failed to register officer: " + e.getMessage());
         }

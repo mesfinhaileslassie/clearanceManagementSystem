@@ -3,10 +3,13 @@ package com.university.clearance.controller;
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.ApprovalDetail;
 import com.university.clearance.model.User;
+import com.university.clearance.service.PDFCertificateService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import java.awt.Desktop;
+import java.io.File;
 import java.sql.*;
 
 public class ClearanceStatusController {
@@ -125,7 +128,70 @@ public class ClearanceStatusController {
 
     @FXML
     private void printCertificate() {
-        lblMessage.setText("PDF Certificate Ready! Type: SEND PDF NOW!");
+        if (currentUser == null || currentRequestId == -1) {
+            lblMessage.setText("No completed clearance request available for certificate generation.");
+            lblMessage.setStyle("-fx-text-fill: red;");
+            return;
+        }
+
+        // Verify that the latest request is fully cleared before generating a certificate
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = "SELECT status FROM clearance_requests WHERE id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, currentRequestId);
+            ResultSet rs = ps.executeQuery();
+
+            if (!rs.next()) {
+                lblMessage.setText("Clearance request not found.");
+                lblMessage.setStyle("-fx-text-fill: red;");
+                return;
+            }
+
+            String status = rs.getString("status");
+            if (!"FULLY_CLEARED".equals(status)) {
+                lblMessage.setText("Certificate is available only when clearance is FULLY_CLEARED. Current status: " + status);
+                lblMessage.setStyle("-fx-text-fill: orange;");
+                return;
+            }
+        } catch (Exception e) {
+            lblMessage.setText("Error verifying clearance status: " + e.getMessage());
+            lblMessage.setStyle("-fx-text-fill: red;");
+            e.printStackTrace();
+            return;
+        }
+
+        try {
+            PDFCertificateService pdfService = new PDFCertificateService();
+            String filePath = pdfService.generatePDFCertificate(currentUser.getId(), currentRequestId);
+
+            if (filePath == null) {
+                lblMessage.setText("Failed to generate clearance certificate. Please try again.");
+                lblMessage.setStyle("-fx-text-fill: red;");
+                return;
+            }
+
+            File file = new File(filePath);
+            if (file.exists()) {
+                lblMessage.setText("Clearance certificate generated at: " + filePath);
+                lblMessage.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+
+                try {
+                    if (Desktop.isDesktopSupported()) {
+                        Desktop.getDesktop().open(file);
+                    }
+                } catch (Exception openEx) {
+                    // Opening the file is a convenience; failures here should not be fatal
+                    openEx.printStackTrace();
+                }
+            } else {
+                lblMessage.setText("Certificate was generated but the file could not be found.");
+                lblMessage.setStyle("-fx-text-fill: orange;");
+            }
+        } catch (Exception e) {
+            lblMessage.setText("Error generating certificate: " + e.getMessage());
+            lblMessage.setStyle("-fx-text-fill: red;");
+            e.printStackTrace();
+        }
     }
 
     private String formatRole(String role) {

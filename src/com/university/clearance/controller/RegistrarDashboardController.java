@@ -21,6 +21,7 @@ public class RegistrarDashboardController implements Initializable {
     @FXML private Label lblWelcome;
     @FXML private Label lblPendingCount;
     @FXML private Label lblStudentInfo;
+    @FXML private TabPane mainTabPane;
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -45,10 +46,26 @@ public class RegistrarDashboardController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         setupTableColumns();
         setupAcademicTableColumns();
+        
+        // Add row selection listener
+        tableRequests.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    loadStudentAcademicDetails(newSelection.getStudentId());
+                    lblStudentInfo.setText("Viewing academic records for: " + 
+                                          newSelection.getStudentName() + 
+                                          " (" + newSelection.getStudentId() + ")");
+                }
+            });
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
+        System.out.println("=== DEBUG: Setting current user for Registrar ===");
+        System.out.println("Username: " + user.getUsername());
+        System.out.println("Full Name: " + user.getFullName());
+        System.out.println("Role: " + user.getRole());
+        
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Registrar Office");
         loadPendingRequests();
     }
@@ -61,7 +78,7 @@ public class RegistrarDashboardController implements Initializable {
         colAcademicStatus.setCellValueFactory(new PropertyValueFactory<>("academicStatus"));
         colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         
-        // Actions column with Verify/Reject buttons
+        // Actions column with Verify/Hold buttons
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
             private final Button btnApprove = new Button("✅ Verify Clear");
             private final Button btnReject = new Button("❌ Hold Records");
@@ -98,11 +115,33 @@ public class RegistrarDashboardController implements Initializable {
                     setGraphic(null);
                 } else {
                     ClearanceRequest request = getTableView().getItems().get(getIndex());
-                    // Only show buttons if pending
-                    if ("Pending Verification".equals(request.getAcademicStatus())) {
+                    if (request != null) {
                         setGraphic(buttons);
                     } else {
                         setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        // Color code academic status
+        colAcademicStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (item.contains("✅")) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if (item.contains("⚠️")) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else if (item.contains("❌")) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
                     }
                 }
             }
@@ -125,12 +164,14 @@ public class RegistrarDashboardController implements Initializable {
                     setStyle("");
                 } else {
                     setText(item);
-                    if (item.equals("F") || item.equals("D")) {
+                    if (item.equals("F") || item.equals("D") || item.equals("D+") || item.equals("C-") || item.equals("C")) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                    } else if (item.equals("C")) {
+                    } else if (item.equals("C+") || item.equals("B-") || item.equals("B")) {
                         setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                    } else {
+                    } else if (item.equals("B+") || item.equals("A-") || item.equals("A")) {
                         setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
                     }
                 }
             }
@@ -139,14 +180,22 @@ public class RegistrarDashboardController implements Initializable {
 
     @FXML
     private void refreshRequests() {
+        System.out.println("=== DEBUG: Refreshing registrar requests ===");
         loadPendingRequests();
         showAlert("Refreshed", "Registrar clearance requests refreshed successfully!");
     }
 
     private void loadPendingRequests() {
+        System.out.println("\n=== DEBUG: Loading pending registrar requests ===");
         requestData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("✅ Database connection established");
+            
+            // DEBUG: Check database status
+            debugDatabaseStatus(conn);
+            
+            // Main query - FIXED: Added proper JOIN condition
             String sql = """
                 SELECT 
                     cr.id as request_id,
@@ -154,24 +203,35 @@ public class RegistrarDashboardController implements Initializable {
                     u.full_name as student_name,
                     u.department,
                     u.year_level,
-                    cr.request_date,
+                    DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date,
                     ca.status as approval_status
                 FROM clearance_requests cr
                 JOIN users u ON cr.student_id = u.id
-                JOIN clearance_approvals ca ON cr.id = ca.request_id 
-                WHERE ca.officer_role = 'REGISTRAR' 
-                AND (ca.status IS NULL OR ca.status = 'PENDING')  -- Only show pending/null status
-                AND cr.status IN ('PENDING', 'IN_PROGRESS')       -- Only show active requests
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
+                    AND ca.officer_role = 'REGISTRAR'
+                WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+                AND (ca.status IS NULL OR ca.status = 'PENDING')
                 ORDER BY cr.request_date ASC
                 """;
                 
+            System.out.println("SQL Query: " + sql);
+            
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
             int pendingCount = 0;
+            System.out.println("Query executed, processing results...");
             
             while (rs.next()) {
+                pendingCount++;
                 String studentId = rs.getString("student_id");
+                System.out.println("\nFound student #" + pendingCount + ": " + studentId);
+                System.out.println("Student Name: " + rs.getString("student_name"));
+                System.out.println("Department: " + rs.getString("department"));
+                System.out.println("Year Level: " + rs.getString("year_level"));
+                System.out.println("Request Date: " + rs.getString("request_date"));
+                System.out.println("Approval Status: " + rs.getString("approval_status"));
+                
                 String academicStatus = checkStudentAcademicStatus(conn, studentId);
                 
                 ClearanceRequest request = new ClearanceRequest(
@@ -179,26 +239,98 @@ public class RegistrarDashboardController implements Initializable {
                     rs.getString("student_name"),
                     rs.getString("department"),
                     rs.getString("year_level"),
-                    rs.getTimestamp("request_date").toString(),
+                    rs.getString("request_date"),
                     academicStatus,
                     rs.getInt("request_id")
                 );
                 
                 requestData.add(request);
-                pendingCount++;
             }
+            
+            System.out.println("\n=== DEBUG: Query Results Summary ===");
+            System.out.println("Total records found: " + pendingCount);
             
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Verifications: " + pendingCount);
             
+            if (pendingCount == 0) {
+                System.out.println("⚠️ WARNING: No registrar clearance requests found!");
+                showAlert("No Requests", "No pending registrar clearance requests found.");
+            }
+            
         } catch (Exception e) {
-            showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
+            System.err.println("❌ ERROR in loadPendingRequests:");
+            System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
         }
+    }
+    
+    private void debugDatabaseStatus(Connection conn) throws SQLException {
+        System.out.println("\n=== DEBUG: Database Status Check ===");
+        
+        // Check clearance_requests
+        System.out.println("\n1. Total PENDING/IN_PROGRESS clearance_requests:");
+        String checkRequestsSql = "SELECT COUNT(*) as count FROM clearance_requests WHERE status IN ('PENDING', 'IN_PROGRESS')";
+        PreparedStatement requestsStmt = conn.prepareStatement(checkRequestsSql);
+        ResultSet requestsRs = requestsStmt.executeQuery();
+        if (requestsRs.next()) {
+            System.out.println("   Count: " + requestsRs.getInt("count"));
+        }
+        
+        // Check clearance_approvals for REGISTRAR
+        System.out.println("\n2. clearance_approvals for REGISTRAR:");
+        String checkApprovalsSql = """
+            SELECT ca.request_id, ca.status, u.username as student_id
+            FROM clearance_approvals ca
+            LEFT JOIN clearance_requests cr ON ca.request_id = cr.id
+            LEFT JOIN users u ON cr.student_id = u.id
+            WHERE ca.officer_role = 'REGISTRAR'
+            """;
+        PreparedStatement approvalsStmt = conn.prepareStatement(checkApprovalsSql);
+        ResultSet approvalsRs = approvalsStmt.executeQuery();
+        int approvalCount = 0;
+        while (approvalsRs.next()) {
+            approvalCount++;
+            System.out.println("   Approval " + approvalCount + ": Request ID=" + approvalsRs.getInt("request_id") +
+                             ", Student=" + approvalsRs.getString("student_id") +
+                             ", Status=" + approvalsRs.getString("status"));
+        }
+        
+        // Check requests missing REGISTRAR approvals
+        System.out.println("\n3. Requests missing REGISTRAR approvals:");
+        String missingSql = """
+            SELECT cr.id, u.username, cr.status as request_status
+            FROM clearance_requests cr
+            JOIN users u ON cr.student_id = u.id
+            WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+            AND NOT EXISTS (
+                SELECT 1 FROM clearance_approvals ca 
+                WHERE ca.request_id = cr.id 
+                AND ca.officer_role = 'REGISTRAR'
+            )
+            """;
+        PreparedStatement missingStmt = conn.prepareStatement(missingSql);
+        ResultSet missingRs = missingStmt.executeQuery();
+        int missingCount = 0;
+        while (missingRs.next()) {
+            missingCount++;
+            System.out.println("   Missing approval " + missingCount + ": Request ID=" + missingRs.getInt("id") +
+                             ", Student=" + missingRs.getString("username") +
+                             ", Status=" + missingRs.getString("request_status"));
+        }
+        
+        System.out.println("\n=== DEBUG SUMMARY ===");
+        System.out.println("Total REGISTRAR approvals: " + approvalCount);
+        System.out.println("Requests missing REGISTRAR approvals: " + missingCount);
     }
 
     private String checkStudentAcademicStatus(Connection conn, String studentId) throws SQLException {
-        // Check if student has any academic holds
+        System.out.println("DEBUG: Checking academic status for student: " + studentId);
+        
+        createAcademicRecordsIfNeeded(conn, studentId);
+        
+        // Check student_academic_records
         String academicSql = """
             SELECT 
                 COALESCE(academic_hold, 'NONE') as hold_status,
@@ -220,54 +352,181 @@ public class RegistrarDashboardController implements Initializable {
             int incompletes = rs.getInt("incompletes");
             double gpa = rs.getDouble("gpa");
             
+            System.out.println("  Academic status - Hold: " + holdStatus + 
+                             ", Fees: $" + fees + 
+                             ", Incompletes: " + incompletes +
+                             ", GPA: " + gpa);
+            
             if (!"NONE".equals(holdStatus)) {
                 return "❌ Academic Hold: " + holdStatus;
             } else if (fees > 0) {
-                return "❌ Outstanding Fees: $" + fees;
+                return "❌ Outstanding Fees: $" + String.format("%.2f", fees);
             } else if (incompletes > 0) {
                 return "❌ " + incompletes + " Incomplete Course(s)";
             } else if (gpa < 2.0) {
-                return "⚠️ Low GPA: " + gpa;
+                return "⚠️ Low GPA: " + String.format("%.2f", gpa);
             } else {
-                return "✅ Academically Clear";
+                return "✅ Academically Clear (GPA: " + String.format("%.2f", gpa) + ")";
             }
         }
         
-        return "Pending Verification";
+        return "Pending Academic Verification";
+    }
+
+    private void createAcademicRecordsIfNeeded(Connection conn, String studentId) throws SQLException {
+        System.out.println("DEBUG: Checking/creating academic records for: " + studentId);
+        
+        try {
+            String checkTableSql = "SELECT 1 FROM student_academic_records LIMIT 1";
+            PreparedStatement checkStmt = conn.prepareStatement(checkTableSql);
+            checkStmt.executeQuery();
+            System.out.println("  student_academic_records table exists");
+        } catch (SQLException e) {
+            System.out.println("  student_academic_records table doesn't exist, creating...");
+            String createTableSql = """
+                CREATE TABLE IF NOT EXISTS student_academic_records (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    student_id INT UNIQUE,
+                    academic_hold VARCHAR(100) DEFAULT 'NONE',
+                    outstanding_fees DECIMAL(10,2) DEFAULT 0.00,
+                    incomplete_courses INT DEFAULT 0,
+                    gpa DECIMAL(3,2) DEFAULT 0.00,
+                    FOREIGN KEY (student_id) REFERENCES users(id)
+                )
+                """;
+            PreparedStatement createStmt = conn.prepareStatement(createTableSql);
+            createStmt.executeUpdate();
+            System.out.println("  Created student_academic_records table");
+        }
+        
+        // Check if student has academic records
+        String checkRecordsSql = """
+            SELECT COUNT(*) FROM student_academic_records sar 
+            JOIN users u ON sar.student_id = u.id 
+            WHERE u.username = ?
+            """;
+        PreparedStatement checkRecordsStmt = conn.prepareStatement(checkRecordsSql);
+        checkRecordsStmt.setString(1, studentId);
+        ResultSet rs = checkRecordsStmt.executeQuery();
+        rs.next();
+        int existingCount = rs.getInt(1);
+        
+        System.out.println("  Existing academic records: " + existingCount);
+        
+        if (existingCount == 0) {
+            System.out.println("  No academic records found, creating sample records...");
+            
+            // Get student info
+            String studentSql = "SELECT id FROM users WHERE username = ?";
+            PreparedStatement studentStmt = conn.prepareStatement(studentSql);
+            studentStmt.setString(1, studentId);
+            ResultSet studentRs = studentStmt.executeQuery();
+            
+            if (studentRs.next()) {
+                int userId = studentRs.getInt("id");
+                
+                // Randomly assign academic status (70% clear, 20% warning, 10% hold)
+                double random = Math.random();
+                
+                if (random < 0.7) { // 70% clear
+                    double gpa = 2.5 + (Math.random() * 1.5); // GPA between 2.5-4.0
+                    String insertSql = """
+                        INSERT INTO student_academic_records (student_id, academic_hold, outstanding_fees, incomplete_courses, gpa)
+                        VALUES (?, 'NONE', 0.00, 0, ?)
+                        """;
+                    PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+                    insertStmt.setInt(1, userId);
+                    insertStmt.setDouble(2, gpa);
+                    insertStmt.executeUpdate();
+                    System.out.println("  Created clear academic record (GPA: " + String.format("%.2f", gpa) + ")");
+                } 
+                else if (random < 0.9) { // 20% warning (low GPA or minor issues)
+                    double gpa = 1.5 + (Math.random() * 1.0); // GPA between 1.5-2.5
+                    String insertSql = """
+                        INSERT INTO student_academic_records (student_id, academic_hold, outstanding_fees, incomplete_courses, gpa)
+                        VALUES (?, 'NONE', 0.00, 0, ?)
+                        """;
+                    PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+                    insertStmt.setInt(1, userId);
+                    insertStmt.setDouble(2, gpa);
+                    insertStmt.executeUpdate();
+                    System.out.println("  Created warning academic record (Low GPA: " + String.format("%.2f", gpa) + ")");
+                } 
+                else { // 10% hold
+                    String[] holds = {"LIBRARY_FINES", "OUTSTANDING_FEES", "INCOMPLETE_COURSES", "ACADEMIC_PROBATION"};
+                    String hold = holds[(int)(Math.random() * holds.length)];
+                    double fees = random < 0.95 ? 0.00 : 500 + (Math.random() * 1000);
+                    int incompletes = random < 0.85 ? 0 : (int)(Math.random() * 3) + 1;
+                    double gpa = 1.0 + (Math.random() * 2.0);
+                    
+                    String insertSql = """
+                        INSERT INTO student_academic_records (student_id, academic_hold, outstanding_fees, incomplete_courses, gpa)
+                        VALUES (?, ?, ?, ?, ?)
+                        """;
+                    PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+                    insertStmt.setInt(1, userId);
+                    insertStmt.setString(2, hold);
+                    insertStmt.setDouble(3, fees);
+                    insertStmt.setInt(4, incompletes);
+                    insertStmt.setDouble(5, gpa);
+                    insertStmt.executeUpdate();
+                    System.out.println("  Created hold academic record (Hold: " + hold + ", Fees: $" + fees + 
+                                     ", Incompletes: " + incompletes + ", GPA: " + String.format("%.2f", gpa) + ")");
+                }
+            }
+        }
     }
 
     private void viewStudentRecords(ClearanceRequest request) {
+        System.out.println("\n=== DEBUG: Viewing academic records for: " + request.getStudentId());
         loadStudentAcademicDetails(request.getStudentId());
-        lblStudentInfo.setText("Academic Records for: " + request.getStudentName() + 
-                              " (" + request.getStudentId() + ") - " + request.getDepartment());
+        
+        if (lblStudentInfo != null) {
+            lblStudentInfo.setText("Academic Records for: " + request.getStudentName() + 
+                                 " (" + request.getStudentId() + ") - " + request.getDepartment());
+        }
+        
+        // Switch to Academic Records tab
+        for (Tab tab : mainTabPane.getTabs()) {
+            if ("Academic Records".equals(tab.getText())) {
+                mainTabPane.getSelectionModel().select(tab);
+                System.out.println("Switched to Academic Records tab");
+                break;
+            }
+        }
     }
 
     private void loadStudentAcademicDetails(String studentId) {
+        System.out.println("DEBUG: Loading academic details for student: " + studentId);
         academicData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // First, check if academic records table exists, if not create sample data
-            createSampleAcademicDataIfNeeded(conn, studentId);
+            // First, ensure student_courses table exists and has data
+            createStudentCoursesIfNeeded(conn, studentId);
             
             String sql = """
                 SELECT 
-                    course_code,
-                    course_name,
-                    grade,
-                    credits,
-                    semester,
-                    academic_year
+                    sc.course_code,
+                    sc.course_name,
+                    sc.grade,
+                    sc.credits,
+                    sc.semester,
+                    sc.academic_year
                 FROM student_courses sc
                 JOIN users u ON sc.student_id = u.id
                 WHERE u.username = ?
-                ORDER BY academic_year DESC, semester DESC
+                ORDER BY sc.academic_year DESC, sc.semester DESC, sc.course_code ASC
                 """;
                 
+            System.out.println("DEBUG: Load academic details SQL: " + sql);
+            
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, studentId);
             ResultSet rs = ps.executeQuery();
             
+            int count = 0;
             while (rs.next()) {
+                count++;
                 AcademicRecord record = new AcademicRecord(
                     rs.getString("course_code") + " - " + rs.getString("course_name"),
                     rs.getString("grade"),
@@ -278,21 +537,25 @@ public class RegistrarDashboardController implements Initializable {
             }
             
             tableAcademicRecords.setItems(academicData);
+            System.out.println("Loaded " + count + " academic records");
             
         } catch (Exception e) {
+            System.err.println("❌ ERROR loading academic details: " + e.getMessage());
             e.printStackTrace();
             showAlert("Error", "Failed to load academic records: " + e.getMessage());
         }
     }
-
-    private void createSampleAcademicDataIfNeeded(Connection conn, String studentId) throws SQLException {
-        // Check if student_courses table exists
+    
+    private void createStudentCoursesIfNeeded(Connection conn, String studentId) throws SQLException {
+        System.out.println("DEBUG: Checking student courses for: " + studentId);
+        
         try {
             String checkTableSql = "SELECT 1 FROM student_courses LIMIT 1";
             PreparedStatement checkStmt = conn.prepareStatement(checkTableSql);
             checkStmt.executeQuery();
+            System.out.println("  student_courses table exists");
         } catch (SQLException e) {
-            // Table doesn't exist, create it
+            System.out.println("  student_courses table doesn't exist, creating...");
             String createTableSql = """
                 CREATE TABLE IF NOT EXISTS student_courses (
                     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -308,9 +571,10 @@ public class RegistrarDashboardController implements Initializable {
                 """;
             PreparedStatement createStmt = conn.prepareStatement(createTableSql);
             createStmt.executeUpdate();
+            System.out.println("  Created student_courses table");
         }
         
-        // Check if student has records, if not insert sample data
+        // Check if student has courses
         String checkRecordsSql = """
             SELECT COUNT(*) FROM student_courses sc 
             JOIN users u ON sc.student_id = u.id 
@@ -320,92 +584,155 @@ public class RegistrarDashboardController implements Initializable {
         checkRecordsStmt.setString(1, studentId);
         ResultSet rs = checkRecordsStmt.executeQuery();
         rs.next();
+        int existingCount = rs.getInt(1);
         
-        if (rs.getInt(1) == 0) {
-            // Insert sample academic records
-            String insertSql = """
-                INSERT INTO student_courses (student_id, course_code, course_name, grade, credits, semester, academic_year)
-                SELECT id, ?, ?, ?, ?, ?, ? FROM users WHERE username = ?
-                """;
+        System.out.println("  Existing course records: " + existingCount);
+        
+        if (existingCount == 0) {
+            System.out.println("  No courses found, creating sample course data...");
             
-            String[][] sampleCourses = {
-                {"CS101", "Introduction to Programming", "A", "3", "Fall", "2023"},
-                {"MATH201", "Calculus I", "B+", "4", "Fall", "2023"},
-                {"PHY101", "General Physics", "A-", "3", "Fall", "2023"},
-                {"CS201", "Data Structures", "B", "3", "Spring", "2024"},
-                {"MATH202", "Calculus II", "C+", "4", "Spring", "2024"},
-                {"ENG101", "English Composition", "A", "3", "Spring", "2024"}
-            };
+            // Get student info
+            String studentSql = "SELECT id, department FROM users WHERE username = ?";
+            PreparedStatement studentStmt = conn.prepareStatement(studentSql);
+            studentStmt.setString(1, studentId);
+            ResultSet studentRs = studentStmt.executeQuery();
             
-            PreparedStatement insertStmt = conn.prepareStatement(insertSql);
-            for (String[] course : sampleCourses) {
-                insertStmt.setString(1, course[0]);
-                insertStmt.setString(2, course[1]);
-                insertStmt.setString(3, course[2]);
-                insertStmt.setInt(4, Integer.parseInt(course[3]));
-                insertStmt.setString(5, course[4]);
-                insertStmt.setString(6, course[5]);
-                insertStmt.setString(7, studentId);
-                insertStmt.addBatch();
+            if (studentRs.next()) {
+                int userId = studentRs.getInt("id");
+                String department = studentRs.getString("department");
+                
+                // Create sample courses based on department
+                String[][] courses = getDepartmentCourses(department);
+                
+                String insertSql = """
+                    INSERT INTO student_courses (student_id, course_code, course_name, grade, credits, semester, academic_year)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """;
+                
+                PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+                for (String[] course : courses) {
+                    insertStmt.setInt(1, userId);
+                    insertStmt.setString(2, course[0]);
+                    insertStmt.setString(3, course[1]);
+                    insertStmt.setString(4, course[2]);
+                    insertStmt.setInt(5, Integer.parseInt(course[3]));
+                    insertStmt.setString(6, course[4]);
+                    insertStmt.setString(7, course[5]);
+                    insertStmt.addBatch();
+                }
+                int[] results = insertStmt.executeBatch();
+                System.out.println("  Created " + results.length + " course records");
             }
-            insertStmt.executeBatch();
+        }
+    }
+    
+    private String[][] getDepartmentCourses(String department) {
+        System.out.println("  Getting courses for department: " + department);
+        
+        // Define sample courses based on department
+        switch (department) {
+            case "Software Engineering":
+            case "Computer Science":
+                return new String[][]{
+                    {"CS101", "Introduction to Programming", "A", "3", "Fall", "2023"},
+                    {"MATH201", "Calculus I", "B+", "4", "Fall", "2023"},
+                    {"PHY101", "General Physics", "A-", "3", "Fall", "2023"},
+                    {"CS201", "Data Structures", "B", "3", "Spring", "2024"},
+                    {"MATH202", "Calculus II", "C+", "4", "Spring", "2024"},
+                    {"CS301", "Algorithms", "A", "3", "Fall", "2024"},
+                    {"CS302", "Database Systems", "B+", "3", "Fall", "2024"},
+                    {"ENG101", "English Composition", "A", "3", "Spring", "2024"}
+                };
+            case "Electrical Engineering":
+                return new String[][]{
+                    {"EE101", "Circuit Analysis", "B", "3", "Fall", "2023"},
+                    {"MATH201", "Calculus I", "A-", "4", "Fall", "2023"},
+                    {"PHY101", "General Physics", "B+", "3", "Fall", "2023"},
+                    {"EE201", "Digital Systems", "A", "3", "Spring", "2024"},
+                    {"MATH202", "Calculus II", "B", "4", "Spring", "2024"},
+                    {"EE301", "Electronics", "B+", "3", "Fall", "2024"},
+                    {"EE302", "Power Systems", "A-", "3", "Fall", "2024"}
+                };
+            default:
+                return new String[][]{
+                    {"GEN101", "General Education", "B", "3", "Fall", "2023"},
+                    {"MATH101", "College Mathematics", "C+", "3", "Fall", "2023"},
+                    {"ENG101", "English Composition", "A", "3", "Fall", "2023"},
+                    {"HIS101", "History", "B-", "3", "Spring", "2024"},
+                    {"SCI101", "General Science", "B", "3", "Spring", "2024"}
+                };
         }
     }
 
     private void approveClearance(ClearanceRequest request) {
+        System.out.println("\n=== DEBUG: Approving academic clearance for: " + request.getStudentId());
+        
+        // Check if student has academic issues
+        if (request.getAcademicStatus().contains("❌") || request.getAcademicStatus().contains("⚠️")) {
+            Alert warning = new Alert(Alert.AlertType.WARNING);
+            warning.setTitle("Academic Clearance Issue");
+            warning.setHeaderText("Student Has Academic Issues");
+            warning.setContentText("This student has academic issues:\n\n" + 
+                                 request.getAcademicStatus() + 
+                                 "\n\nAre you sure you want to approve anyway?");
+            
+            warning.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            
+            Optional<ButtonType> result = warning.showAndWait();
+            if (result.isPresent() && result.get() != ButtonType.YES) {
+                System.out.println("Approval cancelled due to academic issues");
+                return;
+            }
+        }
+
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Approve Academic Clearance");
         confirmation.setHeaderText("Verify Student Academic Clearance");
         confirmation.setContentText("Approve academic clearance for: " + request.getStudentName() + 
                                   "\nStudent ID: " + request.getStudentId() +
+                                  "\nDepartment: " + request.getDepartment() +
+                                  "\nYear Level: " + request.getYearLevel() +
                                   "\n\nThis confirms the student has no academic holds or outstanding issues.");
         
         confirmation.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
+                System.out.println("User confirmed academic clearance approval");
                 updateClearanceStatus(request.getRequestId(), "APPROVED", 
-                                    "Academic records verified - No holds or outstanding issues.");
+                                    "Academic clearance approved. No holds or outstanding issues.");
                 loadPendingRequests();
                 showAlert("Approved", "Academic clearance approved for " + request.getStudentName());
+            } else {
+                System.out.println("User cancelled approval");
             }
         });
     }
 
     private void rejectClearance(ClearanceRequest request) {
+        System.out.println("\n=== DEBUG: Rejecting academic clearance for: " + request.getStudentId());
+        
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Reject Academic Clearance");
         dialog.setHeaderText("Place Academic Hold");
-        dialog.setContentText("Enter reason for academic hold for " + request.getStudentName() + ":");
+        dialog.setContentText("Enter reason for placing academic hold on " + request.getStudentName() + ":");
 
         Optional<String> result = dialog.showAndWait();
         if (result.isPresent() && !result.get().trim().isEmpty()) {
+            System.out.println("Rejection reason: " + result.get());
             updateClearanceStatus(request.getRequestId(), "REJECTED", 
-                                "Academic hold: " + result.get().trim());
+                                "Academic hold placed: " + result.get().trim());
             
             // Also update academic records with hold
             placeAcademicHold(request.getStudentId(), result.get().trim());
             
             loadPendingRequests();
             showAlert("Rejected", "Academic clearance rejected for " + request.getStudentName());
+        } else {
+            System.out.println("Rejection cancelled");
         }
     }
 
     private void placeAcademicHold(String studentId, String reason) {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Create academic records table if not exists
-            String createTableSql = """
-                CREATE TABLE IF NOT EXISTS student_academic_records (
-                    id INT PRIMARY KEY AUTO_INCREMENT,
-                    student_id INT UNIQUE,
-                    academic_hold VARCHAR(100),
-                    outstanding_fees DECIMAL(10,2),
-                    incomplete_courses INT,
-                    gpa DECIMAL(3,2),
-                    FOREIGN KEY (student_id) REFERENCES users(id)
-                )
-                """;
-            PreparedStatement createStmt = conn.prepareStatement(createTableSql);
-            createStmt.executeUpdate();
-            
             // Insert or update academic hold
             String sql = """
                 INSERT INTO student_academic_records (student_id, academic_hold, outstanding_fees, incomplete_courses, gpa)
@@ -418,40 +745,80 @@ public class RegistrarDashboardController implements Initializable {
             ps.setString(3, reason);
             ps.executeUpdate();
             
+            System.out.println("Academic hold placed for " + studentId + ": " + reason);
+            
         } catch (Exception e) {
+            System.err.println("Error placing academic hold: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     private void updateClearanceStatus(int requestId, String status, String remarks) {
+        System.out.println("\n=== DEBUG: Updating academic clearance status ===");
+        System.out.println("Request ID: " + requestId);
+        System.out.println("Status: " + status);
+        System.out.println("Remarks: " + remarks);
+        System.out.println("Current User ID: " + currentUser.getId());
+        
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                UPDATE clearance_approvals 
-                SET status = ?, remarks = ?, officer_id = ?, approval_date = NOW()
-                WHERE request_id = ? AND officer_role = 'REGISTRAR'
-                """;
-                
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, status);
-            ps.setString(2, remarks);
-            ps.setInt(3, currentUser.getId());
-            ps.setInt(4, requestId);
+            // Check if approval record exists
+            String checkSql = "SELECT COUNT(*) FROM clearance_approvals WHERE request_id = ? AND officer_role = 'REGISTRAR'";
+            PreparedStatement checkPs = conn.prepareStatement(checkSql);
+            checkPs.setInt(1, requestId);
+            ResultSet rs = checkPs.executeQuery();
+            rs.next();
+            int count = rs.getInt(1);
+            System.out.println("Existing approval records: " + count);
             
-            ps.executeUpdate();
+            if (count > 0) {
+                // Update existing record
+                String updateSql = """
+                    UPDATE clearance_approvals 
+                    SET status = ?, remarks = ?, officer_id = ?, approval_date = NOW()
+                    WHERE request_id = ? AND officer_role = 'REGISTRAR'
+                    """;
+                PreparedStatement ps = conn.prepareStatement(updateSql);
+                ps.setString(1, status);
+                ps.setString(2, remarks);
+                ps.setInt(3, currentUser.getId());
+                ps.setInt(4, requestId);
+                int updated = ps.executeUpdate();
+                System.out.println("Updated " + updated + " record(s)");
+            } else {
+                // Insert new record
+                String insertSql = """
+                    INSERT INTO clearance_approvals (request_id, officer_role, officer_id, status, remarks, approval_date)
+                    VALUES (?, 'REGISTRAR', ?, ?, ?, NOW())
+                    """;
+                PreparedStatement ps = conn.prepareStatement(insertSql);
+                ps.setInt(1, requestId);
+                ps.setInt(2, currentUser.getId());
+                ps.setString(3, status);
+                ps.setString(4, remarks);
+                int inserted = ps.executeUpdate();
+                System.out.println("Inserted " + inserted + " record(s)");
+            }
+            
+            System.out.println("Academic clearance status updated successfully");
             
         } catch (Exception e) {
-            showAlert("Error", "Failed to update clearance status: " + e.getMessage());
+            System.err.println("❌ ERROR updating clearance status: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to update clearance status: " + e.getMessage());
         }
     }
 
     @FXML
     private void generateAcademicReport() {
+        System.out.println("\n=== DEBUG: Generating academic report ===");
         ClearanceRequest selected = tableRequests.getSelectionModel().getSelectedItem();
         if (selected == null) {
+            System.out.println("No student selected");
             showAlert("Selection Required", "Please select a student first to generate academic report.");
             return;
         }
+        
+        System.out.println("Generating report for: " + selected.getStudentId());
         
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
@@ -472,9 +839,13 @@ public class RegistrarDashboardController implements Initializable {
                         WHEN sc.grade = 'D+' THEN 1.3
                         WHEN sc.grade = 'D' THEN 1.0
                         ELSE 0.0
-                    END) as gpa
+                    END) as gpa,
+                    COALESCE(sar.academic_hold, 'NONE') as hold_status,
+                    COALESCE(sar.outstanding_fees, 0) as outstanding_fees,
+                    COALESCE(sar.incomplete_courses, 0) as incomplete_courses
                 FROM users u
                 LEFT JOIN student_courses sc ON u.id = sc.student_id
+                LEFT JOIN student_academic_records sar ON u.id = sar.student_id
                 WHERE u.username = ?
                 GROUP BY u.id
                 """;
@@ -484,18 +855,25 @@ public class RegistrarDashboardController implements Initializable {
             ResultSet rs = ps.executeQuery();
             
             if (rs.next()) {
-                String report = "📊 ACADEMIC REPORT\n\n" +
+                String report = "🎓 ACADEMIC REPORT\n\n" +
                               "Student: " + rs.getString("full_name") + "\n" +
                               "Department: " + rs.getString("department") + "\n" +
                               "Year Level: " + rs.getString("year_level") + "\n" +
                               "Total Courses: " + rs.getInt("total_courses") + "\n" +
-                              "GPA: " + String.format("%.2f", rs.getDouble("gpa")) + "\n\n" +
-                              "Generated by: " + currentUser.getFullName();
+                              "GPA: " + String.format("%.2f", rs.getDouble("gpa")) + "\n" +
+                              "Academic Hold: " + rs.getString("hold_status") + "\n" +
+                              "Outstanding Fees: $" + String.format("%.2f", rs.getDouble("outstanding_fees")) + "\n" +
+                              "Incomplete Courses: " + rs.getInt("incomplete_courses") + "\n\n" +
+                              "Generated by: " + currentUser.getFullName() + 
+                              " (Registrar Office)";
                 
+                System.out.println("Report generated successfully");
                 showAlert("Academic Report", report);
             }
             
         } catch (Exception e) {
+            System.err.println("❌ ERROR generating report: " + e.getMessage());
+            e.printStackTrace();
             showAlert("Error", "Failed to generate academic report: " + e.getMessage());
         }
     }

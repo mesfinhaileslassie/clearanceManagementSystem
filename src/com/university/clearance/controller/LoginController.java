@@ -100,7 +100,10 @@ public class LoginController {
             controller.setCurrentUser(currentUser);
             
             Stage stage = (Stage) loginbtn.getScene().getWindow();
-            stage.setScene(new Scene(root, 1200, 800));
+            double width = stage.getWidth();
+            double height = stage.getHeight();
+            Scene scene = new Scene(root, width, height);
+            stage.setScene(scene);
             stage.setTitle("Admin Dashboard - University Clearance System");
             stage.centerOnScreen();
             stage.show();
@@ -123,7 +126,10 @@ public class LoginController {
             dashboardCtrl.initUser(currentUser);
 
             Stage stage = (Stage) loginbtn.getScene().getWindow();
-            stage.setScene(new Scene(root, 1000, 700));
+            double width = stage.getWidth();
+            double height = stage.getHeight();
+            Scene scene = new Scene(root, width, height);
+            stage.setScene(scene);
             stage.setTitle("University Clearance System - " + currentUser.getFullName());
             stage.centerOnScreen();
             stage.show();

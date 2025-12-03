@@ -21,7 +21,9 @@ public class LibrarianDashboardController implements Initializable {
     @FXML private Label lblWelcome;
     @FXML private Label lblPendingCount;
     @FXML private Label lblBookStatus;
-    @FXML private TabPane mainTabPane;  // Add this missing reference
+    @FXML private TabPane mainTabPane; 
+    
+    // REMOVED: Non-functional dashboard links and redundant labels
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -38,9 +40,6 @@ public class LibrarianDashboardController implements Initializable {
     @FXML private TableColumn<BookBorrowing, String> colStatus;
     @FXML private TableColumn<BookBorrowing, String> colFine;
 
-    
-    @FXML private Label lblPendingCountCard; 
-    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<BookBorrowing> bookData = FXCollections.observableArrayList();
@@ -55,14 +54,21 @@ public class LibrarianDashboardController implements Initializable {
             (obs, oldSelection, newSelection) -> {
                 if (newSelection != null) {
                     loadStudentBookDetails(newSelection.getStudentId());
+                    // Auto-switch to Book Details tab
+                    for (Tab tab : mainTabPane.getTabs()) {
+                        if ("Book Details".equals(tab.getText())) {
+                            mainTabPane.getSelectionModel().select(tab);
+                            break;
+                        }
+                    }
                 }
             });
     }
-
     public void setCurrentUser(User user) {
         this.currentUser = user;
         if (lblWelcome != null) {
-            lblWelcome.setText("Welcome, " + user.getFullName() + " - Library Clearance");
+            // SIMPLIFIED: Removed redundant "Library Clearance" text
+            lblWelcome.setText("Welcome, " + user.getFullName());
         }
         loadPendingRequests();
     }
@@ -204,16 +210,12 @@ public class LibrarianDashboardController implements Initializable {
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Clearances: " + pendingCount);
             
-            // Also update the dashboard card
-            if (lblPendingCountCard != null) {
-                lblPendingCountCard.setText(String.valueOf(pendingCount));
-            }
-            
         } catch (Exception e) {
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
             e.printStackTrace();
         }
     }
+    
     private void createRequiredTables(Connection conn) throws SQLException {
         // Create book_borrowings table if it doesn't exist
         String createBookTable = """
@@ -528,15 +530,16 @@ public class LibrarianDashboardController implements Initializable {
             e.printStackTrace();
         }
     }
+    
     private void updateOverallRequestStatus(Connection conn, int requestId) throws SQLException {
-    	String checkSql = """
-    	        SELECT 
-    	            SUM(CASE WHEN status = 'PENDING' OR status IS NULL THEN 1 ELSE 0 END) as pending_count,
-    	            SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count
-    	        FROM clearance_approvals 
-    	        WHERE request_id = ?
-    	        AND officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')  -- ADDED
-    	        """;
+        String checkSql = """
+            SELECT 
+                SUM(CASE WHEN status = 'PENDING' OR status IS NULL THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count
+            FROM clearance_approvals 
+            WHERE request_id = ?
+            AND officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
+            """;
         
         PreparedStatement checkPs = conn.prepareStatement(checkSql);
         checkPs.setInt(1, requestId);
@@ -562,16 +565,7 @@ public class LibrarianDashboardController implements Initializable {
         ps.executeUpdate();
     }
 
-    @FXML
-    private void viewBookDetails() {
-        ClearanceRequest selected = tableRequests.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showAlert("Selection Required", "Please select a student first to view book details.");
-            return;
-        }
-        
-        loadStudentBookDetails(selected.getStudentId());
-    }
+
 
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);

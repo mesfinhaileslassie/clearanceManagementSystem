@@ -35,45 +35,45 @@
     <left>
         <VBox spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;" minWidth="220">
             <children>
-                <!-- User Management Section -->
                 <Label text="USER MANAGEMENT" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                
                 <Button onAction="#openRegisterStudent" text="Register Student" 
-                        style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#openManageOfficers" text="Manage Officers" 
                         style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#resetUserPassword" text="Reset Password" 
-                        style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#toggleUserStatus" text="Toggle Status" 
-                        style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
-                <!-- System Configuration Section -->
                 <Label text="SYSTEM CONFIGURATION" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                
                 <Button onAction="#openWorkflowManagement" text="Approval Workflow" 
-                        style="-fx-background-color: #34495e; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#openSessionManagement" text="Academic Sessions" 
-                        style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#processSemesterRollover" text="Semester Rollover" 
-                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
-                <!-- Certificate Management Section -->
                 <Label text="CERTIFICATES" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                
                 <Button onAction="#generateClearanceCertificates" text="Generate Certificates" 
-                        style="-fx-background-color: #16a085; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#openCertificateVerification" text="Verify Certificate" 
-                        style="-fx-background-color: #d35400; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 <Button onAction="#verifyCertificate" text="Verify (New)" 
-                        style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
-                <!-- Quick Actions -->
                 <Label text="QUICK ACTIONS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                
                 <Button onAction="#handleRefresh" text="Refresh All" 
-                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200;" />
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" />
             </children>
         </VBox>
     </left>
@@ -81,13 +81,11 @@
     <center>
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" style="-fx-padding: 10;">
             
-            <!-- Dashboard Home Tab -->
             <Tab text="Dashboard">
                 <ScrollPane fitToWidth="true">
                     <VBox spacing="20" style="-fx-padding: 20;">
                         <Label text="Admin Dashboard Overview" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
                         
-                        <!-- Statistics Cards -->
                         <HBox spacing="20">
                             <VBox style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
                                 <Label text="Total Requests" style="-fx-text-fill: white; -fx-font-size: 16px;" />
@@ -105,7 +103,6 @@
                             </VBox>
                         </HBox>
                         
-                        <!-- Quick Actions Panel -->
                         <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-background-radius: 10;">
                             <Label text="Quick Actions" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
                             <TextFlow>
@@ -117,14 +114,12 @@
                 </ScrollPane>
             </Tab>
             
-            <!-- Clearance Requests Tab -->
             <Tab text="Clearance Requests">
                 <VBox spacing="15">
                     <padding>
                         <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
                     </padding>
                     
-                    <!-- Search and Filter -->
                     <HBox spacing="10" alignment="CENTER_LEFT">
                         <Label text="Search:" style="-fx-font-weight: bold;"/>
                         <TextField fx:id="txtSearch" promptText="Search by student ID or name" prefWidth="300"/>
@@ -132,7 +127,6 @@
                                 style="-fx-background-color: #3498db; -fx-text-fill: white;"/>
                     </HBox>
                     
-                    <!-- Clearance Requests Table -->
                     <TableView fx:id="tableRequests" prefHeight="500">
                         <columns>
                             <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="120"/>
@@ -146,19 +140,16 @@
                 </VBox>
             </Tab>
             
-            <!-- User Management Tab -->
             <Tab text="User Management">
                 <VBox spacing="15">
                     <padding>
                         <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
                     </padding>
                     
-                    <!-- User Actions -->
                     <HBox spacing="10" alignment="CENTER_LEFT">
                         <Label text="Manage Users:" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
                     </HBox>
                     
-                    <!-- User Table -->
                     <TableView fx:id="tableUsers" prefHeight="500">
                         <columns>
                             <TableColumn fx:id="colUserId" text="Username" prefWidth="120"/>
@@ -171,7 +162,6 @@
                 </VBox>
             </Tab>
             
-            <!-- Reports Tab -->
             <Tab text="Reports">
                 <ScrollPane fitToWidth="true">
                     <VBox spacing="20" style="-fx-padding: 20;">

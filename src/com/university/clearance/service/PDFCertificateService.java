@@ -28,8 +28,9 @@ public class PDFCertificateService {
     // Increased margin for a cleaner, more spacious look
     private static final float MARGIN = 60; 
     private static final float LINE_HEIGHT = 16;
-    // B/W Logo Placeholder (White background, Black text)
-    private static final String LOGO_URL = "https://placehold.co/60x60/FFFFFF/000000.png?text=DBU";
+    // FIX: Switched to a more robust placeholder service known for direct PNG output 
+    // to solve server-side loading issues. (60x60 B/W placeholder)
+    private static final String LOGO_URL = "https://via.placeholder.com/60/FFFFFF/000000?text=DBU";
     
     // Black and White Color Scheme
     private static final float[] BLACK = {0.0f, 0.0f, 0.0f};
@@ -117,10 +118,10 @@ public class PDFCertificateService {
      */
     private PDImageXObject loadImageFromUrl(PDDocument document, String url) {
         try (java.io.InputStream in = new URL(url).openStream()) {
-            System.out.println("Attempting to load B/W logo from URL...");
+            System.out.println("Attempting to load B/W logo from URL: " + url);
             return PDImageXObject.createFromByteArray(document, in.readAllBytes(), "Logo");
         } catch (IOException e) {
-            System.err.println("WARNING: Could not load logo image from URL: " + url + " Error: " + e.getMessage());
+            System.err.println("WARNING: Could not load logo image from URL: " + url + " - This may be due to network restrictions or an invalid image format. Error: " + e.getMessage());
             return null;
         }
     }

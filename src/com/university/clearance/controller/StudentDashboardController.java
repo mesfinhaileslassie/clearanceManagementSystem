@@ -277,7 +277,7 @@ public class StudentDashboardController implements Initializable {
                 // Create approval entries for all departments
                 String[] departments = {
                     "LIBRARIAN", "CAFETERIA", "DORMITORY", 
-                    "ASSOCIATION", "REGISTRAR", "DEPARTMENT_HEAD"
+                    "REGISTRAR", "DEPARTMENT_HEAD"
                 };
                 
                 String approvalSql = "INSERT INTO clearance_approvals (request_id, officer_role, status) VALUES (?, ?, 'PENDING')";
@@ -341,21 +341,22 @@ public class StudentDashboardController implements Initializable {
             
             // Load approval details - FIXED QUERY (removed approval_date)
             String approvalSql = """
-                SELECT 
-                    ca.officer_role,
-                    u.full_name as officer_name,
-                    ca.status,
-                    ca.remarks,
-                    CASE 
-                        WHEN ca.status = 'APPROVED' THEN '✅ Approved'
-                        WHEN ca.status = 'REJECTED' THEN '❌ Rejected'
-                        ELSE '⏳ Pending'
-                    END as display_status
-                FROM clearance_approvals ca
-                LEFT JOIN users u ON ca.officer_id = u.id
-                WHERE ca.request_id = ?
-                ORDER BY FIELD(ca.officer_role, 'LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'ASSOCIATION', 'REGISTRAR', 'DEPARTMENT_HEAD')
-                """;
+            	    SELECT 
+            	        ca.officer_role,
+            	        u.full_name as officer_name,
+            	        ca.status,
+            	        ca.remarks,
+            	        CASE 
+            	            WHEN ca.status = 'APPROVED' THEN '✅ Approved'
+            	            WHEN ca.status = 'REJECTED' THEN '❌ Rejected'
+            	            ELSE '⏳ Pending'
+            	        END as display_status
+            	    FROM clearance_approvals ca
+            	    LEFT JOIN users u ON ca.officer_id = u.id
+            	    WHERE ca.request_id = ?
+            	    AND ca.officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
+            	    ORDER BY FIELD(ca.officer_role, 'LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
+            	    """;
                 
             PreparedStatement approvalStmt = conn.prepareStatement(approvalSql);
             approvalStmt.setInt(1, currentRequestId);

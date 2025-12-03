@@ -91,11 +91,6 @@ public class DashboardController {
                 fxmlPath = "/com/university/clearance/resources/views/DormitoryDashboard.fxml";
                 addTab(title, fxmlPath);
             }
-            case "ASSOCIATION" -> {
-                title = "Student Association Dashboard";
-                fxmlPath = "/com/university/clearance/resources/views/StudentAssociationDashboard.fxml";
-                addTab(title, fxmlPath);
-            }
             case "REGISTRAR" -> {
                 title = "Registrar Clearance Dashboard";
                 fxmlPath = "/com/university/clearance/resources/views/RegistrarDashboard.fxml";

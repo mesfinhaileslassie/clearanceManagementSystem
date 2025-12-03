@@ -47,6 +47,9 @@ public class StudentAssociationDashboardController implements Initializable {
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<AssociationRecord> associationData = FXCollections.observableArrayList();
 
+    
+    
+    
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         setupTableColumns();
@@ -274,58 +277,58 @@ public class StudentAssociationDashboardController implements Initializable {
 
     private void loadPendingRequests() {
         requestData.clear();
-        
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT 
-                    cr.id as request_id,
-                    u.username as student_id,
-                    u.full_name as student_name,
-                    u.department,
-                    cr.request_date,
-                    ca.status as approval_status
-                FROM clearance_requests cr
-                JOIN users u ON cr.student_id = u.id
-                JOIN clearance_approvals ca ON cr.id = ca.request_id 
-                WHERE ca.officer_role = 'ASSOCIATION' 
-                AND (ca.status IS NULL OR ca.status = 'PENDING')  -- Only show pending/null status
-                AND cr.status IN ('PENDING', 'IN_PROGRESS')       -- Only show active requests
-                ORDER BY cr.request_date ASC
-                """;
-                
-            PreparedStatement ps = conn.prepareStatement(sql);
+        String sql = """
+            SELECT 
+                cr.id AS request_id,
+                u.username AS student_id,
+                u.full_name,
+                u.department,
+                DATE(cr.request_date) AS req_date,
+                ca.status AS approval_status,
+                (SELECT COUNT(*) FROM association_records ar 
+                 WHERE ar.student_id = u.id 
+                 AND ar.record_type = 'CLUB_MEMBERSHIP' 
+                 AND ar.status = 'Active') AS active_memberships
+            FROM clearance_requests cr
+            JOIN users u ON cr.student_id = u.id
+            LEFT JOIN clearance_approvals ca 
+                ON cr.id = ca.request_id AND ca.officer_role = ?
+            WHERE cr.status NOT IN ('FULLY_CLEARED', 'REJECTED', 'EXPIRED')
+            AND (ca.status IS NULL OR ca.status = 'PENDING')
+            ORDER BY cr.request_date ASC
+            """;
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, currentUser.getRole());
             ResultSet rs = ps.executeQuery();
 
-            int pendingCount = 0;
-            
             while (rs.next()) {
-                String studentId = rs.getString("student_id");
-                String associationStatus = checkStudentAssociationStatus(conn, studentId);
-                String membership = getStudentMembershipStatus(conn, studentId);
-                
-                ClearanceRequest request = new ClearanceRequest(
+                String status = rs.getString("approval_status");
+                String displayStatus = (status == null) ? "Pending" : status;
+                String membershipDisplay = rs.getInt("active_memberships") + " active clubs";  // Dynamic calculation
+
+                requestData.add(new ClearanceRequest(
                     rs.getString("student_id"),
-                    rs.getString("student_name"),
+                    rs.getString("full_name"),
                     rs.getString("department"),
-                    membership,
-                    rs.getTimestamp("request_date").toString(),
-                    associationStatus,
+                    membershipDisplay,  // Use calculated value
+                    rs.getString("req_date"),
+                    displayStatus,
                     rs.getInt("request_id")
-                );
-                
-                requestData.add(request);
-                pendingCount++;
+                ));
             }
-            
+
             tableRequests.setItems(requestData);
-            lblPendingCount.setText("Pending Association Clearances: " + pendingCount);
-            
+            lblPendingCount.setText(String.valueOf(requestData.size()));
+            updateTimestamp();  // If you have this method
+
         } catch (Exception e) {
-            showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
+            System.err.println("Error loading pending requests: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to load requests: " + e.getMessage());
         }
     }
-
     private String checkStudentAssociationStatus(Connection conn, String studentId) throws SQLException {
         // Check if student has any association issues
         createAssociationRecordsIfNeeded(conn, studentId);
@@ -379,7 +382,8 @@ public class StudentAssociationDashboardController implements Initializable {
             AND record_type = 'MEMBERSHIP_FEE' 
             ORDER BY due_date DESC 
             LIMIT 1
-            """;
+        
+               """;
             
         PreparedStatement ps = conn.prepareStatement(membershipSql);
         ps.setString(1, studentId);
@@ -525,24 +529,38 @@ public class StudentAssociationDashboardController implements Initializable {
         associationData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT 
-                    record_type,
-                    description,
-                    amount,
-                    due_date,
-                    status,
-                    club_name
-                FROM association_records ar
-                JOIN users u ON ar.student_id = u.id
-                WHERE u.username = ?
-                ORDER BY 
-                    CASE 
-                        WHEN status IN ('Pending', 'Active') THEN 1
-                        ELSE 2
-                    END,
-                    due_date ASC
-                """;
+        	String sql = """
+        		    SELECT 
+        		        s.student_id,
+        		        s.firstname,
+        		        s.lastname,
+        		        s.department,
+        		        s.level,
+        		        s.program,
+        		        
+        		        -- Only Association status matters here → use ac.status
+        		        COALESCE(ac.status, 'Pending') AS association_status,
+        		        ac.date_cleared AS association_date_cleared,
+        		        ac.remarks AS association_remarks,
+        		        
+        		        -- Optional: include other clearances for info (but still qualified!)
+        		        COALESCE(lc.status, 'Pending') AS library_status,
+        		        COALESCE(bc.status, 'Pending') AS bursar_status,
+        		        COALESCE(dc.status, 'Pending') AS department_status,
+        		        COALESCE(rc.status, 'Pending') AS registrar_status
+        		        
+        		    FROM students s
+        		    LEFT JOIN association_clearance ac ON s.student_id = ac.student_id
+        		    LEFT JOIN library_clearance lc     ON s.student_id = lc.student_id
+        		    LEFT JOIN bursar_clearance bc      ON s.student_id = bc.student_id
+        		    LEFT JOIN department_clearance dc ON s.student_id = dc.student_id
+        		    LEFT JOIN registrar_clearance rc  ON s.student_id = rc.student_id
+        		    
+        		    WHERE s.department = ? 
+        		       OR ? IS NULL  -- allows showing all if no filter
+        		    
+        		    ORDER BY s.lastname, s.firstname
+        		    """;
                 
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, studentId);
@@ -592,15 +610,18 @@ public class StudentAssociationDashboardController implements Initializable {
     private void updateAssociationSummary(String studentId) {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
-                SELECT 
-                    COUNT(*) as total_records,
-                    SUM(CASE WHEN status IN ('Pending', 'Active') THEN 1 ELSE 0 END) as pending_items,
-                    SUM(CASE WHEN record_type IN ('MEMBERSHIP_FEE', 'CLUB_FEE', 'EVENT_FINE') AND status != 'Paid' THEN amount ELSE 0 END) as total_fees,
-                    SUM(CASE WHEN record_type = 'CLUB_MEMBERSHIP' AND status = 'Active' THEN 1 ELSE 0 END) as active_clubs
-                FROM association_records ar
-                JOIN users u ON ar.student_id = u.id
-                WHERE u.username = ?
-                """;
+               SELECT 
+        COUNT(*) AS total_students,
+        
+        SUM(CASE WHEN ac.status = 'Cleared'     THEN 1 ELSE 0 END) AS cleared_count,
+        SUM(CASE WHEN ac.status = 'Pending'     THEN 1 ELSE 0 END) AS pending_count,
+        SUM(CASE WHEN ac.status = 'Not Cleared' THEN 1 ELSE 0 END) AS not_cleared_count,
+        SUM(CASE WHEN ac.status IS NULL         THEN 1 ELSE 0 END) AS never_submitted_count
+        
+    FROM students s
+    LEFT JOIN association_clearance ac ON s.student_id = ac.student_id
+    WHERE s.department = ? OR ? IS NULL
+    """;
                 
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, studentId);

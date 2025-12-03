@@ -459,7 +459,7 @@ public class AdminDashboardController {
         ComboBox<String> cmbRole = new ComboBox<>();
         ComboBox<String> cmbDepartment = new ComboBox<>();
 
-        cmbRole.getItems().addAll("LIBRARIAN", "CAFETERIA", "DORMITORY", "ASSOCIATION", "REGISTRAR", "DEPARTMENT_HEAD");
+        cmbRole.getItems().addAll("LIBRARIAN", "CAFETERIA", "DORMITORY","REGISTRAR", "DEPARTMENT_HEAD");
         cmbDepartment.getItems().addAll("Library", "Cafeteria", "Dormitory", "Student Association", 
                                       "Registrar Office", "Computer Science", "Electrical Engineering");
 
@@ -645,7 +645,7 @@ public class AdminDashboardController {
         grid.setPadding(new Insets(20, 150, 10, 10));
 
         List<ComboBox<String>> steps = new ArrayList<>();
-        String[] roles = {"LIBRARIAN", "CAFETERIA", "DORMITORY", "ASSOCIATION", "REGISTRAR", "DEPARTMENT_HEAD"};
+        String[] roles = {"LIBRARIAN", "CAFETERIA", "DORMITORY","REGISTRAR", "DEPARTMENT_HEAD"};
 
         for (int i = 0; i < 6; i++) {
             ComboBox<String> stepComboBox = new ComboBox<>();

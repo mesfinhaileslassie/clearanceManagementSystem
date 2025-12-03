@@ -21,6 +21,7 @@ public class LibrarianDashboardController implements Initializable {
     @FXML private Label lblWelcome;
     @FXML private Label lblPendingCount;
     @FXML private Label lblBookStatus;
+    @FXML private TabPane mainTabPane;  // Add this missing reference
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -37,6 +38,9 @@ public class LibrarianDashboardController implements Initializable {
     @FXML private TableColumn<BookBorrowing, String> colStatus;
     @FXML private TableColumn<BookBorrowing, String> colFine;
 
+    
+    @FXML private Label lblPendingCountCard; 
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<BookBorrowing> bookData = FXCollections.observableArrayList();
@@ -79,8 +83,8 @@ public class LibrarianDashboardController implements Initializable {
             {
                 buttons.setPadding(new Insets(5));
                 
-                btnApprove.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;");
-                btnReject.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+                btnApprove.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 80;");
+                btnReject.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 80;");
                 
                 btnApprove.setOnAction(event -> {
                     ClearanceRequest request = getTableView().getItems().get(getIndex());
@@ -99,8 +103,9 @@ public class LibrarianDashboardController implements Initializable {
                 if (empty) {
                     setGraphic(null);
                 } else {
+                    // Always show buttons for pending requests
                     ClearanceRequest request = getTableView().getItems().get(getIndex());
-                    if (request != null && request.getBookStatus().contains("Pending")) {
+                    if (request != null) {
                         setGraphic(buttons);
                     } else {
                         setGraphic(null);
@@ -159,22 +164,20 @@ public class LibrarianDashboardController implements Initializable {
             createRequiredTables(conn);
             
             String sql = """
-            	    SELECT DISTINCT
-            	        cr.id as request_id,
-            	        u.username as student_id,
-            	        u.full_name as student_name,
-            	        u.department,
-            	        DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date,
-            	        ca.status as approval_status,
-            	        cr.request_date as raw_request_date  -- Add this for ORDER BY
-            	    FROM clearance_requests cr
-            	    JOIN users u ON cr.student_id = u.id
-            	    LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
-            	        AND ca.officer_role = 'LIBRARIAN'
-            	    WHERE (ca.status IS NULL OR ca.status = 'PENDING')
-            	    AND cr.status IN ('PENDING', 'IN_PROGRESS')
-            	    ORDER BY cr.request_date ASC  -- Now this column is in SELECT
-            	    """;
+                SELECT 
+                    cr.id as request_id,
+                    u.username as student_id,
+                    u.full_name as student_name,
+                    u.department,
+                    DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date
+                FROM clearance_requests cr
+                JOIN users u ON cr.student_id = u.id
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
+                    AND ca.officer_role = 'LIBRARIAN'
+                WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+                AND (ca.status IS NULL OR ca.status = 'PENDING')
+                ORDER BY cr.request_date ASC
+                """;
                 
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
@@ -201,12 +204,16 @@ public class LibrarianDashboardController implements Initializable {
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Clearances: " + pendingCount);
             
+            // Also update the dashboard card
+            if (lblPendingCountCard != null) {
+                lblPendingCountCard.setText(String.valueOf(pendingCount));
+            }
+            
         } catch (Exception e) {
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
     private void createRequiredTables(Connection conn) throws SQLException {
         // Create book_borrowings table if it doesn't exist
         String createBookTable = """
@@ -233,9 +240,9 @@ public class LibrarianDashboardController implements Initializable {
         String sql = """
             SELECT 
                 COUNT(*) as total_books,
-                SUM(CASE WHEN status = 'OVERDUE' THEN 1 ELSE 0 END) as overdue_count,
-                SUM(CASE WHEN status = 'BORROWED' AND due_date < CURDATE() THEN 1 ELSE 0 END) as newly_overdue,
-                SUM(COALESCE(fine_amount, 0)) as total_fine
+                SUM(CASE WHEN bb.status = 'OVERDUE' THEN 1 ELSE 0 END) as overdue_count,
+                SUM(CASE WHEN bb.status = 'BORROWED' AND bb.due_date < CURDATE() THEN 1 ELSE 0 END) as newly_overdue,
+                SUM(COALESCE(bb.fine_amount, 0)) as total_fine
             FROM book_borrowings bb
             JOIN users u ON bb.student_id = u.id
             WHERE u.username = ? AND bb.status IN ('BORROWED', 'OVERDUE')
@@ -285,66 +292,142 @@ public class LibrarianDashboardController implements Initializable {
         ps.executeUpdate();
     }
 
-    private void loadStudentBookDetails(String studentId) {
-        bookData.clear();
+    private void loadStudentBookDetails(String username) {
+        System.out.println("\n=== DEBUG: Loading book details for student: " + username);
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT 
-                    bb.book_title as title,
-                    DATE_FORMAT(bb.borrow_date, '%Y-%m-%d') as borrow_date,
-                    DATE_FORMAT(bb.due_date, '%Y-%m-%d') as due_date,
-                    bb.status,
-                    CONCAT('$', FORMAT(bb.fine_amount, 2)) as fine
-                FROM book_borrowings bb
-                JOIN users u ON bb.student_id = u.id
-                WHERE u.username = ? 
-                ORDER BY 
-                    CASE bb.status 
-                        WHEN 'OVERDUE' THEN 1
-                        WHEN 'BORROWED' THEN 2
-                        ELSE 3 
-                    END,
-                    bb.due_date ASC
-                """;
-                
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, studentId);
-            ResultSet rs = ps.executeQuery();
+            System.out.println("✅ Database connected successfully");
             
-            while (rs.next()) {
-                BookBorrowing book = new BookBorrowing(
-                    rs.getString("title"),
-                    rs.getString("borrow_date"),
-                    rs.getString("due_date"),
-                    rs.getString("status"),
-                    rs.getString("fine")
-                );
-                bookData.add(book);
-            }
+            // First, check what columns exist in book_borrowings table
+            DatabaseMetaData meta = conn.getMetaData();
+            ResultSet columns = meta.getColumns(null, null, "book_borrowings", "%");
             
-            tableBookDetails.setItems(bookData);
+            boolean hasBookTitle = false;
+            boolean hasBookId = false;
             
-            if (bookData.isEmpty()) {
-                lblBookStatus.setText("📚 Student has no borrowed books");
-                lblBookStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-            } else {
-                long overdueCount = bookData.stream()
-                    .filter(b -> "OVERDUE".equals(b.getStatus()))
-                    .count();
-                
-                if (overdueCount > 0) {
-                    lblBookStatus.setText("📚 Student has " + overdueCount + " overdue book(s)");
-                    lblBookStatus.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                } else {
-                    lblBookStatus.setText("📚 Student has " + bookData.size() + " borrowed book(s)");
-                    lblBookStatus.setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+            while (columns.next()) {
+                String columnName = columns.getString("COLUMN_NAME");
+                System.out.println("Found column: " + columnName);
+                if ("book_title".equalsIgnoreCase(columnName)) {
+                    hasBookTitle = true;
+                }
+                if ("book_id".equalsIgnoreCase(columnName)) {
+                    hasBookId = true;
                 }
             }
+            columns.close();
             
-        } catch (Exception e) {
-            showAlert("Error", "Failed to load book details: " + e.getMessage());
+            // Build query based on available columns
+            String sql;
+            if (hasBookTitle) {
+                sql = """
+                    SELECT
+                        bb.book_title as title,
+                        DATE_FORMAT(bb.borrow_date, '%Y-%m-%d') as borrow_date,
+                        DATE_FORMAT(bb.due_date, '%Y-%m-%d') as due_date,
+                        bb.status,
+                        CASE 
+                            WHEN bb.fine_amount IS NULL OR bb.fine_amount = 0 THEN 'No fine'
+                            ELSE CONCAT('$', FORMAT(bb.fine_amount, 2))
+                        END as fine
+                    FROM book_borrowings bb
+                    JOIN users u ON bb.student_id = u.id
+                    WHERE u.username = ?
+                    ORDER BY
+                        CASE bb.status
+                            WHEN 'OVERDUE' THEN 1
+                            WHEN 'BORROWED' THEN 2
+                            ELSE 3
+                        END,
+                        bb.due_date ASC
+                    """;
+            } else if (hasBookId) {
+                sql = """
+                    SELECT
+                        COALESCE(b.title, CONCAT('Book #', bb.book_id)) as title,
+                        DATE_FORMAT(bb.borrow_date, '%Y-%m-%d') as borrow_date,
+                        DATE_FORMAT(bb.due_date, '%Y-%m-%d') as due_date,
+                        bb.status,
+                        CASE 
+                            WHEN bb.fine_amount IS NULL OR bb.fine_amount = 0 THEN 'No fine'
+                            ELSE CONCAT('$', FORMAT(bb.fine_amount, 2))
+                        END as fine
+                    FROM book_borrowings bb
+                    LEFT JOIN books b ON bb.book_id = b.id
+                    JOIN users u ON bb.student_id = u.id
+                    WHERE u.username = ?
+                    ORDER BY
+                        CASE bb.status
+                            WHEN 'OVERDUE' THEN 1
+                            WHEN 'BORROWED' THEN 2
+                            ELSE 3
+                        END,
+                        bb.due_date ASC
+                    """;
+            } else {
+                System.out.println("❌ No book_title or book_id column found in book_borrowings table");
+                lblBookStatus.setText("Database structure error: No book information columns found");
+                return;
+            }
+            
+            System.out.println("DEBUG: Using SQL: " + sql);
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, username);
+                ResultSet rs = pstmt.executeQuery();
+                
+                bookData.clear(); // Clear previous data
+                int recordCount = 0;
+                
+                while (rs.next()) {
+                    recordCount++;
+                    BookBorrowing book = new BookBorrowing(
+                        rs.getString("title"),
+                        rs.getString("borrow_date"),
+                        rs.getString("due_date"),
+                        rs.getString("status"),
+                        rs.getString("fine")
+                    );
+                    bookData.add(book);
+                    
+                    System.out.println("Record " + recordCount + ":");
+                    System.out.println("  Title: " + rs.getString("title"));
+                    System.out.println("  Borrow Date: " + rs.getString("borrow_date"));
+                    System.out.println("  Due Date: " + rs.getString("due_date"));
+                    System.out.println("  Status: " + rs.getString("status"));
+                    System.out.println("  Fine: " + rs.getString("fine"));
+                }
+                
+                System.out.println("DEBUG: Loaded " + recordCount + " book records for student " + username);
+                
+                // Update UI
+                tableBookDetails.setItems(bookData);
+                
+                if (recordCount == 0) {
+                    lblBookStatus.setText("No book records found for student: " + username);
+                } else {
+                    lblBookStatus.setText("Found " + recordCount + " book records for " + username);
+                    
+                    // Auto-switch to Book Details tab
+                    for (Tab tab : mainTabPane.getTabs()) {
+                        if ("Book Details".equals(tab.getText())) {
+                            mainTabPane.getSelectionModel().select(tab);
+                            break;
+                        }
+                    }
+                }
+                
+            } catch (SQLException e) {
+                System.out.println("SQL ERROR in loadStudentBookDetails:");
+                System.out.println("Message: " + e.getMessage());
+                e.printStackTrace();
+                lblBookStatus.setText("Error loading book details: " + e.getMessage());
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Database connection error: " + e.getMessage());
             e.printStackTrace();
+            lblBookStatus.setText("Database error: " + e.getMessage());
         }
     }
 
@@ -432,22 +515,28 @@ public class LibrarianDashboardController implements Initializable {
                 ps.executeUpdate();
             }
             
+            // Update the overall request status
             updateOverallRequestStatus(conn, requestId);
+            
+            // Refresh the table
+            loadPendingRequests();
+            
+            showAlert("Success", "Clearance request has been " + status.toLowerCase() + " successfully!");
             
         } catch (Exception e) {
             showAlert("Error", "Failed to update clearance status: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
     private void updateOverallRequestStatus(Connection conn, int requestId) throws SQLException {
-        String checkSql = """
-            SELECT 
-                SUM(CASE WHEN status = 'PENDING' OR status IS NULL THEN 1 ELSE 0 END) as pending_count,
-                SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count
-            FROM clearance_approvals 
-            WHERE request_id = ?
-            """;
+    	String checkSql = """
+    	        SELECT 
+    	            SUM(CASE WHEN status = 'PENDING' OR status IS NULL THEN 1 ELSE 0 END) as pending_count,
+    	            SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count
+    	        FROM clearance_approvals 
+    	        WHERE request_id = ?
+    	        AND officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')  -- ADDED
+    	        """;
         
         PreparedStatement checkPs = conn.prepareStatement(checkSql);
         checkPs.setInt(1, requestId);

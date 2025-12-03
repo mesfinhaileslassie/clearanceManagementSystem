@@ -64,7 +64,7 @@ public class StudentClearanceController {
             ps.executeUpdate();
 
             // Insert pending approvals for all officers
-            String[] officers = {"LIBRARIAN","CAFETERIA","DORMITORY","ASSOCIATION","REGISTRAR","DEPARTMENT_HEAD"};
+            String[] officers = {"LIBRARIAN","CAFETERIA","DORMITORY","REGISTRAR","DEPARTMENT_HEAD"};
             String insertApproval = "INSERT INTO clearance_approvals (request_id, officer_role) VALUES (?, ?)";
             PreparedStatement ps2 = conn.prepareStatement(insertApproval);
 

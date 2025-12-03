@@ -6,6 +6,12 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class Main extends Application {
+	
+	static {
+        // Suppress FXML version warnings
+        System.setProperty("javafx.fxml.version", "21.0.8");
+    }
+	
     @Override
     public void start(Stage stage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("resources/views/Login.fxml"));

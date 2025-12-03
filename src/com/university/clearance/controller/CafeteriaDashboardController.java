@@ -39,9 +39,7 @@ public class CafeteriaDashboardController implements Initializable {
     @FXML private TableColumn<CafeteriaRecord, String> colTransactionDate;
     @FXML private TableColumn<CafeteriaRecord, String> colRecordStatus;
 
-
     @FXML private TabPane mainTabPane;
-    
     
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
@@ -49,14 +47,23 @@ public class CafeteriaDashboardController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        System.out.println("=== DEBUG: CafeteriaDashboardController initialized ===");
         setupTableColumns();
         setupCafeteriaTableColumns();
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
+        System.out.println("=== DEBUG: Setting current user for Cafeteria ===");
+        System.out.println("Username: " + user.getUsername());
+        System.out.println("Full Name: " + user.getFullName());
+        System.out.println("Role: " + user.getRole());
+        
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Cafeteria Office");
         loadPendingRequests();
+        
+        // Create test data if no requests exist
+        checkAndCreateTestData();
     }
 
     private void setupTableColumns() {
@@ -104,9 +111,7 @@ public class CafeteriaDashboardController implements Initializable {
                     setGraphic(null);
                 } else {
                     ClearanceRequest request = getTableView().getItems().get(getIndex());
-                    // Only show buttons if pending
-                    if ("Pending Cafeteria Check".equals(request.getCafeteriaStatus()) || 
-                        request.getCafeteriaStatus().contains("Pending")) {
+                    if (request != null) {
                         setGraphic(buttons);
                     } else {
                         setGraphic(null);
@@ -168,38 +173,57 @@ public class CafeteriaDashboardController implements Initializable {
 
     @FXML
     private void refreshRequests() {
+        System.out.println("=== DEBUG: Refresh button clicked ===");
         loadPendingRequests();
         showAlert("Refreshed", "Cafeteria clearance requests refreshed successfully!");
     }
 
     private void loadPendingRequests() {
+        System.out.println("\n=== DEBUG: Loading pending cafeteria requests ===");
         requestData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("✅ Database connection established");
+            
+            // Debug: Check what's in the database
+            debugDatabaseStatus(conn);
+            
+            // FIXED QUERY: Use LEFT JOIN and table aliases to avoid ambiguous columns
             String sql = """
                 SELECT 
                     cr.id as request_id,
                     u.username as student_id,
                     u.full_name as student_name,
                     u.department,
-                    cr.request_date,
+                    u.year_level,
+                    DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date,
                     ca.status as approval_status
                 FROM clearance_requests cr
                 JOIN users u ON cr.student_id = u.id
-                JOIN clearance_approvals ca ON cr.id = ca.request_id 
-                WHERE ca.officer_role = 'CAFETERIA' 
-                AND (ca.status IS NULL OR ca.status = 'PENDING')  -- Only show pending/null status
-                AND cr.status IN ('PENDING', 'IN_PROGRESS')       -- Only show active requests
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
+                    AND ca.officer_role = 'CAFETERIA'
+                WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+                AND (ca.status IS NULL OR ca.status = 'PENDING')
                 ORDER BY cr.request_date ASC
                 """;
                 
+            System.out.println("SQL Query: " + sql);
+            
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
             int pendingCount = 0;
+            System.out.println("Query executed, processing results...");
             
             while (rs.next()) {
+                pendingCount++;
                 String studentId = rs.getString("student_id");
+                System.out.println("\nFound student #" + pendingCount + ": " + studentId);
+                System.out.println("Student Name: " + rs.getString("student_name"));
+                System.out.println("Department: " + rs.getString("department"));
+                System.out.println("Request Date: " + rs.getString("request_date"));
+                System.out.println("Approval Status: " + rs.getString("approval_status"));
+                
                 String cafeteriaStatus = checkStudentCafeteriaStatus(conn, studentId);
                 String mealPlan = getStudentMealPlan(conn, studentId);
                 
@@ -208,35 +232,105 @@ public class CafeteriaDashboardController implements Initializable {
                     rs.getString("student_name"),
                     rs.getString("department"),
                     mealPlan,
-                    rs.getTimestamp("request_date").toString(),
+                    rs.getString("request_date"),
                     cafeteriaStatus,
                     rs.getInt("request_id")
                 );
                 
                 requestData.add(request);
-                pendingCount++;
             }
+            
+            System.out.println("\n=== DEBUG: Query Results Summary ===");
+            System.out.println("Total records found: " + pendingCount);
             
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
             
+            if (pendingCount == 0) {
+                System.out.println("⚠️ WARNING: No cafeteria clearance requests found!");
+                showAlert("No Requests", "No pending cafeteria clearance requests found.");
+            }
+            
         } catch (Exception e) {
-            showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
+            System.err.println("❌ ERROR in loadPendingRequests:");
+            System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
         }
+    }
+    
+    private void debugDatabaseStatus(Connection conn) throws SQLException {
+        System.out.println("\n=== DEBUG: Database Status Check ===");
+        
+        // Check clearance_requests
+        System.out.println("\n1. Total PENDING/IN_PROGRESS clearance_requests:");
+        String checkRequestsSql = "SELECT COUNT(*) as count FROM clearance_requests WHERE status IN ('PENDING', 'IN_PROGRESS')";
+        PreparedStatement requestsStmt = conn.prepareStatement(checkRequestsSql);
+        ResultSet requestsRs = requestsStmt.executeQuery();
+        if (requestsRs.next()) {
+            System.out.println("   Count: " + requestsRs.getInt("count"));
+        }
+        
+        // Check clearance_approvals for CAFETERIA
+        System.out.println("\n2. clearance_approvals for CAFETERIA:");
+        String checkApprovalsSql = """
+            SELECT ca.request_id, ca.status, u.username as student_id
+            FROM clearance_approvals ca
+            LEFT JOIN clearance_requests cr ON ca.request_id = cr.id
+            LEFT JOIN users u ON cr.student_id = u.id
+            WHERE ca.officer_role = 'CAFETERIA'
+            """;
+        PreparedStatement approvalsStmt = conn.prepareStatement(checkApprovalsSql);
+        ResultSet approvalsRs = approvalsStmt.executeQuery();
+        int approvalCount = 0;
+        while (approvalsRs.next()) {
+            approvalCount++;
+            System.out.println("   Approval " + approvalCount + ": Request ID=" + approvalsRs.getInt("request_id") +
+                             ", Student=" + approvalsRs.getString("student_id") +
+                             ", Status=" + approvalsRs.getString("status"));
+        }
+        
+        // Check requests missing CAFETERIA approvals
+        System.out.println("\n3. Requests missing CAFETERIA approvals:");
+        String missingSql = """
+            SELECT cr.id, u.username, cr.status as request_status
+            FROM clearance_requests cr
+            JOIN users u ON cr.student_id = u.id
+            WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+            AND NOT EXISTS (
+                SELECT 1 FROM clearance_approvals ca 
+                WHERE ca.request_id = cr.id 
+                AND ca.officer_role = 'CAFETERIA'
+            )
+            """;
+        PreparedStatement missingStmt = conn.prepareStatement(missingSql);
+        ResultSet missingRs = missingStmt.executeQuery();
+        int missingCount = 0;
+        while (missingRs.next()) {
+            missingCount++;
+            System.out.println("   Missing approval " + missingCount + ": Request ID=" + missingRs.getInt("id") +
+                             ", Student=" + missingRs.getString("username") +
+                             ", Status=" + missingRs.getString("request_status"));
+        }
+        
+        System.out.println("\n=== DEBUG SUMMARY ===");
+        System.out.println("Total CAFETERIA approvals: " + approvalCount);
+        System.out.println("Requests missing CAFETERIA approvals: " + missingCount);
     }
 
     private String checkStudentCafeteriaStatus(Connection conn, String studentId) throws SQLException {
-        // Check if student has any cafeteria issues
+        System.out.println("DEBUG: Checking cafeteria status for student: " + studentId);
+        
         createCafeteriaRecordsIfNeeded(conn, studentId);
         
+        // FIXED: Added table alias 'cr' to specify which table's 'status' column
         String cafeteriaSql = """
             SELECT 
                 COUNT(*) as total_records,
-                SUM(CASE WHEN record_type = 'OUTSTANDING_BALANCE' AND status != 'Paid' THEN 1 ELSE 0 END) as unpaid_balances,
-                SUM(CASE WHEN record_type = 'MEAL_PLAN_FEE' AND status != 'Paid' THEN 1 ELSE 0 END) as unpaid_meal_plans,
-                SUM(CASE WHEN record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') AND status != 'Paid' THEN amount ELSE 0 END) as total_balance,
-                SUM(CASE WHEN record_type = 'MEAL_SWIPES' AND status = 'Active' THEN amount ELSE 0 END) as remaining_meals
+                SUM(CASE WHEN cr.record_type = 'OUTSTANDING_BALANCE' AND cr.status != 'Paid' THEN 1 ELSE 0 END) as unpaid_balances,
+                SUM(CASE WHEN cr.record_type = 'MEAL_PLAN_FEE' AND cr.status != 'Paid' THEN 1 ELSE 0 END) as unpaid_meal_plans,
+                SUM(CASE WHEN cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') AND cr.status != 'Paid' THEN cr.amount ELSE 0 END) as total_balance,
+                SUM(CASE WHEN cr.record_type = 'MEAL_SWIPES' AND cr.status = 'Active' THEN cr.amount ELSE 0 END) as remaining_meals
             FROM cafeteria_records cr
             JOIN users u ON cr.student_id = u.id
             WHERE u.username = ?
@@ -251,6 +345,11 @@ public class CafeteriaDashboardController implements Initializable {
             int unpaidMealPlans = rs.getInt("unpaid_meal_plans");
             double totalBalance = rs.getDouble("total_balance");
             int remainingMeals = rs.getInt("remaining_meals");
+            
+            System.out.println("  Cafeteria issues - Unpaid balances: " + unpaidBalances + 
+                             ", Unpaid meal plans: " + unpaidMealPlans +
+                             ", Remaining meals: " + remainingMeals +
+                             ", Total balance: $" + totalBalance);
             
             if (unpaidBalances > 0 && totalBalance > 0) {
                 return "❌ Outstanding Balance: $" + String.format("%.2f", totalBalance);
@@ -268,12 +367,12 @@ public class CafeteriaDashboardController implements Initializable {
 
     private String getStudentMealPlan(Connection conn, String studentId) throws SQLException {
         String mealPlanSql = """
-            SELECT meal_plan_type 
-            FROM cafeteria_records 
-            JOIN users u ON cafeteria_records.student_id = u.id 
+            SELECT cr.meal_plan_type 
+            FROM cafeteria_records cr
+            JOIN users u ON cr.student_id = u.id 
             WHERE u.username = ? 
-            AND record_type = 'MEAL_PLAN' 
-            ORDER BY transaction_date DESC 
+            AND cr.record_type = 'MEAL_PLAN' 
+            ORDER BY cr.transaction_date DESC 
             LIMIT 1
             """;
             
@@ -282,20 +381,25 @@ public class CafeteriaDashboardController implements Initializable {
         ResultSet rs = ps.executeQuery();
         
         if (rs.next()) {
-            return rs.getString("meal_plan_type");
+            String mealPlan = rs.getString("meal_plan_type");
+            System.out.println("  Meal plan: " + mealPlan);
+            return mealPlan;
         }
         
+        System.out.println("  No meal plan found");
         return "No Meal Plan";
     }
 
     private void createCafeteriaRecordsIfNeeded(Connection conn, String studentId) throws SQLException {
-        // Check if cafeteria_records table exists
+        System.out.println("DEBUG: Checking/creating cafeteria records for: " + studentId);
+        
         try {
             String checkTableSql = "SELECT 1 FROM cafeteria_records LIMIT 1";
             PreparedStatement checkStmt = conn.prepareStatement(checkTableSql);
             checkStmt.executeQuery();
+            System.out.println("  cafeteria_records table exists");
         } catch (SQLException e) {
-            // Table doesn't exist, create it
+            System.out.println("  cafeteria_records table doesn't exist, creating...");
             String createTableSql = """
                 CREATE TABLE IF NOT EXISTS cafeteria_records (
                     id INT PRIMARY KEY AUTO_INCREMENT,
@@ -312,9 +416,10 @@ public class CafeteriaDashboardController implements Initializable {
                 """;
             PreparedStatement createStmt = conn.prepareStatement(createTableSql);
             createStmt.executeUpdate();
+            System.out.println("  Created cafeteria_records table");
         }
         
-        // Check if student has cafeteria records, if not insert sample data
+        // Check if student has cafeteria records
         String checkRecordsSql = """
             SELECT COUNT(*) FROM cafeteria_records cr 
             JOIN users u ON cr.student_id = u.id 
@@ -324,65 +429,211 @@ public class CafeteriaDashboardController implements Initializable {
         checkRecordsStmt.setString(1, studentId);
         ResultSet rs = checkRecordsStmt.executeQuery();
         rs.next();
+        int existingCount = rs.getInt(1);
         
-        if (rs.getInt(1) == 0) {
-            // Insert sample cafeteria records
-            String[][] records = generateSampleCafeteriaRecords();
+        System.out.println("  Existing cafeteria records: " + existingCount);
+        
+        if (existingCount == 0) {
+            System.out.println("  No records found, creating cafeteria records...");
             
-            String insertSql = """
-                INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status, meal_plan_type)
-                SELECT id, ?, ?, ?, ?, ?, ? FROM users WHERE username = ?
+            // Get student info
+            String studentSql = "SELECT id FROM users WHERE username = ?";
+            PreparedStatement studentStmt = conn.prepareStatement(studentSql);
+            studentStmt.setString(1, studentId);
+            ResultSet studentRs = studentStmt.executeQuery();
+            
+            if (studentRs.next()) {
+                int userId = studentRs.getInt("id");
+                
+                // Assign a meal plan
+                String[] mealPlans = {"Gold Plan (21 meals/week)", "Silver Plan (14 meals/week)", "Bronze Plan (7 meals/week)"};
+                String mealPlan = mealPlans[(int)(Math.random() * mealPlans.length)];
+                double mealPlanPrice = getMealPlanPrice(mealPlan);
+                
+                // Insert meal plan - SQL with 7 parameters
+                String insertMealPlanSql = """
+                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status, meal_plan_type)
+                    VALUES (?, 'MEAL_PLAN', ?, ?, ?, ?, ?)
+                    """;
+                
+                PreparedStatement mealPlanStmt = conn.prepareStatement(insertMealPlanSql);
+                
+                // Meal Plan
+                mealPlanStmt.setInt(1, userId);
+                mealPlanStmt.setString(2, "Semester Meal Plan - " + mealPlan);
+                mealPlanStmt.setDouble(3, mealPlanPrice);
+                mealPlanStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(2)));
+                mealPlanStmt.setString(5, Math.random() > 0.3 ? "Paid" : "Pending");
+                mealPlanStmt.setString(6, mealPlan);
+                mealPlanStmt.executeUpdate();
+                
+                System.out.println("  Assigned meal plan: " + mealPlan + " ($" + mealPlanPrice + ")");
+                
+                // Insert remaining meals - SQL with 6 parameters (no meal_plan_type)
+                String insertMealsSql = """
+                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
+                    VALUES (?, 'MEAL_SWIPES', ?, ?, ?, ?)
+                    """;
+                
+                PreparedStatement mealsStmt = conn.prepareStatement(insertMealsSql);
+                
+                int remainingMeals = (int)(Math.random() * 15);
+                if (remainingMeals > 0) {
+                    mealsStmt.setInt(1, userId);
+                    mealsStmt.setString(2, "Remaining Meal Swipes");
+                    mealsStmt.setDouble(3, remainingMeals);
+                    mealsStmt.setDate(4, Date.valueOf(java.time.LocalDate.now()));
+                    mealsStmt.setString(5, "Active");
+                    mealsStmt.executeUpdate();
+                    System.out.println("  Added " + remainingMeals + " remaining meals");
+                }
+                
+                // Insert outstanding balance (30% chance) - SQL with 6 parameters
+                String insertBalanceSql = """
+                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
+                    VALUES (?, 'OUTSTANDING_BALANCE', ?, ?, ?, ?)
+                    """;
+                
+                PreparedStatement balanceStmt = conn.prepareStatement(insertBalanceSql);
+                
+                if (Math.random() < 0.3) {
+                    double balance = 25 + (Math.random() * 100);
+                    balanceStmt.setInt(1, userId);
+                    balanceStmt.setString(2, "Cafeteria A La Carte Charges");
+                    balanceStmt.setDouble(3, balance);
+                    balanceStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusDays(15)));
+                    balanceStmt.setString(5, "Pending");
+                    balanceStmt.executeUpdate();
+                    System.out.println("  Added outstanding balance: $" + String.format("%.2f", balance));
+                }
+                
+                // Insert payment record - SQL with 6 parameters
+                String insertPaymentSql = """
+                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
+                    VALUES (?, 'PAYMENT', ?, ?, ?, ?)
+                    """;
+                
+                PreparedStatement paymentStmt = conn.prepareStatement(insertPaymentSql);
+                
+                paymentStmt.setInt(1, userId);
+                paymentStmt.setString(2, "Meal Plan Payment");
+                paymentStmt.setDouble(3, -mealPlanPrice * 0.7); // Negative for payments
+                paymentStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(1)));
+                paymentStmt.setString(5, "Processed");
+                paymentStmt.executeUpdate();
+                
+                System.out.println("  Created cafeteria records with sample data");
+                
+                // Close all statements
+                mealPlanStmt.close();
+                mealsStmt.close();
+                balanceStmt.close();
+                paymentStmt.close();
+            }
+        }
+    }
+    private void checkAndCreateTestData() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("\n=== DEBUG: Checking if we need test data ===");
+            
+            // Check how many students have CAFETERIA approvals
+            String checkApprovalsSql = """
+                SELECT COUNT(*) as count 
+                FROM clearance_approvals 
+                WHERE officer_role = 'CAFETERIA' 
+                AND status = 'PENDING'
+                """;
+            PreparedStatement checkStmt = conn.prepareStatement(checkApprovalsSql);
+            ResultSet rs = checkStmt.executeQuery();
+            rs.next();
+            int pendingCount = rs.getInt("count");
+            
+            System.out.println("Pending CAFETERIA approvals: " + pendingCount);
+            
+            if (pendingCount == 0) {
+                System.out.println("⚠️ No pending CAFETERIA approvals found. Creating test data...");
+                createTestClearanceRequests();
+            }
+        } catch (Exception e) {
+            System.err.println("Error checking test data: " + e.getMessage());
+        }
+    }
+    
+    private void createTestClearanceRequests() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("\n=== DEBUG: Creating test clearance requests for Cafeteria ===");
+            
+            // Get some random students
+            String studentsSql = """
+                SELECT u.id, u.username, u.full_name 
+                FROM users u 
+                WHERE u.role = 'STUDENT' 
+                LIMIT 2
                 """;
             
-            PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+            PreparedStatement studentsStmt = conn.prepareStatement(studentsSql);
+            ResultSet studentsRs = studentsStmt.executeQuery();
             
-            // Assign a meal plan
-            String[] mealPlans = {"Gold Plan (21 meals/week)", "Silver Plan (14 meals/week)", "Bronze Plan (7 meals/week)"};
-            String mealPlan = mealPlans[(int)(Math.random() * mealPlans.length)];
-            
-            insertStmt.setString(1, "MEAL_PLAN");
-            insertStmt.setString(2, "Semester Meal Plan - " + mealPlan);
-            insertStmt.setDouble(3, getMealPlanPrice(mealPlan));
-            insertStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(2)));
-            insertStmt.setString(5, Math.random() > 0.3 ? "Paid" : "Pending"); // 70% paid, 30% pending
-            insertStmt.setString(6, mealPlan);
-            insertStmt.setString(7, studentId);
-            insertStmt.executeUpdate();
-            
-            // Insert remaining meals
-            int remainingMeals = (int)(Math.random() * 15);
-            if (remainingMeals > 0) {
-                insertStmt.setString(1, "MEAL_SWIPES");
-                insertStmt.setString(2, "Remaining Meal Swipes");
-                insertStmt.setDouble(3, remainingMeals);
-                insertStmt.setDate(4, Date.valueOf(java.time.LocalDate.now()));
-                insertStmt.setString(5, "Active");
-                insertStmt.setString(6, null);
-                insertStmt.setString(7, studentId);
-                insertStmt.executeUpdate();
+            int createdCount = 0;
+            while (studentsRs.next()) {
+                int studentId = studentsRs.getInt("id");
+                String username = studentsRs.getString("username");
+                
+                // Check if student already has a pending clearance request
+                String checkRequestSql = """
+                    SELECT cr.id 
+                    FROM clearance_requests cr 
+                    WHERE cr.student_id = ? 
+                    AND cr.status IN ('PENDING', 'IN_PROGRESS')
+                    LIMIT 1
+                    """;
+                
+                PreparedStatement checkRequestStmt = conn.prepareStatement(checkRequestSql);
+                checkRequestStmt.setInt(1, studentId);
+                ResultSet requestRs = checkRequestStmt.executeQuery();
+                
+                if (!requestRs.next()) {
+                    // Create clearance request
+                    String insertRequestSql = """
+                        INSERT INTO clearance_requests (student_id, request_date, status, remarks)
+                        VALUES (?, NOW(), 'PENDING', 'Test clearance request for cafeteria')
+                        """;
+                    
+                    PreparedStatement insertRequestStmt = conn.prepareStatement(insertRequestSql, Statement.RETURN_GENERATED_KEYS);
+                    insertRequestStmt.setInt(1, studentId);
+                    insertRequestStmt.executeUpdate();
+                    
+                    ResultSet keys = insertRequestStmt.getGeneratedKeys();
+                    if (keys.next()) {
+                        int requestId = keys.getInt(1);
+                        
+                        // Create CAFETERIA approval record
+                        String insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, officer_id, status, remarks)
+                            VALUES (?, 'CAFETERIA', NULL, 'PENDING', 'Awaiting cafeteria clearance')
+                            """;
+                        
+                        PreparedStatement insertApprovalStmt = conn.prepareStatement(insertApprovalSql);
+                        insertApprovalStmt.setInt(1, requestId);
+                        insertApprovalStmt.executeUpdate();
+                        
+                        createdCount++;
+                        System.out.println("✅ Created test request for: " + username + " (ID: " + requestId + ")");
+                    }
+                }
             }
             
-            // Insert random outstanding balances (25% chance)
-            if (Math.random() < 0.25) {
-                insertStmt.setString(1, "OUTSTANDING_BALANCE");
-                insertStmt.setString(2, "Cafeteria A La Carte Charges");
-                insertStmt.setDouble(3, 25 + (Math.random() * 100));
-                insertStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusDays(15)));
-                insertStmt.setString(5, "Pending");
-                insertStmt.setString(6, null);
-                insertStmt.setString(7, studentId);
-                insertStmt.executeUpdate();
+            System.out.println("✅ Created " + createdCount + " test clearance requests");
+            
+            if (createdCount > 0) {
+                // Refresh the table
+                loadPendingRequests();
+                showAlert("Test Data Created", "Created " + createdCount + " test clearance requests for cafeteria review.");
             }
             
-            // Insert payment records
-            insertStmt.setString(1, "PAYMENT");
-            insertStmt.setString(2, "Meal Plan Payment");
-            insertStmt.setDouble(3, -getMealPlanPrice(mealPlan) * 0.7); // Negative for payments
-            insertStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(1)));
-            insertStmt.setString(5, "Processed");
-            insertStmt.setString(6, null);
-            insertStmt.setString(7, studentId);
-            insertStmt.executeUpdate();
+        } catch (Exception e) {
+            System.err.println("Error creating test clearance requests: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -395,53 +646,59 @@ public class CafeteriaDashboardController implements Initializable {
         };
     }
 
-    private String[][] generateSampleCafeteriaRecords() {
-        return new String[][]{
-            {"MEAL_PLAN", "Semester Meal Plan - Gold Plan", "2500.00", java.time.LocalDate.now().minusMonths(2).toString(), "Paid"},
-            {"OUTSTANDING_BALANCE", "A La Carte Dining Charges", "45.75", java.time.LocalDate.now().minusDays(30).toString(), "Pending"},
-            {"MEAL_SWIPES", "Remaining Weekly Meals", "8", java.time.LocalDate.now().toString(), "Active"},
-            {"PAYMENT", "Meal Plan Payment", "-1750.00", java.time.LocalDate.now().minusMonths(1).toString(), "Processed"},
-            {"MEAL_PLAN_FEE", "Additional Dining Dollars", "100.00", java.time.LocalDate.now().minusDays(15).toString(), "Pending"}
-        };
-    }
-
     private void viewStudentCafeteriaRecords(ClearanceRequest request) {
+        System.out.println("\n=== DEBUG: Viewing cafeteria records for: " + request.getStudentId());
         loadStudentCafeteriaRecords(request.getStudentId());
-        lblStudentInfo.setText("Cafeteria Records for: " + request.getStudentName() + 
-                              " (" + request.getStudentId() + ") - Meal Plan: " + request.getMealPlan());
         
-        // Update cafeteria status summary
+        if (lblStudentInfo != null) {
+            lblStudentInfo.setText("Cafeteria Records for: " + request.getStudentName() + 
+                              " (" + request.getStudentId() + ") - Meal Plan: " + request.getMealPlan());
+        }
+        
         updateCafeteriaSummary(request.getStudentId());
+        
+        // Switch to Cafeteria Records tab
+        if (mainTabPane != null) {
+            for (Tab tab : mainTabPane.getTabs()) {
+                if (tab.getText() != null && tab.getText().contains("Records")) {
+                    mainTabPane.getSelectionModel().select(tab);
+                    break;
+                }
+            }
+        }
     }
 
     private void loadStudentCafeteriaRecords(String studentId) {
+        System.out.println("Loading cafeteria records for: " + studentId);
         cafeteriaData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
                 SELECT 
-                    record_type,
-                    description,
-                    amount,
-                    transaction_date,
-                    status,
-                    meal_plan_type
+                    cr.record_type,
+                    cr.description,
+                    cr.amount,
+                    cr.transaction_date,
+                    cr.status,
+                    cr.meal_plan_type
                 FROM cafeteria_records cr
                 JOIN users u ON cr.student_id = u.id
                 WHERE u.username = ?
                 ORDER BY 
                     CASE 
-                        WHEN status IN ('Pending', 'Active') THEN 1
+                        WHEN cr.status IN ('Pending', 'Active') THEN 1
                         ELSE 2
                     END,
-                    transaction_date DESC
+                    cr.transaction_date DESC
                 """;
                 
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, studentId);
             ResultSet rs = ps.executeQuery();
             
+            int count = 0;
             while (rs.next()) {
+                count++;
                 String amount;
                 double amountValue = rs.getDouble("amount");
                 
@@ -467,6 +724,7 @@ public class CafeteriaDashboardController implements Initializable {
             }
             
             tableCafeteriaRecords.setItems(cafeteriaData);
+            System.out.println("Loaded " + count + " cafeteria records");
             
         } catch (Exception e) {
             e.printStackTrace();
@@ -490,9 +748,9 @@ public class CafeteriaDashboardController implements Initializable {
             String sql = """
                 SELECT 
                     COUNT(*) as total_records,
-                    SUM(CASE WHEN status IN ('Pending', 'Active') THEN 1 ELSE 0 END) as pending_items,
-                    SUM(CASE WHEN record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') AND status != 'Paid' THEN amount ELSE 0 END) as total_balance,
-                    SUM(CASE WHEN record_type = 'MEAL_SWIPES' AND status = 'Active' THEN amount ELSE 0 END) as remaining_meals
+                    SUM(CASE WHEN cr.status IN ('Pending', 'Active') THEN 1 ELSE 0 END) as pending_items,
+                    SUM(CASE WHEN cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') AND cr.status != 'Paid' THEN cr.amount ELSE 0 END) as total_balance,
+                    SUM(CASE WHEN cr.record_type = 'MEAL_SWIPES' AND cr.status = 'Active' THEN cr.amount ELSE 0 END) as remaining_meals
                 FROM cafeteria_records cr
                 JOIN users u ON cr.student_id = u.id
                 WHERE u.username = ?
@@ -510,19 +768,29 @@ public class CafeteriaDashboardController implements Initializable {
                 String summary;
                 if (pendingItems == 0) {
                     summary = "✅ No pending cafeteria issues";
-                    lblCafeteriaStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    if (lblCafeteriaStatus != null) {
+                        lblCafeteriaStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    }
                 } else if (totalBalance > 0) {
                     summary = String.format("❌ %d pending items | Outstanding Balance: $%.2f", pendingItems, totalBalance);
-                    lblCafeteriaStatus.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    if (lblCafeteriaStatus != null) {
+                        lblCafeteriaStatus.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    }
                 } else if (remainingMeals > 0) {
                     summary = String.format("⚠️ %d unused meals remaining", remainingMeals);
-                    lblCafeteriaStatus.setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    if (lblCafeteriaStatus != null) {
+                        lblCafeteriaStatus.setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    }
                 } else {
                     summary = String.format("ℹ️ %d pending items to review", pendingItems);
-                    lblCafeteriaStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    if (lblCafeteriaStatus != null) {
+                        lblCafeteriaStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    }
                 }
                 
-                lblCafeteriaStatus.setText(summary);
+                if (lblCafeteriaStatus != null) {
+                    lblCafeteriaStatus.setText(summary);
+                }
             }
             
         } catch (Exception e) {
@@ -531,7 +799,8 @@ public class CafeteriaDashboardController implements Initializable {
     }
 
     private void approveClearance(ClearanceRequest request) {
-        // Check if student has any cafeteria issues
+        System.out.println("\n=== DEBUG: Approving cafeteria clearance for: " + request.getStudentId());
+        
         if (request.getCafeteriaStatus().contains("❌") || request.getCafeteriaStatus().contains("⚠️")) {
             Alert warning = new Alert(Alert.AlertType.WARNING);
             warning.setTitle("Cafeteria Clearance Issue");
@@ -544,6 +813,7 @@ public class CafeteriaDashboardController implements Initializable {
             
             Optional<ButtonType> result = warning.showAndWait();
             if (result.isPresent() && result.get() != ButtonType.YES) {
+                System.out.println("Approval cancelled due to cafeteria issues");
                 return;
             }
         }
@@ -557,15 +827,20 @@ public class CafeteriaDashboardController implements Initializable {
         
         confirmation.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
+                System.out.println("Approving cafeteria clearance for: " + request.getStudentId());
                 updateClearanceStatus(request.getRequestId(), "APPROVED", 
                                     "Cafeteria clearance approved. All charges cleared.");
-                loadPendingRequests(); // Refresh table to remove approved request
+                loadPendingRequests();
                 showAlert("Approved", "Cafeteria clearance approved for " + request.getStudentName());
+            } else {
+                System.out.println("Approval cancelled by user");
             }
         });
     }
 
     private void rejectClearance(ClearanceRequest request) {
+        System.out.println("\n=== DEBUG: Rejecting cafeteria clearance for: " + request.getStudentId());
+        
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Reject Cafeteria Clearance");
         dialog.setHeaderText("Reject Cafeteria Clearance");
@@ -573,42 +848,84 @@ public class CafeteriaDashboardController implements Initializable {
 
         Optional<String> result = dialog.showAndWait();
         if (result.isPresent() && !result.get().trim().isEmpty()) {
+            System.out.println("Rejection reason: " + result.get());
             updateClearanceStatus(request.getRequestId(), "REJECTED", 
                                 "Cafeteria clearance rejected: " + result.get().trim());
-            loadPendingRequests(); // Refresh table to remove rejected request
+            loadPendingRequests();
             showAlert("Rejected", "Cafeteria clearance rejected for " + request.getStudentName());
+        } else {
+            System.out.println("Rejection cancelled");
         }
     }
 
     private void updateClearanceStatus(int requestId, String status, String remarks) {
+        System.out.println("\n=== DEBUG: Updating cafeteria clearance status ===");
+        System.out.println("Request ID: " + requestId);
+        System.out.println("Status: " + status);
+        System.out.println("Remarks: " + remarks);
+        
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                UPDATE clearance_approvals 
-                SET status = ?, remarks = ?, officer_id = ?, approval_date = NOW()
+            // Check if approval record exists
+            String checkSql = """
+                SELECT COUNT(*) FROM clearance_approvals 
                 WHERE request_id = ? AND officer_role = 'CAFETERIA'
                 """;
-                
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setString(1, status);
-            ps.setString(2, remarks);
-            ps.setInt(3, currentUser.getId());
-            ps.setInt(4, requestId);
+            PreparedStatement checkPs = conn.prepareStatement(checkSql);
+            checkPs.setInt(1, requestId);
+            ResultSet rs = checkPs.executeQuery();
+            rs.next();
+            int count = rs.getInt(1);
+            System.out.println("Existing CAFETERIA approval records: " + count);
             
-            ps.executeUpdate();
+            if (count > 0) {
+                // Update existing record
+                String updateSql = """
+                    UPDATE clearance_approvals 
+                    SET status = ?, remarks = ?, officer_id = ?, approval_date = NOW()
+                    WHERE request_id = ? AND officer_role = 'CAFETERIA'
+                    """;
+                PreparedStatement ps = conn.prepareStatement(updateSql);
+                ps.setString(1, status);
+                ps.setString(2, remarks);
+                ps.setInt(3, currentUser.getId());
+                ps.setInt(4, requestId);
+                int updated = ps.executeUpdate();
+                System.out.println("Updated " + updated + " record(s)");
+            } else {
+                // Insert new record
+                String insertSql = """
+                    INSERT INTO clearance_approvals (request_id, officer_role, officer_id, status, remarks, approval_date)
+                    VALUES (?, 'CAFETERIA', ?, ?, ?, NOW())
+                    """;
+                PreparedStatement ps = conn.prepareStatement(insertSql);
+                ps.setInt(1, requestId);
+                ps.setInt(2, currentUser.getId());
+                ps.setString(3, status);
+                ps.setString(4, remarks);
+                int inserted = ps.executeUpdate();
+                System.out.println("Inserted " + inserted + " record(s)");
+            }
+            
+            System.out.println("Cafeteria clearance status updated successfully");
             
         } catch (Exception e) {
-            showAlert("Error", "Failed to update clearance status: " + e.getMessage());
+            System.err.println("❌ ERROR updating clearance status: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to update clearance status: " + e.getMessage());
         }
     }
 
     @FXML
     private void generateCafeteriaReport() {
+        System.out.println("\n=== DEBUG: Generating cafeteria report ===");
         ClearanceRequest selected = tableRequests.getSelectionModel().getSelectedItem();
         if (selected == null) {
+            System.out.println("No student selected");
             showAlert("Selection Required", "Please select a student first to generate cafeteria report.");
             return;
         }
+        
+        System.out.println("Generating report for: " + selected.getStudentId());
         
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
@@ -640,12 +957,21 @@ public class CafeteriaDashboardController implements Initializable {
                               "Generated by: " + currentUser.getFullName() + 
                               " (Cafeteria Office)";
                 
+                System.out.println("Report generated successfully");
                 showAlert("Cafeteria Report", report);
             }
             
         } catch (Exception e) {
+            System.err.println("❌ ERROR generating report: " + e.getMessage());
+            e.printStackTrace();
             showAlert("Error", "Failed to generate cafeteria report: " + e.getMessage());
         }
+    }
+
+    @FXML
+    private void createTestData() {
+        System.out.println("\n=== DEBUG: Manual test data creation ===");
+        createTestClearanceRequests();
     }
 
     private void showAlert(String title, String message) {

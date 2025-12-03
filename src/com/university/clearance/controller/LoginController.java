@@ -25,7 +25,7 @@ public class LoginController {
     private void initialize() {
         cmbRole.setItems(javafx.collections.FXCollections.observableArrayList(
             "STUDENT", "LIBRARIAN", "CAFETERIA", "DORMITORY",
-            "ASSOCIATION", "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
+             "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
         ));
     }
 

@@ -151,15 +151,16 @@ public class OfficerClearanceController {
 
     private void updateRequestOverallStatus(Connection conn, int requestId) {
         try {
-            // Count pending approvals (NULL status) AND rejected approvals
+            // Count pending approvals for REQUIRED departments only (5 instead of 6)
             String countSql = """
                 SELECT 
-                    SUM(CASE WHEN status IS NULL THEN 1 ELSE 0 END) as pending_count,
+                    SUM(CASE WHEN status IS NULL OR status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
                     SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END) as rejected_count,
                     SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved_count,
                     COUNT(*) as total_departments
                 FROM clearance_approvals 
                 WHERE request_id = ?
+                AND officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
                 """;
             
             PreparedStatement ps = conn.prepareStatement(countSql);
@@ -176,8 +177,8 @@ public class OfficerClearanceController {
                 
                 if (rejectedCount > 0) {
                     newStatus = "REJECTED"; // Any rejection fails the entire clearance
-                } else if (pendingCount == 0 && approvedCount == totalDepartments) {
-                    newStatus = "FULLY_CLEARED"; // All departments approved
+                } else if (pendingCount == 0 && approvedCount == totalDepartments && totalDepartments == 5) {
+                    newStatus = "FULLY_CLEARED"; // All 5 required departments approved
                 } else if (approvedCount > 0) {
                     newStatus = "IN_PROGRESS"; // Some approvals, still waiting for others
                 } else {
@@ -195,6 +196,8 @@ public class OfficerClearanceController {
             e.printStackTrace();
         }
     }
+    
+    
     private void showSuccess(String msg) {
         lblMessage.setText(msg);
         lblMessage.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");

@@ -236,98 +236,119 @@ public class AdminDashboardController {
         }
     }
 
-
     private GridPane createStudentForm() {
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
+        // --- Student ID field with fixed DBU ---
         TextField txtStudentId = new TextField();
-        txtStudentId.setPromptText("Student ID (e.g., DBU1601111)");
-        
+        txtStudentId.setPromptText("DBU1601374");
+        txtStudentId.setText("DBU"); // initial DBU prefix
+        txtStudentId.positionCaret(txtStudentId.getText().length());
+
+        // --- Username field with fixed dbu ---
+        TextField txtUsername = new TextField();
+        txtUsername.setPromptText("dbu1601374");
+        txtUsername.setText("dbu"); // initial dbu prefix
+        txtUsername.setEditable(false);
+
+        // --- Student ID listener ---
+        txtStudentId.textProperty().addListener((obs, oldText, newText) -> {
+            // Ensure DBU is always at start
+            if (!newText.startsWith("DBU")) {
+                newText = "DBU" + newText.replaceAll("(?i)DBU", "");
+            }
+
+            // Allow only 7 digits after DBU
+            String digits = newText.substring(3).replaceAll("[^\\d]", "");
+            if (digits.length() > 7) digits = digits.substring(0, 7);
+
+            txtStudentId.setText("DBU" + digits);
+            txtStudentId.positionCaret(txtStudentId.getText().length());
+
+            // Update username dynamically with dbu prefix
+            txtUsername.setText("dbu" + digits);
+        });
+
+        // --- Other fields ---
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("Full Name");
-        
-        TextField txtUsername = new TextField();
-        txtUsername.setPromptText("Username (for login)");
-        
+
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("Password");
-        
+
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email (optional)");
-        
-        // --- NEW PHONE NUMBER INPUT ---
+
+        // --- Phone number input ---
         HBox phoneBox = new HBox(5);
         ComboBox<String> cmbPhonePrefix = new ComboBox<>();
         cmbPhonePrefix.getItems().addAll("09", "07");
         cmbPhonePrefix.setPromptText("Prefix");
         cmbPhonePrefix.setPrefWidth(80);
-        
+
         TextField txtPhoneSuffix = new TextField();
         txtPhoneSuffix.setPromptText("12345678");
         txtPhoneSuffix.setPrefWidth(150);
-        
-        // Validation: Allow only numbers, max 8 digits
-        txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*")) {
-                txtPhoneSuffix.setText(newValue.replaceAll("[^\\d]", ""));
-            }
-            if (txtPhoneSuffix.getText().length() > 8) {
+
+        // Only digits, max 8
+        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
+            if (txtPhoneSuffix.getText().length() > 8)
                 txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
-            }
         });
 
         phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
-        // ------------------------------
-        
+
         ComboBox<String> cmbDepartment = new ComboBox<>();
         cmbDepartment.getItems().addAll(
             "Software Engineering", "Computer Science", "Electrical Engineering",
-            "Mechanical Engineering", "Civil Engineering", "Business Administration", 
+            "Mechanical Engineering", "Civil Engineering", "Business Administration",
             "Accounting", "Economics", "Mathematics", "Food Engineering", "Chemistry", "Biology"
         );
         cmbDepartment.setPromptText("Select Department");
-        
+
         ComboBox<String> cmbYear = new ComboBox<>();
         cmbYear.getItems().addAll("1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year");
         cmbYear.setPromptText("Select Year");
 
+        // --- Layout ---
         grid.add(new Label("Student ID*:"), 0, 0);
         grid.add(txtStudentId, 1, 0);
-        grid.add(new Label("Full Name*:"), 0, 1);
-        grid.add(txtFullName, 1, 1);
-        grid.add(new Label("Username*:"), 0, 2);
-        grid.add(txtUsername, 1, 2);
+        grid.add(new Label("Username*:"), 0, 1);
+        grid.add(txtUsername, 1, 1);
+        grid.add(new Label("Full Name*:"), 0, 2);
+        grid.add(txtFullName, 1, 2);
         grid.add(new Label("Password*:"), 0, 3);
         grid.add(txtPassword, 1, 3);
         grid.add(new Label("Email:"), 0, 4);
         grid.add(txtEmail, 1, 4);
-        
-        // Add Phone Box
         grid.add(new Label("Phone*:"), 0, 5);
         grid.add(phoneBox, 1, 5);
-        
         grid.add(new Label("Department*:"), 0, 6);
         grid.add(cmbDepartment, 1, 6);
         grid.add(new Label("Year Level*:"), 0, 7);
         grid.add(cmbYear, 1, 7);
 
-        // Update UserData to include phone components
+        // Store fields in UserData
         grid.setUserData(new Object[]{
-            txtStudentId, txtFullName, txtUsername, txtPassword, 
+            txtStudentId, txtUsername, txtFullName, txtPassword,
             txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear
         });
 
         return grid;
     }
 
+
+
+ // ==================== REGISTER STUDENT FROM FORM ====================
     private boolean registerStudentFromForm(GridPane grid) {
         Object[] fields = (Object[]) grid.getUserData();
         TextField txtStudentId = (TextField) fields[0];
-        TextField txtFullName = (TextField) fields[1];
-        TextField txtUsername = (TextField) fields[2];
+        TextField txtUsername = (TextField) fields[1];
+        TextField txtFullName = (TextField) fields[2];
         PasswordField txtPassword = (PasswordField) fields[3];
         TextField txtEmail = (TextField) fields[4];
         ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[5];
@@ -335,9 +356,18 @@ public class AdminDashboardController {
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
 
-        String studentId = txtStudentId.getText().trim();
+        // --- Extract digits and build studentId & username ---
+        String inputId = txtStudentId.getText().trim();
+        if (!inputId.startsWith("DBU") || inputId.length() != 10) {
+            showAlert("Error", "Student ID must be exactly 7 digits after DBU!");
+            return false;
+        }
+
+        String digits = inputId.substring(3); // 7 digits
+        String studentId = "DBU" + digits;
+        String username = "dbu" + digits;
+
         String fullName = txtFullName.getText().trim();
-        String username = txtUsername.getText().trim();
         String password = txtPassword.getText();
         String email = txtEmail.getText().trim();
         String department = cmbDepartment.getValue();
@@ -347,7 +377,7 @@ public class AdminDashboardController {
         String phoneSuffix = txtPhoneSuffix.getText().trim();
 
         // ============= VALIDATION =============
-        if (studentId.isEmpty() || fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
+        if (fullName.isEmpty() || password.isEmpty() ||
             phonePrefix == null || phoneSuffix.isEmpty() || department == null || year == null) {
             showAlert("Error", "Please fill all required fields marked with *!");
             return false;
@@ -371,7 +401,6 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-
             // Check duplicates
             String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
@@ -407,6 +436,7 @@ public class AdminDashboardController {
             return false;
         }
     }
+
 
     
     // ==================== 2. OFFICER MANAGEMENT ====================

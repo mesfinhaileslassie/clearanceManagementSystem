@@ -241,18 +241,7 @@ public class StudentDashboardController implements Initializable {
                     success.setContentText("Certificate saved to:\n" + filePath);
                     success.showAndWait();
                     
-                    // Try to open the file (more robust check added)
-                    try {
-                        File generatedFile = new File(filePath);
-                        if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
-                            java.awt.Desktop.getDesktop().open(generatedFile);
-                        } else {
-                            System.out.println("Desktop open not supported. File saved to: " + filePath);
-                        }
-                    } catch (Exception e) {
-                        System.out.println("Error attempting to open file: " + e.getMessage());
-                        System.out.println("File saved to: " + filePath);
-                    }
+                 
                 } else {
                     showMessage("Failed to generate " + format + " certificate. File not created or path is invalid.", "error");
                 }

@@ -5,6 +5,7 @@ import com.university.clearance.model.User;
 import com.university.clearance.model.ClearanceRequest;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -212,27 +213,29 @@ public class AdminDashboardController {
     private void openRegisterStudent() {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Register New Student");
-        dialog.setHeaderText("Enter Student Details");
-
+        dialog.setHeaderText("Enter Student Information");
+        DialogPane pane = new DialogPane();
+        dialog.setDialogPane(pane);
         ButtonType registerButton = new ButtonType("Register", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(registerButton, ButtonType.CANCEL);
+        pane.getButtonTypes().addAll(registerButton, ButtonType.CANCEL);
 
         GridPane grid = createStudentForm();
-        dialog.getDialogPane().setContent(grid);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == registerButton) {
-                return registerStudentFromForm(grid) ? ButtonType.OK : null;
+        pane.setContent(grid);
+        Button btnRegister = (Button) pane.lookupButton(registerButton);
+        btnRegister.addEventFilter(ActionEvent.ACTION, event -> {
+            boolean valid = registerStudentFromForm(grid);
+            if (!valid) {
+                event.consume();   // <-- prevents closing the dialog
             }
-            return null;
         });
-
         Optional<ButtonType> result = dialog.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
+
+        if (result.isPresent() && result.get() == registerButton) {
             loadAllUsers();
             showAlert("Success", "Student registered successfully!");
         }
     }
+
 
     private GridPane createStudentForm() {
         GridPane grid = new GridPane();
@@ -283,7 +286,7 @@ public class AdminDashboardController {
         cmbDepartment.getItems().addAll(
             "Software Engineering", "Computer Science", "Electrical Engineering",
             "Mechanical Engineering", "Civil Engineering", "Business Administration", 
-            "Accounting", "Economics", "Mathematics", "Physics", "Chemistry", "Biology"
+            "Accounting", "Economics", "Mathematics", "Food Engineering", "Chemistry", "Biology"
         );
         cmbDepartment.setPromptText("Select Department");
         
@@ -327,11 +330,8 @@ public class AdminDashboardController {
         TextField txtUsername = (TextField) fields[2];
         PasswordField txtPassword = (PasswordField) fields[3];
         TextField txtEmail = (TextField) fields[4];
-        
-        // Retrieve Phone Components
         ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[5];
         TextField txtPhoneSuffix = (TextField) fields[6];
-        
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
 
@@ -342,30 +342,27 @@ public class AdminDashboardController {
         String email = txtEmail.getText().trim();
         String department = cmbDepartment.getValue();
         String year = cmbYear.getValue();
-        
+
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        // 1. Basic Validation
+        // ============= VALIDATION =============
         if (studentId.isEmpty() || fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
             phonePrefix == null || phoneSuffix.isEmpty() || department == null || year == null) {
             showAlert("Error", "Please fill all required fields marked with *!");
             return false;
         }
 
-        // 2. Phone Suffix Validation (Must be exactly 8 digits)
         if (!phoneSuffix.matches("^\\d{8}$")) {
             showAlert("Error", "Phone number suffix must be exactly 8 digits!");
             return false;
         }
 
-        // 3. Password Validation
         if (password.length() < 6) {
             showAlert("Error", "Password must be at least 6 characters long!");
             return false;
         }
 
-        // 4. Email Validation
         if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
             showAlert("Error", "Invalid email format!");
             return false;
@@ -374,26 +371,25 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if username or student ID or phone exists
-            String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ? OR username = ?"; 
-            // Note: checking username against studentId field (if stored in username column) or separate column logic needed
-            // Assuming studentId is stored in 'username' or separate unique check needed based on DB schema.
-            // Simplified check based on prompt:
-            
-            String checkDuplicates = "SELECT id FROM users WHERE username = ? OR phone = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkDuplicates);
+
+            // Check duplicates
+            String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
             checkStmt.setString(1, username);
             checkStmt.setString(2, finalPhone);
             ResultSet checkRs = checkStmt.executeQuery();
-            
+
             if (checkRs.next()) {
                 showAlert("Error", "Username or Phone number already exists!");
                 return false;
             }
 
             // Insert new student
-            String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status) " +
-                        "VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')";
+            String sql = """
+                INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status)
+                VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')
+            """;
+
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, username);
             stmt.setString(2, password);
@@ -407,18 +403,11 @@ public class AdminDashboardController {
             return rows > 0;
 
         } catch (SQLException e) {
-            if (e.getMessage().contains("Duplicate")) {
-                showAlert("Error", "User details (ID/Phone/Username) already exist!");
-            } else {
-                showAlert("Error", "Registration failed: " + e.getMessage());
-            }
-            e.printStackTrace();
-        } catch (Exception e) {
             showAlert("Error", "Registration failed: " + e.getMessage());
-            e.printStackTrace();
+            return false;
         }
-        return false;
     }
+
     
     // ==================== 2. OFFICER MANAGEMENT ====================
     @FXML
@@ -426,26 +415,27 @@ public class AdminDashboardController {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Manage Department Officers");
         dialog.setHeaderText("Add New Officer");
-
-        ButtonType saveButton = new ButtonType("Save Officer", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
-
+        DialogPane pane = dialog.getDialogPane();
+        ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        pane.getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
         GridPane grid = createOfficerForm();
-        dialog.getDialogPane().setContent(grid);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == saveButton) {
-                return registerOfficerFromForm(grid) ? ButtonType.OK : null;
+        pane.setContent(grid);
+        Button btnSave = (Button) pane.lookupButton(saveButton);
+        btnSave.addEventFilter(ActionEvent.ACTION, event -> {
+            boolean valid = registerOfficerFromForm(grid);
+            if (!valid) {
+                event.consume(); // <-- stop dialog from closing
             }
-            return null;
         });
 
         Optional<ButtonType> result = dialog.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
+
+        if (result.isPresent() && result.get() == saveButton) {
             loadAllUsers();
             showAlert("Success", "Officer registered successfully!");
         }
     }
+
 
     private GridPane createOfficerForm() {
         GridPane grid = new GridPane();
@@ -541,10 +531,10 @@ public class AdminDashboardController {
         TextField txtUsername = (TextField) fields[1];
         PasswordField txtPassword = (PasswordField) fields[2];
         TextField txtEmail = (TextField) fields[3];
-        
+
         ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[4];
         TextField txtPhoneSuffix = (TextField) fields[5];
-        
+
         ComboBox<String> cmbRole = (ComboBox<String>) fields[6];
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
 
@@ -554,24 +544,22 @@ public class AdminDashboardController {
         String email = txtEmail.getText().trim();
         String role = cmbRole.getValue();
         String department = cmbDepartment.getValue();
-        
+
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        // 1. Check Required Fields
-        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() || 
+        // ============ VALIDATION ============
+        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
             role == null || department == null || phonePrefix == null || phoneSuffix.isEmpty()) {
             showAlert("Error", "Please fill all required fields!");
             return false;
         }
 
-        // 2. Validate Phone Suffix
         if (!phoneSuffix.matches("^\\d{8}$")) {
             showAlert("Error", "Phone number suffix must be exactly 8 digits!");
             return false;
         }
 
-        // 3. Validate Password
         if (password.length() < 6) {
             showAlert("Error", "Password must be at least 6 characters long!");
             return false;
@@ -580,26 +568,31 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check duplications
+
+            // Check duplicate username / phone
             String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
             checkStmt.setString(2, finalPhone);
+
             ResultSet checkRs = checkStmt.executeQuery();
-            
+
             if (checkRs.next()) {
                 if (username.equals(checkRs.getString("username"))) {
                     showAlert("Error", "Username '" + username + "' already exists!");
                 } else {
                     showAlert("Error", "Phone number '" + finalPhone + "' already exists!");
                 }
-                return false;
+                return false; // keep dialog open
             }
 
-            // Insert officer with phone number
-            String sql = "INSERT INTO users (username, password, full_name, role, email, phone, department, status) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')";
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            // Insert Officer
+            String insertSql = """
+                INSERT INTO users (username, password, full_name, role, email, phone, department, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+            """;
+
+            PreparedStatement stmt = conn.prepareStatement(insertSql);
             stmt.setString(1, username);
             stmt.setString(2, password);
             stmt.setString(3, fullName);
@@ -612,18 +605,11 @@ public class AdminDashboardController {
             return rows > 0;
 
         } catch (SQLException e) {
-            if (e.getMessage().contains("Duplicate")) {
-                showAlert("Error", "User details (Username/Phone) already exist!");
-            } else {
-                showAlert("Error", "Failed to register officer: " + e.getMessage());
-            }
-            e.printStackTrace();
-        } catch (Exception e) {
             showAlert("Error", "Failed to register officer: " + e.getMessage());
+            return false;
         }
-        return false;
     }
-    
+
     // ==================== 3. USER MANAGEMENT ====================
     @FXML
     private void loadAllUsers() {
@@ -675,7 +661,7 @@ public class AdminDashboardController {
             }
         }
 
-        TextInputDialog dialog = new TextInputDialog("newpassword123");
+        TextInputDialog dialog = new TextInputDialog("np123");
         dialog.setTitle("Reset Password");
         dialog.setHeaderText("Reset Password for: " + selectedUser.getFullName());
         dialog.setContentText("Enter new password (min 6 characters):");
@@ -787,7 +773,7 @@ public class AdminDashboardController {
                 listView.getSelectionModel().select(selectedIndex - 1);
             }
         });
-        
+       
         btnDown.setOnAction(e -> {
             int selectedIndex = listView.getSelectionModel().getSelectedIndex();
             if (selectedIndex < listView.getItems().size() - 1 && selectedIndex >= 0) {
@@ -1052,9 +1038,7 @@ public class AdminDashboardController {
                 report.append("Clearance Date: ").append(rs.getDate("completion_date")).append("\n");
                 
                 try {
-                    // Here you would call your certificate generation service
-                    // For now, just mark as successful
-                    successful++;
+                              successful++;
                     report.append("Status: ✅ Generated\n");
                 } catch (Exception e) {
                     report.append("Status: ❌ Failed - ").append(e.getMessage()).append("\n");

@@ -10,5 +10,39 @@
 	<classpathentry kind="lib" path="C:/Program Files/MySQL/mysql-connector-j-9.3.0/mysql-connector-j-9.3.0.jar"/>
 	<classpathentry kind="lib" path="C:/Program Files/Java/fontbox-3.0.6.jar"/>
 	<classpathentry kind="lib" path="C:/Program Files/Java/pdfbox-app-3.0.6.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/barcodes-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/barcodes-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/barcodes-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/font-asian-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/forms-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/forms-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/forms-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/hyph-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/io-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/io-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/io-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/kernel-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/kernel-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/kernel-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/layout-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/layout-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/layout-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdfa-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdfa-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdfa-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdftest-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdftest-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/pdftest-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/sign-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/sign-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/sign-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/styled-xml-parser-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/styled-xml-parser-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/styled-xml-parser-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/svg-7.1.4.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/svg-7.1.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/PDF itex 7/svg-7.1.4-sources.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/sif4j/slf4j-api-1.7.36.jar"/>
+	<classpathentry kind="lib" path="C:/Program Files/Java/sif4j/slf4j-simple-1.7.36.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

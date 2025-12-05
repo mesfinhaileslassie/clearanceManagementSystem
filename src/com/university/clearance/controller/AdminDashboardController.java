@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import java.net.URL;
 public class AdminDashboardController {
 
     // Top Section
@@ -1748,47 +1749,62 @@ public class AdminDashboardController {
     @FXML
     private void handleLogout() {
         try {
+            System.out.println("[DEBUG] Logout button clicked.");
+
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Logout");
             confirm.setHeaderText("Confirm Logout");
             confirm.setContentText("Are you sure you want to logout?");
-            
+
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                // Fix the FXML path - adjust based on your project structure
-                String fxmlPath = "/com/university/clearance/resources/views/AdminDashboard.fxml";
-                
-                // Try to load the FXML file
+
+                System.out.println("[DEBUG] User confirmed logout.");
+
+                // Correct, consistent FXML path
+                String fxmlPath = "/com/university/clearance/resources/views/Login.fxml";
+                System.out.println("[DEBUG] Trying FXML: " + fxmlPath);
+
                 FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-                
+
                 if (loader.getLocation() == null) {
-                    // If not found, try alternative paths
-                    fxmlPath = "view/Login.fxml";
-                    loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                    System.out.println("[DEBUG] ERROR: FXML not found at: " + fxmlPath);
+                    showAlert("Error", "Login screen not found. Check FXML path.");
+                    return;
                 }
-                
-                if (loader.getLocation() == null) {
-                    // If still not found, try from class loader
-                    loader = new FXMLLoader(ClassLoader.getSystemResource("com/university/clearance/view/Login.fxml"));
-                }
-                
-                if (loader.getLocation() != null) {
-                    Parent login = loader.load();
-                    Stage stage = (Stage) lblWelcome.getScene().getWindow();
-                    Scene scene = new Scene(login);
-                    stage.setScene(scene);
-                    stage.setTitle("University Clearance System - Login");
-                    stage.centerOnScreen();
-                } else {
-                    showAlert("Error", "Login screen not found. Please restart the application.");
-                }
+
+                Parent root = loader.load();
+                System.out.println("[DEBUG] Login FXML loaded successfully.");
+
+                // Preserve current window size
+                Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                Scene currentScene = lblWelcome.getScene();
+
+                System.out.println("[DEBUG] Current Size -> W: "
+                        + currentScene.getWidth() + " H: " + currentScene.getHeight());
+
+                Scene newScene = new Scene(root,
+                        currentScene.getWidth(),
+                        currentScene.getHeight());
+
+                stage.setScene(newScene);
+                stage.setTitle("University Clearance System - Login");
+                stage.centerOnScreen();
+
+                System.out.println("[DEBUG] Scene switched successfully.");
+
+            } else {
+                System.out.println("[DEBUG] Logout canceled by user.");
             }
+
         } catch (Exception e) {
-            showAlert("Error", "Failed to logout: " + e.getMessage());
+            System.out.println("[DEBUG] Exception occurred: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to logout: " + e.getMessage());
         }
-    } 
-    
+    }
+
+
     
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);

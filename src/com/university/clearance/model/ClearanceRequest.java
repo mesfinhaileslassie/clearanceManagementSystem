@@ -12,6 +12,7 @@ public class ClearanceRequest {
     private final StringProperty status;
     private final StringProperty requestDate;
     private final IntegerProperty approvedCount;
+    private int requestId;
 
     public ClearanceRequest(String studentId, String fullName, String department,
                            String status, String requestDate, int approvedCount) {
@@ -38,4 +39,8 @@ public class ClearanceRequest {
     public String getStatus() { return status.get(); }
     public String getRequestDate() { return requestDate.get(); }
     public int getApprovedCount() { return approvedCount.get(); }
+    
+    // New method
+    public int getRequestId() { return requestId; }
+    public void setRequestId(int requestId) { this.requestId = requestId; }
 }

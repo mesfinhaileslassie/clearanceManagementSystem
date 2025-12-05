@@ -16,6 +16,7 @@
     <HBox alignment="CENTER_LEFT" spacing="20">
         <Label text="UNIVERSITY CLEARANCE SYSTEM" 
                style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+               
         <Pane fx:id="spacer" />
         <Button text="LOGOUT" 
                 onAction="#handleLogout"

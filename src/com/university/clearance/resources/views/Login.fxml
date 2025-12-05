@@ -1,59 +1,129 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.PasswordField?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.effect.DropShadow?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.paint.Color?>
 
-<VBox alignment="CENTER" spacing="60" style="-fx-background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.LoginController">
+<VBox alignment="CENTER"
+      spacing="60"
+      maxWidth="Infinity"
+      maxHeight="Infinity"
+      style="-fx-background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);"
+      xmlns="http://javafx.com/javafx/25"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.university.clearance.controller.LoginController">
 
     <padding>
-        <Insets bottom="70" left="50" right="50" top="70" />
+        <Insets top="70" right="50" bottom="70" left="50"/>
     </padding>
 
-    <Label style="-fx-text-fill: white; -fx-font-size: 42px; -fx-font-weight: 900;" text="UNIVERSITY CLEARANCE SYSTEM">
+    <!-- Title -->
+    <Label text="UNIVERSITY CLEARANCE SYSTEM"
+           style="-fx-text-fill: white; -fx-font-size: 42px; -fx-font-weight: 900;">
         <effect>
-            <DropShadow height="61.0" radius="30.0" spread="0.3" width="61.0">
+            <DropShadow height="61" width="61" radius="30" spread="0.3">
                 <color>
-                    <Color red="0.75" green="0.6600000262260437" blue="0.6600000262260437" opacity="0.7294832468032837" />
+                    <Color red="0.105" green="0.096" blue="0.096" opacity="0.73"/>
                 </color>
             </DropShadow>
         </effect>
     </Label>
 
-    <VBox alignment="CENTER" prefWidth="480" spacing="30" style="-fx-background-color: rgba(255,255,255,0.14);                  -fx-background-radius: 30;                  -fx-border-radius: 30;                  -fx-border-color: rgba(255,255,255,0.25);                  -fx-border-width: 2;                  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 40, 0.4, 0, 20);">
+    <!-- Main Container -->
+    <VBox alignment="CENTER"
+          spacing="30"
+          maxWidth="600"
+          maxHeight="Infinity"
+          style="-fx-background-color: rgba(255,255,255,0.14);
+                 -fx-background-radius: 30;
+                 -fx-border-radius: 30;
+                 -fx-border-color: rgba(255,255,255,0.25);
+                 -fx-border-width: 2;
+                 -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 40, 0.4, 0, 20);">
 
         <padding>
-            <Insets bottom="60" left="60" right="60" top="60" />
+            <Insets top="60" right="60" bottom="60" left="60"/>
         </padding>
 
-        <Label style="-fx-font-size: 36px; -fx-font-weight: 800; -fx-text-fill: white;" text="WELCOME BACK" />
-        <Label style="-fx-font-size: 17px; -fx-text-fill: #cccccc;" text="Sign in to continue" textFill="WHITE" />
+        <Label text="WELCOME BACK"
+               style="-fx-font-size: 36px; -fx-font-weight: 800; -fx-text-fill: white;"/>
 
-        <TextField fx:id="txtUsername" prefHeight="58" prefWidth="380" promptText="Enter your username" style="-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-prompt-text-fill: #bbbbbb; -fx-background-radius: 18; -fx-font-size: 20px; -fx-padding: 0 20 0 20;" />
+        <Label text="Sign in to continue"
+               style="-fx-font-size: 17px; -fx-text-fill: #cccccc;"/>
 
-        <VBox alignment="CENTER_LEFT" spacing="5">
-            <StackPane alignment="CENTER_LEFT" prefHeight="58" prefWidth="380">
-                <PasswordField fx:id="txtPassword" prefHeight="58" promptText="Enter your password" style="-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-prompt-text-fill: #bbbbbb; -fx-background-radius: 18; -fx-font-size: 20px; -fx-padding: 0 20 0 20;" />
-                
-                <TextField fx:id="txtPasswordVisible" prefHeight="58" promptText="Enter your password" style="-fx-background-color: rgba(255,255,255,0.18); -fx-text-fill: white; -fx-prompt-text-fill: #bbbbbb; -fx-background-radius: 18; -fx-font-size: 20px; -fx-padding: 0 20 0 20;" 
-                           visible="false" managed="false" />
+        <!-- Username -->
+        <TextField fx:id="txtUsername"
+                   maxWidth="Infinity"
+                   promptText="Enter your username"
+                   style="-fx-background-color: rgba(255,255,255,0.18);
+                          -fx-text-fill: white;
+                          -fx-prompt-text-fill: #bbbbbb;
+                          -fx-background-radius: 18;
+                          -fx-font-size: 20px;
+                          -fx-padding: 0 20 0 20;"/>
+
+        <!-- Password + Show -->
+        <VBox alignment="CENTER_LEFT"
+              spacing="5"
+              maxWidth="Infinity">
+
+            <StackPane alignment="CENTER_LEFT" maxWidth="Infinity">
+                <PasswordField fx:id="txtPassword"
+                               maxWidth="Infinity"
+                               promptText="Enter your password"
+                               style="-fx-background-color: rgba(255,255,255,0.18);
+                                      -fx-text-fill: white;
+                                      -fx-prompt-text-fill: #bbbbbb;
+                                      -fx-background-radius: 18;
+                                      -fx-font-size: 20px;
+                                      -fx-padding: 0 20 0 20;"/>
+
+                <TextField fx:id="txtPasswordVisible"
+                           maxWidth="Infinity"
+                           promptText="Enter your password"
+                           visible="false" managed="false"
+                           style="-fx-background-color: rgba(255,255,255,0.18);
+                                  -fx-text-fill: white;
+                                  -fx-prompt-text-fill: #bbbbbb;
+                                  -fx-background-radius: 18;
+                                  -fx-font-size: 20px;
+                                  -fx-padding: 0 20 0 20;"/>
             </StackPane>
-            
-            <CheckBox fx:id="chkShowPassword" mnemonicParsing="false" style="-fx-text-fill: white; -fx-font-size: 14px;" text="Show Password" />
+
+            <CheckBox fx:id="chkShowPassword"
+                      text="Show Password"
+                      style="-fx-text-fill: white; -fx-font-size: 14px;"/>
         </VBox>
-        
-        <ComboBox fx:id="cmbRole" prefHeight="58" prefWidth="242.0" promptText="Select Role" style="-fx-background-color: rgba(255,255,255,0.18); -fx-background-radius: 18; -fx-font-size: 20px; -fx-text-fill: white; -fx-prompt-text-fill: #bbbbbb;" />
 
-        <Button fx:id="loginbtn" onAction="#handleLogin" prefHeight="62" prefWidth="206.0" style="-fx-background-color: linear-gradient(to right, #00d4ff, #8eff92);                        -fx-background-radius: 18;                        -fx-font-size: 20px;                        -fx-font-weight: 900;                        -fx-text-fill: #0f2027;                        -fx-cursor: hand;                        -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 15, 0.3, 0, 6);" text="LOGIN →" />
+        <!-- Role Dropdown -->
+        <ComboBox fx:id="cmbRole"
+                  maxWidth="Infinity"
+                  promptText="Select Role"
+                  style="-fx-background-color: rgba(255,255,255,0.18);
+                         -fx-background-radius: 18;
+                         -fx-font-size: 20px;
+                         -fx-text-fill: white;
+                         -fx-prompt-text-fill: #bbbbbb;"/>
 
-        <Label fx:id="lblMessage" alignment="CENTER" style="-fx-text-fill: #ff6b6b; -fx-font-size: 16px; -fx-font-weight: bold;" />
+        <!-- Login Button -->
+        <Button fx:id="loginbtn"
+                maxWidth="Infinity"
+                onAction="#handleLogin"
+                text="LOGIN →"
+                style="-fx-background-color: linear-gradient(to right, #00d4ff, #8eff92);
+                       -fx-background-radius: 18;
+                       -fx-font-size: 20px;
+                       -fx-font-weight: 900;
+                       -fx-text-fill: #0f2027;
+                       -fx-cursor: hand;
+                       -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 15, 0.3, 0, 6);"/>
+
+        <Label fx:id="lblMessage"
+               alignment="CENTER"
+               style="-fx-text-fill: #ff6b6b; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+
     </VBox>
+
 </VBox>

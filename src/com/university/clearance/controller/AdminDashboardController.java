@@ -28,82 +28,111 @@ public class AdminDashboardController {
 
     // Top Section
     @FXML private Label lblWelcome;
+    @FXML private Label lblTotalStudents;
+    @FXML private Label lblTotalOfficers;
     @FXML private Label lblTotalRequests;
-    @FXML private Label lblFullyCleared;
-    
-    // Dashboard Cards
-    @FXML private Label lblTotalRequestsCard;
-    @FXML private Label lblFullyClearedCard;
     
     // Main Tab Pane
     @FXML private TabPane mainTabPane;
     
-    // Clearance Requests Tab
-    @FXML private TableView<ClearanceRequest> tableRequests;
-    @FXML private TableColumn<ClearanceRequest, String> colStudentId;
-    @FXML private TableColumn<ClearanceRequest, String> colName;
-    @FXML private TableColumn<ClearanceRequest, String> colDepartment;
-    @FXML private TableColumn<ClearanceRequest, String> colStatus;
-    @FXML private TableColumn<ClearanceRequest, String> colDate;
-    @FXML private TableColumn<ClearanceRequest, Integer> colApproved;
-    @FXML private TextField txtSearch;
-    @FXML private Button btnRefresh;
+    // Students Tables
+    @FXML private TableView<User> tableAllStudents;
+    @FXML private TableView<User> tableApprovedStudents;
+    @FXML private TableView<User> tableRejectedStudents;
+    @FXML private TableView<User> tablePendingStudents;
+    @FXML private TableView<User> tableInProgressStudents;
     
-    // User Management Tab
-    @FXML private TableView<User> tableUsers;
-    @FXML private TableColumn<User, String> colUserId;
-    @FXML private TableColumn<User, String> colUserName;
-    @FXML private TableColumn<User, String> colUserRole;
-    @FXML private TableColumn<User, String> colUserDepartment;
-    @FXML private TableColumn<User, String> colUserStatus;
+    // Students Table Columns
+    @FXML private TableColumn<User, String> colStudentId;
+    @FXML private TableColumn<User, String> colStudentName;
+    @FXML private TableColumn<User, String> colStudentDepartment;
+    @FXML private TableColumn<User, String> colStudentYear;
+    @FXML private TableColumn<User, String> colClearanceStatus;
+    @FXML private TableColumn<User, String> colStudentActions;
+    
+    // Officers Table
+    @FXML private TableView<User> tableOfficers;
+    @FXML private TableColumn<User, String> colOfficerId;
+    @FXML private TableColumn<User, String> colOfficerName;
+    @FXML private TableColumn<User, String> colOfficerRole;
+    @FXML private TableColumn<User, String> colOfficerDepartment;
+    @FXML private TableColumn<User, String> colOfficerStatus;
+    
+    // All Users Table
+    @FXML private TableView<User> tableAllUsers;
+    @FXML private TableColumn<User, String> colAllUserId;
+    @FXML private TableColumn<User, String> colAllUserName;
+    @FXML private TableColumn<User, String> colAllUserRole;
+    @FXML private TableColumn<User, String> colAllUserDepartment;
+    @FXML private TableColumn<User, String> colAllUserStatus;
+    
+    // Clearance Requests Table (from original)
+    @FXML private TableView<ClearanceRequest> tableRequests;
+    @FXML private TableColumn<ClearanceRequest, String> colRequestStudentId;
+    @FXML private TableColumn<ClearanceRequest, String> colRequestName;
+    @FXML private TableColumn<ClearanceRequest, String> colRequestDepartment;
+    @FXML private TableColumn<ClearanceRequest, String> colRequestStatus;
+    @FXML private TableColumn<ClearanceRequest, String> colRequestDate;
+    @FXML private TableColumn<ClearanceRequest, Integer> colRequestApproved;
+    
+    @FXML private TextField txtSearch;
     
     private User currentUser;
-    private ObservableList<ClearanceRequest> masterData = FXCollections.observableArrayList();
-    private ObservableList<User> userData = FXCollections.observableArrayList();
+    private ObservableList<User> allStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> approvedStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> rejectedStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> pendingStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> inProgressStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> officersData = FXCollections.observableArrayList();
+    private ObservableList<User> allUsersData = FXCollections.observableArrayList();
+    private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
 
     @FXML
     private void initialize() {
-        setupClearanceTable();
-        setupUserTable();
+        setupAllTables();
     }
     
     public void setCurrentUser(User user) {
         this.currentUser = user;
         lblWelcome.setText("Welcome, " + user.getFullName() + " (Admin)");
-        loadAllRequests();
-        loadAllUsers();
-        updateDashboardCards();
+        loadAllData();
     }
     
-    // ==================== DASHBOARD METHODS ====================
-    private void updateDashboardCards() {
-        int totalRequests = masterData.size();
-        long cleared = masterData.stream().filter(r -> "FULLY_CLEARED".equals(r.getStatus())).count();
+    private void setupAllTables() {
+        // Setup Students Table
+        setupStudentTable(tableAllStudents, colStudentId, colStudentName, colStudentDepartment, 
+                         colStudentYear, colClearanceStatus, colStudentActions);
         
-        // Update main labels
-        lblTotalRequests.setText("Total Requests: " + totalRequests);
-        lblFullyCleared.setText("Fully Cleared: " + cleared);
+        // Setup simplified tables for categorized views
+        setupSimpleStudentTable(tableApprovedStudents);
+        setupSimpleStudentTable(tableRejectedStudents);
+        setupSimpleStudentTable(tablePendingStudents);
+        setupSimpleStudentTable(tableInProgressStudents);
         
-        // Update dashboard cards
-        if (lblTotalRequestsCard != null) {
-            lblTotalRequestsCard.setText(String.valueOf(totalRequests));
-        }
-        if (lblFullyClearedCard != null) {
-            lblFullyClearedCard.setText(String.valueOf(cleared));
-        }
-    }
-    
-    // ==================== CLEARANCE TABLE SETUP ====================
-    private void setupClearanceTable() {
-        colStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
-        colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
-        colApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
+        // Setup Officers Table
+        colOfficerId.setCellValueFactory(new PropertyValueFactory<>("username"));
+        colOfficerName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        colOfficerRole.setCellValueFactory(new PropertyValueFactory<>("role"));
+        colOfficerDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+        colOfficerStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         
-        // Color coding for status column
-        colStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
+        // Setup All Users Table
+        colAllUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
+        colAllUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        colAllUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
+        colAllUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+        colAllUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        
+        // Setup Clearance Requests Table
+        colRequestStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
+        colRequestName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        colRequestDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+        colRequestStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
+        colRequestApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
+        
+        // Color coding for status column in requests
+        colRequestStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -112,39 +141,82 @@ public class AdminDashboardController {
                     setStyle("");
                 } else {
                     setText(item);
-                    switch (item) {
-                        case "FULLY_CLEARED":
-                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                            break;
-                        case "IN_PROGRESS":
-                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                            break;
-                        case "REJECTED":
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                            break;
-                        case "PENDING":
-                            setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-                            break;
-                        case "EXPIRED":
-                            setStyle("-fx-text-fill: #7f8c8d; -fx-font-weight: bold;");
-                            break;
-                        default:
-                            setStyle("");
+                    if (item.equals("FULLY_CLEARED") || item.equals("APPROVED")) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if (item.equals("REJECTED")) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if (item.equals("IN_PROGRESS")) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else if (item.equals("PENDING")) {
+                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
                     }
                 }
             }
         });
     }
     
-    private void setupUserTable() {
-        colUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
-        colUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+    private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
+                                  TableColumn<User, String> colName, TableColumn<User, String> colDept,
+                                  TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
+                                  TableColumn<User, String> colActions) {
         
-        // Color coding for user status
-        colUserStatus.setCellFactory(column -> new TableCell<User, String>() {
+        colId.setCellValueFactory(new PropertyValueFactory<>("username"));
+        colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
+        colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
+        colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
+        
+        // Actions column with "Allow Reapply" button for rejected students
+        colActions.setCellFactory(param -> new TableCell<User, String>() {
+            private final Button btnAllowReapply = new Button("Allow Reapply");
+            private final Button btnViewDetails = new Button("View Details");
+            private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
+
+            {
+                buttons.setPadding(new Insets(5));
+                btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+                btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+                
+                btnAllowReapply.setOnAction(event -> {
+                    User student = getTableView().getItems().get(getIndex());
+                    allowStudentReapply(student);
+                });
+                
+                btnViewDetails.setOnAction(event -> {
+                    User student = getTableView().getItems().get(getIndex());
+                    viewStudentDetails(student);
+                });
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    User student = getTableView().getItems().get(getIndex());
+                    if (student != null) {
+                        // Show "Allow Reapply" only for rejected students
+                        if (student.getClearanceStatus() != null && 
+                            student.getClearanceStatus().contains("❌")) {
+                            btnAllowReapply.setVisible(true);
+                            btnAllowReapply.setManaged(true);
+                        } else {
+                            btnAllowReapply.setVisible(false);
+                            btnAllowReapply.setManaged(false);
+                        }
+                        setGraphic(buttons);
+                    } else {
+                        setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        // Color code clearance status
+        colStatus.setCellFactory(column -> new TableCell<User, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -153,10 +225,106 @@ public class AdminDashboardController {
                     setStyle("");
                 } else {
                     setText(item);
-                    if ("ACTIVE".equals(item)) {
+                    if (item.contains("✅")) {
                         setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    } else {
+                    } else if (item.contains("❌")) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if (item.contains("🔄")) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else if (item.contains("⏳")) {
+                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+    }
+    
+    private void setupSimpleStudentTable(TableView<User> tableView) {
+        // Check if we have 5 columns (if so, the last one is Actions)
+        boolean hasActionsColumn = tableView.getColumns().size() == 5;
+        
+        TableColumn<User, String> col1 = (TableColumn<User, String>) tableView.getColumns().get(0);
+        TableColumn<User, String> col2 = (TableColumn<User, String>) tableView.getColumns().get(1);
+        TableColumn<User, String> col3 = (TableColumn<User, String>) tableView.getColumns().get(2);
+        TableColumn<User, String> col4 = (TableColumn<User, String>) tableView.getColumns().get(3);
+        
+        col1.setCellValueFactory(new PropertyValueFactory<>("username"));
+        col2.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        col3.setCellValueFactory(new PropertyValueFactory<>("department"));
+        col4.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
+        
+        // Add Actions column for rejected students table
+        if (hasActionsColumn) {
+            TableColumn<User, String> col5 = (TableColumn<User, String>) tableView.getColumns().get(4);
+            col5.setCellFactory(param -> new TableCell<User, String>() {
+                private final Button btnAllowReapply = new Button("Allow Reapply");
+                private final Button btnViewDetails = new Button("View Details");
+                private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
+
+                {
+                    buttons.setPadding(new Insets(5));
+                    btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+                    btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+                    
+                    btnAllowReapply.setOnAction(event -> {
+                        User student = getTableView().getItems().get(getIndex());
+                        allowStudentReapply(student);
+                    });
+                    
+                    btnViewDetails.setOnAction(event -> {
+                        User student = getTableView().getItems().get(getIndex());
+                        viewStudentDetails(student);
+                    });
+                }
+
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty) {
+                        setGraphic(null);
+                    } else {
+                        User student = getTableView().getItems().get(getIndex());
+                        if (student != null) {
+                            // Show "Allow Reapply" only for rejected students
+                            if (student.getClearanceStatus() != null && 
+                                student.getClearanceStatus().contains("❌")) {
+                                btnAllowReapply.setVisible(true);
+                                btnAllowReapply.setManaged(true);
+                            } else {
+                                btnAllowReapply.setVisible(false);
+                                btnAllowReapply.setManaged(false);
+                            }
+                            setGraphic(buttons);
+                        } else {
+                            setGraphic(null);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Color code based on status
+        col4.setCellFactory(column -> new TableCell<User, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (item.contains("✅")) {
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if (item.contains("❌")) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if (item.contains("🔄")) {
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else if (item.contains("⏳")) {
+                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("");
                     }
                 }
             }
@@ -164,8 +332,158 @@ public class AdminDashboardController {
     }
     
     // ==================== LOAD DATA METHODS ====================
-    private void loadAllRequests() {
-        masterData.clear();
+    @FXML
+    private void handleRefresh() {
+        loadAllData();
+        showAlert("Refreshed", "All data has been refreshed successfully!");
+    }
+    
+    private void loadAllData() {
+        loadAllStudents();
+        loadOfficers();
+        loadAllUsers();
+        loadClearanceRequests();
+        updateDashboardStats();
+    }
+    
+    private void loadAllStudents() {
+        allStudentsData.clear();
+        approvedStudentsData.clear();
+        rejectedStudentsData.clear();
+        pendingStudentsData.clear();
+        inProgressStudentsData.clear();
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT 
+                    u.id,
+                    u.username,
+                    u.full_name,
+                    u.department,
+                    u.year_level,
+                    u.email,
+                    u.phone,
+                    u.status,
+                    COALESCE(cr.status, 'NO_REQUEST') as clearance_status,
+                    COALESCE(cr.can_reapply, FALSE) as can_reapply
+                FROM users u
+                LEFT JOIN clearance_requests cr ON u.id = cr.student_id 
+                    AND cr.id = (SELECT MAX(id) FROM clearance_requests WHERE student_id = u.id)
+                WHERE u.role = 'STUDENT'
+                ORDER BY u.username
+                """;
+                
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                User student = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    "STUDENT",
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                student.setYearLevel(rs.getString("year_level"));
+                student.setPhone(rs.getString("phone"));
+                student.setStatus(rs.getString("status"));
+                
+                String clearanceStatus = rs.getString("clearance_status");
+                boolean canReapply = rs.getBoolean("can_reapply");
+                
+                // Set formatted status with reapply info
+                student.setClearanceStatus(formatClearanceStatus(clearanceStatus, canReapply));
+                student.setCanReapply(canReapply);
+                
+                allStudentsData.add(student);
+                
+                // Categorize by status - only show in rejected tab if can't reapply
+                if (clearanceStatus.equals("FULLY_CLEARED") || clearanceStatus.equals("APPROVED")) {
+                    approvedStudentsData.add(student);
+                } else if (clearanceStatus.equals("REJECTED") && !canReapply) {
+                    rejectedStudentsData.add(student);
+                } else if (clearanceStatus.equals("PENDING")) {
+                    pendingStudentsData.add(student);
+                } else if (clearanceStatus.equals("IN_PROGRESS")) {
+                    inProgressStudentsData.add(student);
+                }
+                // Note: Students with REJECTED and canReapply=true don't appear in any category tab
+                // They only appear in "All Students" tab
+            }
+            
+            // Set data to tables
+            tableAllStudents.setItems(allStudentsData);
+            tableApprovedStudents.setItems(approvedStudentsData);
+            tableRejectedStudents.setItems(rejectedStudentsData);
+            tablePendingStudents.setItems(pendingStudentsData);
+            tableInProgressStudents.setItems(inProgressStudentsData);
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load students: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }    
+    private void loadOfficers() {
+        officersData.clear();
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT * FROM users 
+                WHERE role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD', 'ADMIN') 
+                ORDER BY role, username
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                User officer = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("role"),
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                officer.setStatus(rs.getString("status"));
+                officersData.add(officer);
+            }
+            
+            tableOfficers.setItems(officersData);
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load officers: " + e.getMessage());
+        }
+    }
+    
+    private void loadAllUsers() {
+        allUsersData.clear();
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = "SELECT * FROM users ORDER BY role, username";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                User user = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("role"),
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                user.setStatus(rs.getString("status"));
+                allUsersData.add(user);
+            }
+            
+            tableAllUsers.setItems(allUsersData);
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load users: " + e.getMessage());
+        }
+    }
+    
+    private void loadClearanceRequests() {
+        requestData.clear();
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
                 SELECT cr.id, u.username, u.full_name, u.department, 
@@ -188,11 +506,11 @@ public class AdminDashboardController {
                     rs.getTimestamp("request_date").toString(),
                     rs.getInt("approved_count")
                 );
-                masterData.add(req);
+                req.setRequestId(rs.getInt("id"));
+                requestData.add(req);
             }
 
-            updateDashboardCards();
-            tableRequests.setItems(masterData);
+            tableRequests.setItems(requestData);
 
         } catch (Exception e) {
             showAlert("Error", "Failed to load requests: " + e.getMessage());
@@ -200,15 +518,226 @@ public class AdminDashboardController {
         }
     }
     
-    @FXML
-    private void handleRefresh() {
-        loadAllRequests();
-        loadAllUsers();
-        updateDashboardCards();
-        showAlert("Refreshed", "Data updated successfully!");
+    private String formatClearanceStatus(String status, boolean canReapply) {
+        if (status == null) status = "NO_REQUEST";
+        
+        switch (status) {
+            case "FULLY_CLEARED":
+            case "APPROVED":
+                return "✅ Approved";
+            case "REJECTED":
+                if (canReapply) {
+                    return "❌ Rejected - Can Reapply";
+                } else {
+                    return "❌ Rejected";
+                }
+            case "IN_PROGRESS":
+                return "🔄 In Progress";
+            case "PENDING":
+                return "⏳ Pending";
+            case "NO_REQUEST":
+                return "📝 No Request";
+            default:
+                return status;
+        }
+    }
+
+    // Add overloaded method for single parameter (if needed elsewhere)
+    private String formatClearanceStatus(String status) {
+        return formatClearanceStatus(status, false);
+    }
+    private void updateDashboardStats() {
+        lblTotalStudents.setText("Students: " + allStudentsData.size());
+        lblTotalOfficers.setText("Officers: " + officersData.size());
+        
+        // Count total requests
+        int totalRequests = 0;
+        for (User student : allStudentsData) {
+            if (!student.getClearanceStatus().equals("📝 No Request")) {
+                totalRequests++;
+            }
+        }
+        lblTotalRequests.setText("Requests: " + totalRequests);
     }
     
-    // ==================== 1. STUDENT REGISTRATION ====================
+    // ==================== ALLOW STUDENT TO REAPPLY ====================
+    private void allowStudentReapply(User student) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Allow Student to Reapply");
+        confirm.setHeaderText("Allow Clearance Reapplication");
+        confirm.setContentText("Allow " + student.getFullName() + " (" + student.getUsername() + 
+                             ") to submit a new clearance request?\n\n" +
+                             "This student's previous request was rejected.\n" +
+                             "Allowing reapplication will enable them to submit a new request.");
+        
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                enableStudentReapply(student);
+            }
+        });
+    }
+    
+    private void enableStudentReapply(User student) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Allow Student to Reapply");
+        confirm.setHeaderText("Allow Clearance Reapplication");
+        confirm.setContentText("Allow " + student.getFullName() + " (" + student.getUsername() + 
+                             ") to submit a new clearance request?\n\n" +
+                             "This student's previous request was rejected.\n" +
+                             "Allowing reapplication will enable them to submit a new request.");
+        
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try (Connection conn = DatabaseConnection.getConnection()) {
+                    // First, get the latest rejected request ID
+                    String getLatestIdSql = """
+                        SELECT MAX(id) as latest_id 
+                        FROM clearance_requests 
+                        WHERE student_id = ? AND status = 'REJECTED'
+                        """;
+                    
+                    PreparedStatement getStmt = conn.prepareStatement(getLatestIdSql);
+                    getStmt.setInt(1, student.getId());
+                    ResultSet rs = getStmt.executeQuery();
+                    
+                    if (rs.next()) {
+                        int latestRequestId = rs.getInt("latest_id");
+                        
+                        if (latestRequestId > 0) {
+                            // Now update using the ID we found
+                            String updateSql = """
+                                UPDATE clearance_requests 
+                                SET can_reapply = TRUE 
+                                WHERE id = ?
+                                """;
+                            
+                            PreparedStatement updateStmt = conn.prepareStatement(updateSql);
+                            updateStmt.setInt(1, latestRequestId);
+                            
+                            int updated = updateStmt.executeUpdate();
+                            if (updated > 0) {
+                                // Update the student's status in the UI immediately
+                                student.setCanReapply(true);
+                                student.setClearanceStatus(formatClearanceStatus("REJECTED", true));
+                                
+                                // Refresh the table data
+                                refreshStudentTableRows();
+                                
+                                showAlert("Success", student.getFullName() + " can now reapply for clearance!");
+                            } else {
+                                showAlert("Error", "Failed to update clearance request.");
+                            }
+                        } else {
+                            showAlert("Error", "No rejected request found for this student.");
+                        }
+                    } else {
+                        showAlert("Error", "No rejected request found for this student.");
+                    }
+                    
+                } catch (Exception e) {
+                    showAlert("Error", "Failed to allow reapplication: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    // Add this helper method to refresh table rows
+    private void refreshStudentTableRows() {
+        // Refresh the tables to reflect changes
+        tableAllStudents.refresh();
+        tableRejectedStudents.refresh();
+        
+        // Also reload data to update categorization
+        loadAllStudents();
+    }
+    
+    
+    
+    // ==================== VIEW STUDENT DETAILS ====================
+    private void viewStudentDetails(User student) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Student Details");
+        dialog.setHeaderText("Student Information: " + student.getFullName());
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Get student's clearance history
+            String sql = """
+                SELECT 
+                    cr.id,
+                    cr.request_date,
+                    cr.status,
+                    cr.completion_date,
+                    cr.can_reapply,
+                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status)) as approvals
+                FROM clearance_requests cr
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
+                WHERE cr.student_id = ?
+                GROUP BY cr.id
+                ORDER BY cr.request_date DESC
+                """;
+            
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, student.getId());
+            ResultSet rs = ps.executeQuery();
+            
+            StringBuilder details = new StringBuilder();
+            details.append("=== STUDENT INFORMATION ===\n\n");
+            details.append("Name: ").append(student.getFullName()).append("\n");
+            details.append("ID: ").append(student.getUsername()).append("\n");
+            details.append("Department: ").append(student.getDepartment()).append("\n");
+            details.append("Year: ").append(student.getYearLevel()).append("\n");
+            details.append("Email: ").append(student.getEmail()).append("\n");
+            details.append("Phone: ").append(student.getPhone()).append("\n");
+            details.append("Status: ").append(student.getStatus()).append("\n");
+            details.append("Clearance Status: ").append(student.getClearanceStatus()).append("\n");
+            details.append("Can Reapply: ").append(student.isCanReapply() ? "Yes" : "No").append("\n\n");
+            
+            details.append("=== CLEARANCE HISTORY ===\n\n");
+            int requestCount = 0;
+            while (rs.next()) {
+                requestCount++;
+                details.append("Request #").append(requestCount).append(":\n");
+                details.append("  ID: ").append(rs.getInt("id")).append("\n");
+                details.append("  Date: ").append(rs.getTimestamp("request_date")).append("\n");
+                details.append("  Status: ").append(rs.getString("status")).append("\n");
+                if (rs.getTimestamp("completion_date") != null) {
+                    details.append("  Completed: ").append(rs.getTimestamp("completion_date")).append("\n");
+                }
+                details.append("  Can Reapply: ").append(rs.getBoolean("can_reapply") ? "Yes" : "No").append("\n");
+                
+                String approvals = rs.getString("approvals");
+                if (approvals != null) {
+                    details.append("  Approvals:\n");
+                    String[] approvalList = approvals.split(",");
+                    for (String approval : approvalList) {
+                        details.append("    - ").append(approval.trim()).append("\n");
+                    }
+                }
+                details.append("\n");
+            }
+            
+            if (requestCount == 0) {
+                details.append("No clearance requests found.\n");
+            }
+            
+            TextArea textArea = new TextArea(details.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setPrefSize(600, 400);
+            
+            dialog.getDialogPane().setContent(textArea);
+            dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dialog.showAndWait();
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load student details: " + e.getMessage());
+        }
+    }
+    
+    // ==================== ORIGINAL METHODS FROM YOUR CODE ====================
+    
+    // 1. STUDENT REGISTRATION
     @FXML
     private void openRegisterStudent() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -225,7 +754,7 @@ public class AdminDashboardController {
         btnRegister.addEventFilter(ActionEvent.ACTION, event -> {
             boolean valid = registerStudentFromForm(grid);
             if (!valid) {
-                event.consume();   // <-- prevents closing the dialog
+                event.consume();
             }
         });
         Optional<ButtonType> result = dialog.showAndWait();
@@ -242,37 +771,26 @@ public class AdminDashboardController {
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // --- Student ID field with fixed DBU ---
         TextField txtStudentId = new TextField();
         txtStudentId.setPromptText("DBU1601374");
-        txtStudentId.setText("DBU"); // initial DBU prefix
-        txtStudentId.positionCaret(txtStudentId.getText().length());
+        txtStudentId.setText("DBU");
 
-        // --- Username field with fixed dbu ---
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("dbu1601374");
-        txtUsername.setText("dbu"); // initial dbu prefix
+        txtUsername.setText("dbu");
         txtUsername.setEditable(false);
 
-        // --- Student ID listener ---
         txtStudentId.textProperty().addListener((obs, oldText, newText) -> {
-            // Ensure DBU is always at start
             if (!newText.startsWith("DBU")) {
                 newText = "DBU" + newText.replaceAll("(?i)DBU", "");
             }
-
-            // Allow only 7 digits after DBU
             String digits = newText.substring(3).replaceAll("[^\\d]", "");
             if (digits.length() > 7) digits = digits.substring(0, 7);
-
             txtStudentId.setText("DBU" + digits);
             txtStudentId.positionCaret(txtStudentId.getText().length());
-
-            // Update username dynamically with dbu prefix
             txtUsername.setText("dbu" + digits);
         });
 
-        // --- Other fields ---
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("Full Name");
 
@@ -282,7 +800,6 @@ public class AdminDashboardController {
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email (optional)");
 
-        // --- Phone number input ---
         HBox phoneBox = new HBox(5);
         ComboBox<String> cmbPhonePrefix = new ComboBox<>();
         cmbPhonePrefix.getItems().addAll("09", "07");
@@ -293,7 +810,6 @@ public class AdminDashboardController {
         txtPhoneSuffix.setPromptText("12345678");
         txtPhoneSuffix.setPrefWidth(150);
 
-        // Only digits, max 8
         txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
             if (!newVal.matches("\\d*")) txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
             if (txtPhoneSuffix.getText().length() > 8)
@@ -314,7 +830,6 @@ public class AdminDashboardController {
         cmbYear.getItems().addAll("1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year");
         cmbYear.setPromptText("Select Year");
 
-        // --- Layout ---
         grid.add(new Label("Student ID*:"), 0, 0);
         grid.add(txtStudentId, 1, 0);
         grid.add(new Label("Username*:"), 0, 1);
@@ -332,7 +847,6 @@ public class AdminDashboardController {
         grid.add(new Label("Year Level*:"), 0, 7);
         grid.add(cmbYear, 1, 7);
 
-        // Store fields in UserData
         grid.setUserData(new Object[]{
             txtStudentId, txtUsername, txtFullName, txtPassword,
             txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear
@@ -341,9 +855,6 @@ public class AdminDashboardController {
         return grid;
     }
 
-
-
- // ==================== REGISTER STUDENT FROM FORM ====================
     private boolean registerStudentFromForm(GridPane grid) {
         Object[] fields = (Object[]) grid.getUserData();
         TextField txtStudentId = (TextField) fields[0];
@@ -356,14 +867,13 @@ public class AdminDashboardController {
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
 
-        // --- Extract digits and build studentId & username ---
         String inputId = txtStudentId.getText().trim();
         if (!inputId.startsWith("DBU") || inputId.length() != 10) {
             showAlert("Error", "Student ID must be exactly 7 digits after DBU!");
             return false;
         }
 
-        String digits = inputId.substring(3); // 7 digits
+        String digits = inputId.substring(3);
         String studentId = "DBU" + digits;
         String username = "dbu" + digits;
 
@@ -376,7 +886,6 @@ public class AdminDashboardController {
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        // ============= VALIDATION =============
         if (fullName.isEmpty() || password.isEmpty() ||
             phonePrefix == null || phoneSuffix.isEmpty() || department == null || year == null) {
             showAlert("Error", "Please fill all required fields marked with *!");
@@ -401,7 +910,6 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check duplicates
             String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
             checkStmt.setString(1, username);
@@ -413,7 +921,6 @@ public class AdminDashboardController {
                 return false;
             }
 
-            // Insert new student
             String sql = """
                 INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status)
                 VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')
@@ -436,10 +943,8 @@ public class AdminDashboardController {
             return false;
         }
     }
-
-
     
-    // ==================== 2. OFFICER MANAGEMENT ====================
+    // 2. OFFICER MANAGEMENT
     @FXML
     private void openManageOfficers() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -454,7 +959,7 @@ public class AdminDashboardController {
         btnSave.addEventFilter(ActionEvent.ACTION, event -> {
             boolean valid = registerOfficerFromForm(grid);
             if (!valid) {
-                event.consume(); // <-- stop dialog from closing
+                event.consume();
             }
         });
 
@@ -465,7 +970,6 @@ public class AdminDashboardController {
             showAlert("Success", "Officer registered successfully!");
         }
     }
-
 
     private GridPane createOfficerForm() {
         GridPane grid = new GridPane();
@@ -485,7 +989,6 @@ public class AdminDashboardController {
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("Email");
         
-        // --- NEW PHONE INPUT FOR OFFICER ---
         HBox phoneBox = new HBox(5);
         ComboBox<String> cmbPhonePrefix = new ComboBox<>();
         cmbPhonePrefix.getItems().addAll("09", "07");
@@ -496,7 +999,6 @@ public class AdminDashboardController {
         txtPhoneSuffix.setPromptText("12345678");
         txtPhoneSuffix.setPrefWidth(150);
         
-        // Validation: Numbers only, max 8 digits
         txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.matches("\\d*")) {
                 txtPhoneSuffix.setText(newValue.replaceAll("[^\\d]", ""));
@@ -507,7 +1009,6 @@ public class AdminDashboardController {
         });
 
         phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
-        // -----------------------------------
 
         ComboBox<String> cmbRole = new ComboBox<>();
         ComboBox<String> cmbDepartment = new ComboBox<>();
@@ -538,7 +1039,6 @@ public class AdminDashboardController {
         grid.add(new Label("Email:"), 0, 3);
         grid.add(txtEmail, 1, 3);
         
-        // Add Phone
         grid.add(new Label("Phone*:"), 0, 4);
         grid.add(phoneBox, 1, 4);
         
@@ -578,7 +1078,6 @@ public class AdminDashboardController {
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
 
-        // ============ VALIDATION ============
         if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
             role == null || department == null || phonePrefix == null || phoneSuffix.isEmpty()) {
             showAlert("Error", "Please fill all required fields!");
@@ -598,8 +1097,6 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-
-            // Check duplicate username / phone
             String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
@@ -613,10 +1110,9 @@ public class AdminDashboardController {
                 } else {
                     showAlert("Error", "Phone number '" + finalPhone + "' already exists!");
                 }
-                return false; // keep dialog open
+                return false;
             }
 
-            // Insert Officer
             String insertSql = """
                 INSERT INTO users (username, password, full_name, role, email, phone, department, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
@@ -639,46 +1135,16 @@ public class AdminDashboardController {
             return false;
         }
     }
-
-    // ==================== 3. USER MANAGEMENT ====================
-    @FXML
-    private void loadAllUsers() {
-        userData.clear();
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT id, username, full_name, role, email, department, " +
-                        "COALESCE(status, 'ACTIVE') as status FROM users ORDER BY role, username";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                User user = new User(
-                    rs.getInt("id"),
-                    rs.getString("username"),
-                    rs.getString("full_name"),
-                    rs.getString("role"),
-                    rs.getString("email"),
-                    rs.getString("department")
-                );
-                user.setStatus(rs.getString("status"));
-                userData.add(user);
-            }
-
-            tableUsers.setItems(userData);
-
-        } catch (Exception e) {
-            showAlert("Error", "Failed to load users: " + e.getMessage());
-        }
-    }
-
+    
+    // 3. USER MANAGEMENT
     @FXML
     private void resetUserPassword() {
-        User selectedUser = tableUsers.getSelectionModel().getSelectedItem();
+        User selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
         if (selectedUser == null) {
             showAlert("Error", "Please select a user first!");
             return;
         }
 
-        // Check if trying to reset admin password (extra security)
         if ("admin".equals(selectedUser.getUsername())) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Admin Password Reset");
@@ -721,7 +1187,7 @@ public class AdminDashboardController {
 
     @FXML
     private void toggleUserStatus() {
-        User selectedUser = tableUsers.getSelectionModel().getSelectedItem();
+        User selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
         if (selectedUser == null) {
             showAlert("Error", "Please select a user first!");
             return;
@@ -748,6 +1214,8 @@ public class AdminDashboardController {
                 if (stmt.executeUpdate() > 0) {
                     showAlert("Success", "User status updated to: " + newStatus);
                     loadAllUsers();
+                    loadAllStudents();
+                    loadOfficers();
                 }
             } catch (Exception e) {
                 showAlert("Error", "Failed to update status: " + e.getMessage());
@@ -755,7 +1223,7 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== 4. WORKFLOW MANAGEMENT ====================
+    // 4. WORKFLOW MANAGEMENT
     @FXML
     private void openWorkflowManagement() {
         Dialog<String> dialog = new Dialog<>();
@@ -769,15 +1237,12 @@ public class AdminDashboardController {
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));
 
-        // Get current workflow
         List<String> currentWorkflow = getCurrentWorkflow();
         
-        // Create list view for workflow
         ListView<String> listView = new ListView<>();
         listView.getItems().addAll(currentWorkflow);
         listView.setPrefHeight(200);
 
-        // Add departments that are not in workflow
         ListView<String> availableDepartments = new ListView<>();
         String[] allDepartments = {"LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD"};
         for (String dept : allDepartments) {
@@ -787,7 +1252,6 @@ public class AdminDashboardController {
         }
         availableDepartments.setPrefHeight(200);
 
-        // Create buttons for moving items
         HBox buttonBox = new HBox(10);
         Button btnUp = new Button("↑");
         Button btnDown = new Button("↓");
@@ -849,8 +1313,7 @@ public class AdminDashboardController {
 
         dialog.showAndWait().ifPresent(result -> {
             showAlert("Workflow Updated", result);
-            // Refresh any affected data
-            loadAllRequests();
+            loadAllData();
         });
     }
 
@@ -864,7 +1327,6 @@ public class AdminDashboardController {
                 workflow.add(rs.getString("role"));
             }
         } catch (Exception e) {
-            // If no workflow exists, return default
             workflow.add("LIBRARIAN");
             workflow.add("CAFETERIA");
             workflow.add("DORMITORY");
@@ -876,12 +1338,10 @@ public class AdminDashboardController {
 
     private String saveWorkflow(List<String> workflow) {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Clear existing workflow
             String clearSql = "DELETE FROM workflow_config";
             PreparedStatement clearStmt = conn.prepareStatement(clearSql);
             clearStmt.executeUpdate();
 
-            // Insert new workflow
             String insertSql = "INSERT INTO workflow_config (role, sequence_order) VALUES (?, ?)";
             PreparedStatement insertStmt = conn.prepareStatement(insertSql);
             
@@ -899,7 +1359,7 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== 5. ACADEMIC SESSION MANAGEMENT ====================
+    // 5. ACADEMIC SESSION MANAGEMENT
     @FXML
     private void openSessionManagement() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -954,7 +1414,6 @@ public class AdminDashboardController {
         }
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // If setting as active, deactivate all other sessions
             if (isActive) {
                 String deactivateSql = "UPDATE academic_sessions SET is_active = false";
                 PreparedStatement deactivateStmt = conn.prepareStatement(deactivateSql);
@@ -982,7 +1441,7 @@ public class AdminDashboardController {
         return false;
     }
     
-    // ==================== 6. CERTIFICATE GENERATION ====================
+    // 6. CERTIFICATE GENERATION
     @FXML
     private void generateClearanceCertificates() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -1068,7 +1527,7 @@ public class AdminDashboardController {
                 report.append("Clearance Date: ").append(rs.getDate("completion_date")).append("\n");
                 
                 try {
-                              successful++;
+                    successful++;
                     report.append("Status: ✅ Generated\n");
                 } catch (Exception e) {
                     report.append("Status: ❌ Failed - ").append(e.getMessage()).append("\n");
@@ -1093,7 +1552,7 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== 7. CERTIFICATE VERIFICATION ====================
+    // 7. CERTIFICATE VERIFICATION
     @FXML
     private void openCertificateVerification() {
         TextInputDialog dialog = new TextInputDialog();
@@ -1102,7 +1561,7 @@ public class AdminDashboardController {
         dialog.setContentText("Enter Student ID or Certificate ID:");
 
         dialog.showAndWait().ifPresent(studentId -> {
-            verifyCertificateWithId(studentId);
+            verifyCertificateInDatabase(studentId);
         });
     }
     
@@ -1116,10 +1575,6 @@ public class AdminDashboardController {
         dialog.showAndWait().ifPresent(input -> {
             verifyCertificateInDatabase(input);
         });
-    }
-
-    private void verifyCertificateWithId(String studentId) {
-        verifyCertificateInDatabase(studentId);
     }
 
     private void verifyCertificateInDatabase(String searchTerm) {
@@ -1177,7 +1632,7 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== 8. SEMESTER ROLLOVER ====================
+    // 8. SEMESTER ROLLOVER
     @FXML
     private void processSemesterRollover() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -1274,8 +1729,7 @@ public class AdminDashboardController {
                 report.append("System is ready for the new semester.");
 
                 showAlert("Rollover Successful", report.toString());
-                loadAllRequests();
-                loadAllUsers();
+                loadAllData();
 
             } catch (Exception e) {
                 conn.rollback();
@@ -1301,20 +1755,41 @@ public class AdminDashboardController {
             
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                Parent login = FXMLLoader.load(getClass().getResource("/com/university/clearance/resources/views/Login.fxml"));
-                Stage stage = (Stage) lblWelcome.getScene().getWindow();
-                double width = stage.getWidth();
-                double height = stage.getHeight();
-                Scene scene = new Scene(login, width, height);
-                stage.setScene(scene);
-                stage.setTitle("Login - University Clearance System");
-                stage.centerOnScreen();
+                // Fix the FXML path - adjust based on your project structure
+                String fxmlPath = "/com/university/clearance/resources/views/AdminDashboard.fxml";
+                
+                // Try to load the FXML file
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                
+                if (loader.getLocation() == null) {
+                    // If not found, try alternative paths
+                    fxmlPath = "view/Login.fxml";
+                    loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                }
+                
+                if (loader.getLocation() == null) {
+                    // If still not found, try from class loader
+                    loader = new FXMLLoader(ClassLoader.getSystemResource("com/university/clearance/view/Login.fxml"));
+                }
+                
+                if (loader.getLocation() != null) {
+                    Parent login = loader.load();
+                    Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                    Scene scene = new Scene(login);
+                    stage.setScene(scene);
+                    stage.setTitle("University Clearance System - Login");
+                    stage.centerOnScreen();
+                } else {
+                    showAlert("Error", "Login screen not found. Please restart the application.");
+                }
             }
         } catch (Exception e) {
+            showAlert("Error", "Failed to logout: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
+    } 
+    
+    
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

@@ -55,7 +55,10 @@
                     <Label fx:id="lblStatusMessage" 
                            wrapText="true"
                            style="-fx-font-size: 16px; -fx-padding: 15; -fx-background-color: #f8f9fa; -fx-background-radius: 5;" />
-                    
+                    <!-- Clearance Status Label - THIS IS MISSING! -->
+<Label fx:id="lblClearanceStatus" 
+       wrapText="true"
+       style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5; -fx-font-weight: bold;" />
                     <!-- Quick Stats -->
                     <HBox spacing="15">
                         <VBox style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;" prefWidth="180">

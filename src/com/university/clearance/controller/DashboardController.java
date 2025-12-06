@@ -26,9 +26,7 @@ public class DashboardController {
             tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         }
     }
-    
-    
-    
+       
     
     @FXML
     private void refreshDashboard() {

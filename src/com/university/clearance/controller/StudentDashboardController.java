@@ -1,6 +1,6 @@
 package com.university.clearance.controller;
 
-import com.itextpdf.io.IOException;
+import java.io.IOException;
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
 import com.university.clearance.service.PDFCertificateService;
@@ -21,7 +21,6 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.net.URL;
 import java.sql.*;
-import java.util.Enumeration;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -45,6 +44,14 @@ public class StudentDashboardController implements Initializable {
     @FXML private Label lblProfilePhone;
     @FXML private Label lblClearanceStatus;
 
+    // Statistics labels
+    @FXML private Label lblUserName;
+    @FXML private Label lblUserRole;
+    @FXML private Label lblTotalApprovals;
+    @FXML private Label lblApprovedCount;
+    @FXML private Label lblPendingCount;
+    @FXML private Label lblRejectedCount;
+
     private User currentUser;
     private int currentRequestId = -1;
     private ObservableList<ApprovalStatus> approvalData = FXCollections.observableArrayList();
@@ -59,6 +66,14 @@ public class StudentDashboardController implements Initializable {
         this.currentUser = user;
         loadClearanceStatus();
         loadProfileInformation();
+        
+        // Update user info in sidebar
+        if (lblUserName != null && user != null) {
+            lblUserName.setText(user.getFullName());
+        }
+        if (lblUserRole != null && user != null) {
+            lblUserRole.setText("Student - " + user.getDepartment());
+        }
     }
     
     private void setupTableColumns() {
@@ -199,13 +214,13 @@ public class StudentDashboardController implements Initializable {
             e.printStackTrace();
         }
     }
-
+    
     @FXML
     private void refreshStatus() {
         loadClearanceStatus();
         showMessage("Status refreshed.", "info");
     }
-
+    
     @FXML
     private void generateCertificate() {
         if (currentUser == null) {
@@ -293,7 +308,7 @@ public class StudentDashboardController implements Initializable {
         }
         return false;
     }
-
+    
     private void loadClearanceStatus() {
         if (currentUser == null) return;
         
@@ -346,7 +361,7 @@ public class StudentDashboardController implements Initializable {
                 showMessage("Clearance in progress...", "info");
             }
             
-            // Load approval details
+            // Load approval details and update statistics
             String approvalSql = """
                 SELECT 
                     ca.officer_role,
@@ -355,7 +370,8 @@ public class StudentDashboardController implements Initializable {
                         WHEN ca.status = 'REJECTED' THEN '❌ Rejected'
                         ELSE '⏳ Pending'
                     END as display_status,
-                    COALESCE(ca.remarks, 'No remarks') as remarks
+                    COALESCE(ca.remarks, 'No remarks') as remarks,
+                    ca.status as raw_status
                 FROM clearance_approvals ca
                 WHERE ca.request_id = ?
                 AND ca.officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
@@ -366,14 +382,35 @@ public class StudentDashboardController implements Initializable {
             approvalStmt.setInt(1, currentRequestId);
             ResultSet approvalRs = approvalStmt.executeQuery();
             
+            int approvedCount = 0;
+            int pendingCount = 0;
+            int rejectedCount = 0;
+            
             while (approvalRs.next()) {
-                ApprovalStatus status = new ApprovalStatus(
-                    formatDepartmentName(approvalRs.getString("officer_role")),
-                    approvalRs.getString("display_status"),
-                    approvalRs.getString("remarks")
-                );
+                String department = formatDepartmentName(approvalRs.getString("officer_role"));
+                String displayStatus = approvalRs.getString("display_status");
+                String remarks = approvalRs.getString("remarks");
+                String rawStatus = approvalRs.getString("raw_status");
+                
+                // Count statuses
+                switch (rawStatus) {
+                    case "APPROVED":
+                        approvedCount++;
+                        break;
+                    case "REJECTED":
+                        rejectedCount++;
+                        break;
+                    default:
+                        pendingCount++;
+                }
+                
+                ApprovalStatus status = new ApprovalStatus(department, displayStatus, remarks);
                 approvalData.add(status);
             }
+            
+            // Update statistics labels
+            updateStatistics(approvedCount + pendingCount + rejectedCount, 
+                           approvedCount, pendingCount, rejectedCount);
             
             tableApprovals.setItems(approvalData);
             
@@ -381,6 +418,13 @@ public class StudentDashboardController implements Initializable {
             showMessage("Error loading status: " + e.getMessage(), "error");
             e.printStackTrace();
         }
+    }
+
+    private void updateStatistics(int total, int approved, int pending, int rejected) {
+        if (lblTotalApprovals != null) lblTotalApprovals.setText(String.valueOf(total));
+        if (lblApprovedCount != null) lblApprovedCount.setText(String.valueOf(approved));
+        if (lblPendingCount != null) lblPendingCount.setText(String.valueOf(pending));
+        if (lblRejectedCount != null) lblRejectedCount.setText(String.valueOf(rejected));
     }
 
     private String formatStatus(String status) {
@@ -572,8 +616,6 @@ public class StudentDashboardController implements Initializable {
 
     @FXML
     private void handleLogout() {
-        System.out.println("LOGOUT BUTTON CLICKED - Location check");
-        
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Logout");
         confirmation.setHeaderText("Confirm Logout");
@@ -582,42 +624,31 @@ public class StudentDashboardController implements Initializable {
         Optional<ButtonType> result = confirmation.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                // DEBUG: Check the exact path
-                URL loginFxmlUrl = getClass().getResource("/com/university/clearance/view/Login.fxml");
-                System.out.println("Login FXML URL: " + loginFxmlUrl);
+                // Get the current stage and scene
+                Stage currentStage = (Stage) lblStatusMessage.getScene().getWindow();
+                Scene currentScene = currentStage.getScene();
                 
-                if (loginFxmlUrl == null) {
-                    // Try alternative paths based on your project structure
-                    loginFxmlUrl = getClass().getResource("/view/Login.fxml");
-                    System.out.println("Alternative 1: " + loginFxmlUrl);
+                // Use the correct path from your debug output
+                URL loginFxmlUrl = getClass().getResource("/com/university/clearance/resources/views/Login.fxml");
+                
+                if (loginFxmlUrl != null) {
+                    // Load the login screen
+                    Parent root = FXMLLoader.load(loginFxmlUrl);
                     
-                    if (loginFxmlUrl == null) {
-                        loginFxmlUrl = getClass().getResource("Login.fxml");
-                        System.out.println("Alternative 2: " + loginFxmlUrl);
-                    }
+                    // Preserve current window size
+                    Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
                     
-                    if (loginFxmlUrl == null) {
-                        // List available resources for debugging
-                        System.out.println("Available resources in package:");
-                        try {
-                            Enumeration<URL> resources = getClass().getClassLoader()
-                                .getResources("com/university/clearance/");
-                            while (resources.hasMoreElements()) {
-                                System.out.println("Resource: " + resources.nextElement());
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        throw new RuntimeException("Login.fxml not found in any location");
-                    }
+                    // Set the new scene while preserving window size
+                    currentStage.setScene(newScene);
+                    currentStage.setTitle("University Clearance System - Login");
+                    
+                    // Center on screen
+                    currentStage.centerOnScreen();
+                } else {
+                    // If Login.fxml not found, show error and close
+                    showAlert("Error", "Login screen not found. Closing application.");
+                    currentStage.close();
                 }
-                
-                Parent root = FXMLLoader.load(loginFxmlUrl);
-                Stage stage = (Stage) lblStatusMessage.getScene().getWindow();
-                Scene scene = new Scene(root);
-                stage.setScene(scene);
-                stage.setTitle("University Clearance System - Login");
-                stage.centerOnScreen();
                 
             } catch (Exception e) {
                 e.printStackTrace();

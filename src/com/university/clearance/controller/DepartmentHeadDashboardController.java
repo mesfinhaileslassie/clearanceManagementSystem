@@ -198,7 +198,6 @@ public class DepartmentHeadDashboardController implements Initializable {
     
     
     
-    
 
     private void setupTableColumns() {
         System.out.println("=== DEBUG: Setting up table columns ===");
@@ -211,8 +210,8 @@ public class DepartmentHeadDashboardController implements Initializable {
         colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
-            private final Button btnApprove = new Button("✅ Approve");
-            private final Button btnReject = new Button("❌ Reject");
+            private final Button btnApprove = new Button("Approve");
+            private final Button btnReject = new Button(" Reject");
             private final Button btnViewRequirements = new Button("📋 Requirements");
             private final HBox buttons = new HBox(5, btnViewRequirements, btnApprove, btnReject);
 

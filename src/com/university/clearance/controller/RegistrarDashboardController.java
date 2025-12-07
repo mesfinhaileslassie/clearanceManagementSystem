@@ -16,12 +16,24 @@ import java.sql.*;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+
+
 public class RegistrarDashboardController implements Initializable {
 
     @FXML private Label lblWelcome;
     @FXML private Label lblPendingCount;
     @FXML private Label lblStudentInfo;
     @FXML private TabPane mainTabPane;
+    
+    
+    @FXML private Label lblPendingCard;
+    @FXML private Label lblApprovedCard;
+    @FXML private Label lblHoldsCard;
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -38,6 +50,11 @@ public class RegistrarDashboardController implements Initializable {
     @FXML private TableColumn<AcademicRecord, String> colCredits;
     @FXML private TableColumn<AcademicRecord, String> colSemester;
 
+    
+    
+    @FXML
+    private Button logoutBtn;
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<AcademicRecord> academicData = FXCollections.observableArrayList();
@@ -59,6 +76,68 @@ public class RegistrarDashboardController implements Initializable {
             });
     }
 
+    
+    
+    
+    
+    @FXML
+    private void handleLogout() {
+        try {
+            System.out.println("[DEBUG] Logout button clicked in Registrar Dashboard.");
+            
+            // Confirmation dialog
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Logout Confirmation");
+            confirm.setHeaderText("Confirm Logout");
+            confirm.setContentText("Are you sure you want to logout from the Registrar Dashboard?");
+            
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                System.out.println("[DEBUG] User confirmed logout.");
+                
+                // Get current scene from welcome label to preserve window size
+                Scene currentScene = lblWelcome.getScene();
+                
+                // Load the Login FXML
+                String fxmlPath = "/com/university/clearance/resources/views/Login.fxml";
+                System.out.println("[DEBUG] Trying FXML: " + fxmlPath);
+                
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                
+                if (loader.getLocation() == null) {
+                    System.out.println("[DEBUG] ERROR: FXML not found at: " + fxmlPath);
+                    showAlert("Error", "Login screen not found. Check FXML path.");
+                    return;
+                }
+                
+                Parent root = loader.load();
+                System.out.println("[DEBUG] Login FXML loaded successfully.");
+                
+                // Get the current stage
+                Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                
+                // Preserve current window size
+                Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
+                stage.setScene(newScene);
+                stage.setTitle("University Clearance System - Login");
+                stage.centerOnScreen();
+                
+                System.out.println("[DEBUG] Successfully logged out and returned to login screen.");
+            } else {
+                System.out.println("[DEBUG] Logout cancelled by user.");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[DEBUG] Exception occurred during logout: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Error", "Failed to logout: " + e.getMessage());
+        }
+    }
+
+    
+    
+    
+    
     public void setCurrentUser(User user) {
         this.currentUser = user;
         System.out.println("=== DEBUG: Setting current user for Registrar ===");
@@ -69,6 +148,11 @@ public class RegistrarDashboardController implements Initializable {
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Registrar Office");
         loadPendingRequests();
     }
+    
+    
+    
+    
+    
 
     private void setupTableColumns() {
         colStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));

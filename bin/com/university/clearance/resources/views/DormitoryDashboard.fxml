@@ -19,6 +19,12 @@
             <Region HBox.hgrow="ALWAYS" />
             <Label fx:id="lblPendingCount" text="Pending: 0" 
                    style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;"/>
+            <Button onAction="#logout" text="Logout" 
+                    style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15 5 15;">
+                <graphic>
+                    <Label text="🚪" />
+                </graphic>
+            </Button>
         </HBox>
     </top>
     
@@ -46,6 +52,15 @@
                     <Label text="• Key not returned" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
                     <Label text="• Damage not paid" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
                 </VBox>
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <Button onAction="#logout" text="Logout" 
+                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 180;">
+                    <graphic>
+                        <Label text="🚪" />
+                    </graphic>
+                </Button>
             </children>
         </VBox>
     </left>
@@ -86,9 +101,7 @@
                             <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
                             <TableColumn fx:id="colActions" text="Actions" prefWidth="180"/>
                         </columns>
-                        <columnResizePolicy>
-                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                        </columnResizePolicy>
+                        <!-- FIXED: Removed incorrect columnResizePolicy syntax -->
                     </TableView>
                 </VBox>
             </Tab>
@@ -160,9 +173,6 @@
                                 <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
                                 <TableColumn fx:id="colRecordStatus" text="Status" prefWidth="100"/>
                             </columns>
-                            <columnResizePolicy>
-                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                            </columnResizePolicy>
                         </TableView>
                     </VBox>
                 </VBox>
@@ -190,9 +200,6 @@
                             <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
                             <TableColumn fx:id="colRecordStatus" text="Status" prefWidth="100"/>
                         </columns>
-                        <columnResizePolicy>
-                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                        </columnResizePolicy>
                     </TableView>
                 </VBox>
             </Tab>

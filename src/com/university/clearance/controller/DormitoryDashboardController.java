@@ -5,12 +5,17 @@ import com.university.clearance.model.User;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
 import java.net.URL;
 import java.sql.*;
@@ -190,6 +195,58 @@ public class DormitoryDashboardController implements Initializable {
     private void refreshRequests() {
         loadPendingRequests();
         showAlert("Refreshed", "Dormitory clearance requests refreshed successfully!");
+    }
+
+    @FXML
+    private void logout() {
+        try {
+            Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmAlert.setTitle("Logout Confirmation");
+            confirmAlert.setHeaderText("Are you sure you want to logout?");
+            confirmAlert.setContentText("You will be redirected to the login screen.");
+            
+            Optional<ButtonType> result = confirmAlert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                // Load the login FXML - adjust path based on your project structure
+                FXMLLoader loader = new FXMLLoader();
+                
+                // Try different possible paths for login FXML
+                URL loginUrl = getClass().getResource("/com/university/clearance/resources/views/Login.fxml");
+                if (loginUrl == null) {
+                    loginUrl = getClass().getResource("/com/university/clearance/view/Login.fxml");
+                }
+                if (loginUrl == null) {
+                    loginUrl = getClass().getResource("/views/Login.fxml");
+                }
+                if (loginUrl == null) {
+                    loginUrl = getClass().getResource("/Login.fxml");
+                }
+                
+                if (loginUrl == null) {
+                    showAlert("Error", "Login screen not found. Please check the file path.");
+                    return;
+                }
+                
+                loader.setLocation(loginUrl);
+                Parent root = loader.load();
+                
+                // Get the current stage
+                Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                
+                // Preserve current window size
+                Scene currentScene = lblWelcome.getScene();
+                Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
+                stage.setScene(newScene);
+                
+                // Center the window
+                stage.centerOnScreen();
+                
+                showAlert("Logged Out", "You have been successfully logged out.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error", "Failed to logout: " + e.getMessage());
+        }
     }
 
     private void loadPendingRequests() {

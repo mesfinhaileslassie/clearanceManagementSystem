@@ -10,8 +10,12 @@ public class ValidationService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@(.+)$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(09|07)\\d{8}$");
     private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{6,}$");
-    private static final Pattern BLOCK_PATTERN = Pattern.compile("^[A-Z]{1,2}$");
-    private static final Pattern ROOM_PATTERN = Pattern.compile("^\\d{3,4}$");
+    
+    // UPDATED: Allow numbers (1-99) for block numbers
+    private static final Pattern BLOCK_PATTERN = Pattern.compile("^[1-9][0-9]?$");
+    
+    // UPDATED: Allow any number for room numbers (1-9999)
+    private static final Pattern ROOM_PATTERN = Pattern.compile("^[1-9][0-9]{0,3}$");
     
     // Validation Methods
     public static ValidationResult validateStudentId(String studentId) {
@@ -127,6 +131,7 @@ public class ValidationService {
         return new ValidationResult(false, "Invalid year level");
     }
     
+    // UPDATED: Validate block number as number (1-99)
     public static ValidationResult validateBlockNumber(String blockNumber) {
         if (blockNumber == null || blockNumber.trim().isEmpty()) {
             return new ValidationResult(true, "Optional"); // Block number is optional
@@ -135,13 +140,14 @@ public class ValidationService {
         if (!BLOCK_PATTERN.matcher(blockNumber.trim()).matches()) {
             return new ValidationResult(false, 
                 "Block number must be:\n" +
-                "• 1-2 uppercase letters\n" +
-                "• Examples: A, B, C, AB");
+                "• A number from 1 to 99\n" +
+                "• Examples: 1, 5, 10, 25, 99");
         }
         
         return new ValidationResult(true, "Valid");
     }
     
+    // UPDATED: Validate room number as any number (1-9999)
     public static ValidationResult validateRoomNumber(String roomNumber) {
         if (roomNumber == null || roomNumber.trim().isEmpty()) {
             return new ValidationResult(true, "Optional"); // Room number is optional
@@ -150,8 +156,8 @@ public class ValidationService {
         if (!ROOM_PATTERN.matcher(roomNumber.trim()).matches()) {
             return new ValidationResult(false, 
                 "Room number must be:\n" +
-                "• 3-4 digits\n" +
-                "• Examples: 101, 205, 3012");
+                "• A number from 1 to 9999\n" +
+                "• Examples: 101, 205, 1001, 9999");
         }
         
         return new ValidationResult(true, "Valid");

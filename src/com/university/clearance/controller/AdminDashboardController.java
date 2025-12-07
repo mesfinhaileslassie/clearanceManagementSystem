@@ -385,21 +385,39 @@ public class AdminDashboardController {
         cmbYear.setPromptText("Select Year");
         cmbYear.setPrefWidth(200);
         
-        // Block Number
+        // Block Number (UPDATED: numbers only)
         TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("e.g., A, B, C");
+        txtBlockNumber.setPromptText("e.g., 1, 5, 10 (1-99)");
         txtBlockNumber.setPrefWidth(200);
         txtBlockNumber.textProperty().addListener((obs, oldText, newText) -> {
+            // Allow only numbers
+            if (!newText.matches("\\d*")) {
+                txtBlockNumber.setText(newText.replaceAll("[^\\d]", ""));
+            }
+            // Limit to 2 digits
+            if (txtBlockNumber.getText().length() > 2) {
+                txtBlockNumber.setText(txtBlockNumber.getText().substring(0, 2));
+            }
+            
             ValidationService.ValidationResult result = 
                 ValidationService.validateBlockNumber(newText);
             updateValidationLabel(lblBlockValidation, result);
         });
         
-        // Dorm/Room Number
+        // Dorm/Room Number (UPDATED: numbers only)
         TextField txtDormNumber = new TextField();
-        txtDormNumber.setPromptText("e.g., 101, 205, 301");
+        txtDormNumber.setPromptText("e.g., 101, 205, 1001 (1-9999)");
         txtDormNumber.setPrefWidth(200);
         txtDormNumber.textProperty().addListener((obs, oldText, newText) -> {
+            // Allow only numbers
+            if (!newText.matches("\\d*")) {
+                txtDormNumber.setText(newText.replaceAll("[^\\d]", ""));
+            }
+            // Limit to 4 digits
+            if (txtDormNumber.getText().length() > 4) {
+                txtDormNumber.setText(txtDormNumber.getText().substring(0, 4));
+            }
+            
             ValidationService.ValidationResult result = 
                 ValidationService.validateRoomNumber(newText);
             updateValidationLabel(lblRoomValidation, result);
@@ -440,12 +458,15 @@ public class AdminDashboardController {
         grid.add(txtBlockNumber, 1, row);
         grid.add(lblBlockValidation, 2, row++);
         
-        grid.add(new Label("Dorm/Room Number:"), 0, row);
+        grid.add(new Label("Room Number:"), 0, row);
         grid.add(txtDormNumber, 1, row);
         grid.add(lblRoomValidation, 2, row++);
         
         // Add instructions
-        Label lblInstructions = new Label("* Required fields\n\nPassword Requirements:\n• Minimum 6 characters\n• At least one letter\n• At least one number");
+        Label lblInstructions = new Label("* Required fields\n\n" +
+                                        "Block Number: Number from 1-99 (e.g., 1, 5, 10)\n" +
+                                        "Room Number: Number from 1-9999 (e.g., 101, 205, 1001)\n\n" +
+                                        "Password Requirements:\n• Minimum 6 characters\n• At least one letter\n• At least one number");
         lblInstructions.setStyle("-fx-text-fill: #666; -fx-font-size: 11px;");
         grid.add(lblInstructions, 1, row, 2, 1);
 

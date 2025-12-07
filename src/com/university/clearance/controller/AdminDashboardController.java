@@ -656,21 +656,296 @@ public class AdminDashboardController {
     
     
     // ==================== VIEW STUDENT DETAILS ====================
+ // ==================== VIEW STUDENT DETAILS ====================
     private void viewStudentDetails(User student) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Student Details");
         dialog.setHeaderText("Student Information: " + student.getFullName());
+        dialog.getDialogPane().setPrefSize(700, 600);
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Get student's clearance history
-            String sql = """
+            StringBuilder details = new StringBuilder();
+            
+            // ========== BASIC STUDENT INFORMATION ==========
+            details.append("=".repeat(60)).append("\n");
+            details.append("STUDENT INFORMATION\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            details.append(String.format("%-20s: %s\n", "Name", student.getFullName()));
+            details.append(String.format("%-20s: %s\n", "Student ID", student.getUsername()));
+            details.append(String.format("%-20s: %s\n", "System ID", student.getId()));
+            details.append(String.format("%-20s: %s\n", "Department", student.getDepartment()));
+            details.append(String.format("%-20s: %s\n", "Year Level", student.getYearLevel()));
+            details.append(String.format("%-20s: %s\n", "Email", student.getEmail()));
+            details.append(String.format("%-20s: %s\n", "Phone", student.getPhone()));
+            details.append(String.format("%-20s: %s\n", "Account Status", student.getStatus()));
+            details.append(String.format("%-20s: %s\n", "Clearance Status", student.getClearanceStatus()));
+            details.append(String.format("%-20s: %s\n", "Can Reapply", student.isCanReapply() ? "Yes" : "No"));
+            
+            // ========== DORMITORY INFORMATION ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("DORMITORY INFORMATION\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String dormSql = """
+                SELECT block_number, room_number, key_returned, key_return_date,
+                       damage_description, damage_amount, damage_paid, clearance_status,
+                       remarks, last_updated
+                FROM student_dormitory_credentials 
+                WHERE student_id = ?
+                """;
+            
+            PreparedStatement dormPs = conn.prepareStatement(dormSql);
+            dormPs.setInt(1, student.getId());
+            ResultSet dormRs = dormPs.executeQuery();
+            
+            if (dormRs.next()) {
+                details.append(String.format("%-20s: Block %s - Room %s\n", "Location", 
+                    dormRs.getString("block_number"), dormRs.getString("room_number")));
+                details.append(String.format("%-20s: %s\n", "Key Returned", 
+                    dormRs.getBoolean("key_returned") ? "✅ Yes" : "❌ No"));
+                
+                if (dormRs.getDate("key_return_date") != null) {
+                    details.append(String.format("%-20s: %s\n", "Key Return Date", 
+                        dormRs.getDate("key_return_date")));
+                }
+                
+                details.append(String.format("%-20s: %s\n", "Damage Paid", 
+                    dormRs.getBoolean("damage_paid") ? "✅ Yes" : "❌ No"));
+                
+                double damageAmount = dormRs.getDouble("damage_amount");
+                if (damageAmount > 0) {
+                    details.append(String.format("%-20s: $%.2f\n", "Damage Amount", damageAmount));
+                }
+                
+                String damageDesc = dormRs.getString("damage_description");
+                if (damageDesc != null && !damageDesc.isEmpty()) {
+                    details.append(String.format("%-20s: %s\n", "Damage Description", damageDesc));
+                }
+                
+                details.append(String.format("%-20s: %s\n", "Dormitory Status", 
+                    dormRs.getString("clearance_status")));
+                
+                String remarks = dormRs.getString("remarks");
+                if (remarks != null && !remarks.isEmpty()) {
+                    details.append(String.format("%-20s: %s\n", "Remarks", remarks));
+                }
+                
+                if (dormRs.getTimestamp("last_updated") != null) {
+                    details.append(String.format("%-20s: %s\n", "Last Updated", 
+                        dormRs.getTimestamp("last_updated")));
+                }
+            } else {
+                details.append("No dormitory information found.\n");
+                details.append("(Use Edit Dormitory Info to add block and room numbers)\n");
+            }
+            
+            // ========== ACADEMIC RECORDS ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("ACADEMIC RECORDS\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String academicSql = """
+                SELECT academic_hold, outstanding_fees, incomplete_courses, gpa
+                FROM student_academic_records 
+                WHERE student_id = ?
+                """;
+            
+            PreparedStatement academicPs = conn.prepareStatement(academicSql);
+            academicPs.setInt(1, student.getId());
+            ResultSet academicRs = academicPs.executeQuery();
+            
+            if (academicRs.next()) {
+                details.append(String.format("%-20s: %s\n", "Academic Hold", 
+                    academicRs.getString("academic_hold")));
+                details.append(String.format("%-20s: $%.2f\n", "Outstanding Fees", 
+                    academicRs.getDouble("outstanding_fees")));
+                details.append(String.format("%-20s: %d\n", "Incomplete Courses", 
+                    academicRs.getInt("incomplete_courses")));
+                details.append(String.format("%-20s: %.2f\n", "GPA", 
+                    academicRs.getDouble("gpa")));
+            } else {
+                details.append("No academic records found.\n");
+            }
+            
+            // ========== LIBRARY STATUS ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("LIBRARY STATUS\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String librarySql = """
+                SELECT 
+                    COUNT(*) as total_books,
+                    SUM(CASE WHEN status = 'BORROWED' THEN 1 ELSE 0 END) as borrowed,
+                    SUM(CASE WHEN status = 'OVERDUE' THEN 1 ELSE 0 END) as overdue,
+                    SUM(fine_amount) as total_fine
+                FROM book_borrowings 
+                WHERE student_id = ? 
+                AND (status = 'BORROWED' OR status = 'OVERDUE' OR fine_amount > 0)
+                """;
+            
+            PreparedStatement libraryPs = conn.prepareStatement(librarySql);
+            libraryPs.setInt(1, student.getId());
+            ResultSet libraryRs = libraryPs.executeQuery();
+            
+            if (libraryRs.next()) {
+                int borrowed = libraryRs.getInt("borrowed");
+                int overdue = libraryRs.getInt("overdue");
+                double totalFine = libraryRs.getDouble("total_fine");
+                
+                details.append(String.format("%-20s: %d books\n", "Currently Borrowed", borrowed));
+                details.append(String.format("%-20s: %d books\n", "Overdue Books", overdue));
+                details.append(String.format("%-20s: $%.2f\n", "Total Fines", totalFine));
+                
+                if (borrowed > 0 || overdue > 0 || totalFine > 0) {
+                    details.append("\nBook Details:\n");
+                    String bookSql = """
+                        SELECT book_title, borrow_date, due_date, return_date, status, fine_amount
+                        FROM book_borrowings 
+                        WHERE student_id = ?
+                        ORDER BY due_date DESC
+                        """;
+                    
+                    PreparedStatement bookPs = conn.prepareStatement(bookSql);
+                    bookPs.setInt(1, student.getId());
+                    ResultSet bookRs = bookPs.executeQuery();
+                    
+                    int bookCount = 1;
+                    while (bookRs.next()) {
+                        details.append(String.format("\n  Book #%d:\n", bookCount++));
+                        details.append(String.format("    Title: %s\n", bookRs.getString("book_title")));
+                        details.append(String.format("    Borrowed: %s\n", bookRs.getDate("borrow_date")));
+                        details.append(String.format("    Due: %s\n", bookRs.getDate("due_date")));
+                        
+                        if (bookRs.getDate("return_date") != null) {
+                            details.append(String.format("    Returned: %s\n", bookRs.getDate("return_date")));
+                        }
+                        
+                        details.append(String.format("    Status: %s\n", bookRs.getString("status")));
+                        
+                        double fine = bookRs.getDouble("fine_amount");
+                        if (fine > 0) {
+                            details.append(String.format("    Fine: $%.2f\n", fine));
+                        }
+                    }
+                }
+            } else {
+                details.append("No library issues found. All clear!\n");
+            }
+            
+            // ========== CAFETERIA STATUS ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("CAFETERIA STATUS\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String cafeteriaSql = """
+                SELECT 
+                    record_type, description, amount, transaction_date, status, meal_plan_type
+                FROM cafeteria_records 
+                WHERE student_id = ? 
+                AND (status = 'Pending' OR amount > 0)
+                ORDER BY transaction_date DESC
+                """;
+            
+            PreparedStatement cafePs = conn.prepareStatement(cafeteriaSql);
+            cafePs.setInt(1, student.getId());
+            ResultSet cafeRs = cafePs.executeQuery();
+            
+            double totalCafeteriaBalance = 0;
+            int cafeRecordCount = 0;
+            
+            while (cafeRs.next()) {
+                cafeRecordCount++;
+                if (cafeRecordCount == 1) {
+                    details.append("Cafeteria Records:\n");
+                }
+                
+                details.append(String.format("\n  Record #%d:\n", cafeRecordCount));
+                details.append(String.format("    Type: %s\n", cafeRs.getString("record_type")));
+                details.append(String.format("    Description: %s\n", cafeRs.getString("description")));
+                details.append(String.format("    Amount: $%.2f\n", cafeRs.getDouble("amount")));
+                details.append(String.format("    Date: %s\n", cafeRs.getDate("transaction_date")));
+                details.append(String.format("    Status: %s\n", cafeRs.getString("status")));
+                
+                String mealPlan = cafeRs.getString("meal_plan_type");
+                if (mealPlan != null) {
+                    details.append(String.format("    Meal Plan: %s\n", mealPlan));
+                }
+                
+                if ("Pending".equals(cafeRs.getString("status"))) {
+                    totalCafeteriaBalance += cafeRs.getDouble("amount");
+                }
+            }
+            
+            if (cafeRecordCount == 0) {
+                details.append("No cafeteria issues found. All clear!\n");
+            } else if (totalCafeteriaBalance > 0) {
+                details.append(String.format("\n%-20s: $%.2f\n", "Total Pending Balance", totalCafeteriaBalance));
+            }
+            
+            // ========== DEPARTMENT REQUIREMENTS ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("DEPARTMENT REQUIREMENTS\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String deptSql = """
+                SELECT requirement_name, requirement_type, status, completed_date, remarks
+                FROM department_requirements 
+                WHERE student_id = ?
+                ORDER BY completed_date DESC, requirement_name
+                """;
+            
+            PreparedStatement deptPs = conn.prepareStatement(deptSql);
+            deptPs.setInt(1, student.getId());
+            ResultSet deptRs = deptPs.executeQuery();
+            
+            int deptReqCount = 0;
+            int completedCount = 0;
+            
+            while (deptRs.next()) {
+                deptReqCount++;
+                if (deptReqCount == 1) {
+                    details.append("Department Requirements:\n");
+                }
+                
+                details.append(String.format("\n  %s:\n", deptRs.getString("requirement_name")));
+                details.append(String.format("    Type: %s\n", deptRs.getString("requirement_type")));
+                details.append(String.format("    Status: %s\n", deptRs.getString("status")));
+                
+                if ("Completed".equals(deptRs.getString("status"))) {
+                    completedCount++;
+                }
+                
+                if (deptRs.getDate("completed_date") != null) {
+                    details.append(String.format("    Completed: %s\n", deptRs.getDate("completed_date")));
+                }
+                
+                String reqRemarks = deptRs.getString("remarks");
+                if (reqRemarks != null && !reqRemarks.isEmpty()) {
+                    details.append(String.format("    Remarks: %s\n", reqRemarks));
+                }
+            }
+            
+            if (deptReqCount == 0) {
+                details.append("No department requirements recorded.\n");
+            } else {
+                details.append(String.format("\nProgress: %d/%d requirements completed\n", 
+                    completedCount, deptReqCount));
+            }
+            
+            // ========== CLEARANCE HISTORY ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("CLEARANCE HISTORY\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String historySql = """
                 SELECT 
                     cr.id,
                     cr.request_date,
                     cr.status,
                     cr.completion_date,
                     cr.can_reapply,
-                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status)) as approvals
+                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status) ORDER BY ca.officer_role) as approvals
                 FROM clearance_requests cr
                 LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
                 WHERE cr.student_id = ?
@@ -678,41 +953,42 @@ public class AdminDashboardController {
                 ORDER BY cr.request_date DESC
                 """;
             
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, student.getId());
-            ResultSet rs = ps.executeQuery();
+            PreparedStatement historyPs = conn.prepareStatement(historySql);
+            historyPs.setInt(1, student.getId());
+            ResultSet historyRs = historyPs.executeQuery();
             
-            StringBuilder details = new StringBuilder();
-            details.append("=== STUDENT INFORMATION ===\n\n");
-            details.append("Name: ").append(student.getFullName()).append("\n");
-            details.append("ID: ").append(student.getUsername()).append("\n");
-            details.append("Department: ").append(student.getDepartment()).append("\n");
-            details.append("Year: ").append(student.getYearLevel()).append("\n");
-            details.append("Email: ").append(student.getEmail()).append("\n");
-            details.append("Phone: ").append(student.getPhone()).append("\n");
-            details.append("Status: ").append(student.getStatus()).append("\n");
-            details.append("Clearance Status: ").append(student.getClearanceStatus()).append("\n");
-            details.append("Can Reapply: ").append(student.isCanReapply() ? "Yes" : "No").append("\n\n");
-            
-            details.append("=== CLEARANCE HISTORY ===\n\n");
             int requestCount = 0;
-            while (rs.next()) {
+            
+            while (historyRs.next()) {
                 requestCount++;
-                details.append("Request #").append(requestCount).append(":\n");
-                details.append("  ID: ").append(rs.getInt("id")).append("\n");
-                details.append("  Date: ").append(rs.getTimestamp("request_date")).append("\n");
-                details.append("  Status: ").append(rs.getString("status")).append("\n");
-                if (rs.getTimestamp("completion_date") != null) {
-                    details.append("  Completed: ").append(rs.getTimestamp("completion_date")).append("\n");
-                }
-                details.append("  Can Reapply: ").append(rs.getBoolean("can_reapply") ? "Yes" : "No").append("\n");
+                details.append(String.format("Request #%d:\n", requestCount));
+                details.append(String.format("  Request ID: %d\n", historyRs.getInt("id")));
+                details.append(String.format("  Date: %s\n", historyRs.getTimestamp("request_date")));
+                details.append(String.format("  Status: %s\n", historyRs.getString("status")));
                 
-                String approvals = rs.getString("approvals");
+                if (historyRs.getTimestamp("completion_date") != null) {
+                    details.append(String.format("  Completed: %s\n", historyRs.getTimestamp("completion_date")));
+                }
+                
+                details.append(String.format("  Can Reapply: %s\n", 
+                    historyRs.getBoolean("can_reapply") ? "Yes" : "No"));
+                
+                String approvals = historyRs.getString("approvals");
                 if (approvals != null) {
-                    details.append("  Approvals:\n");
+                    details.append("  Department Approvals:\n");
                     String[] approvalList = approvals.split(",");
                     for (String approval : approvalList) {
-                        details.append("    - ").append(approval.trim()).append("\n");
+                        String[] parts = approval.trim().split(":");
+                        if (parts.length == 2) {
+                            String dept = parts[0].trim();
+                            String status = parts[1].trim();
+                            
+                            String statusIcon = "❌";
+                            if (status.equals("APPROVED")) statusIcon = "✅";
+                            else if (status.equals("PENDING")) statusIcon = "⏳";
+                            
+                            details.append(String.format("    %s %s: %s\n", statusIcon, dept, status));
+                        }
                     }
                 }
                 details.append("\n");
@@ -720,19 +996,336 @@ public class AdminDashboardController {
             
             if (requestCount == 0) {
                 details.append("No clearance requests found.\n");
+            } else {
+                details.append(String.format("Total Requests: %d\n", requestCount));
             }
             
+            // ========== COURSE INFORMATION ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("COURSE INFORMATION (Recent)\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String courseSql = """
+                SELECT course_code, course_name, grade, credits, semester, academic_year
+                FROM student_courses 
+                WHERE student_id = ?
+                ORDER BY academic_year DESC, semester DESC
+                LIMIT 10
+                """;
+            
+            PreparedStatement coursePs = conn.prepareStatement(courseSql);
+            coursePs.setInt(1, student.getId());
+            ResultSet courseRs = coursePs.executeQuery();
+            
+            int courseCount = 0;
+            double totalCredits = 0;
+            double totalPoints = 0;
+            
+            while (courseRs.next()) {
+                courseCount++;
+                if (courseCount == 1) {
+                    details.append(String.format("%-15s %-40s %-8s %-8s %-10s %-10s\n", 
+                        "Code", "Course Name", "Grade", "Credits", "Semester", "Year"));
+                    details.append("-".repeat(91)).append("\n");
+                }
+                
+                String grade = courseRs.getString("grade");
+                int credits = courseRs.getInt("credits");
+                totalCredits += credits;
+                
+                // Convert grade to points (simplified)
+                double gradePoints = 0;
+                if (grade != null) {
+                    switch (grade.toUpperCase()) {
+                        case "A": gradePoints = 4.0; break;
+                        case "A-": gradePoints = 3.7; break;
+                        case "B+": gradePoints = 3.3; break;
+                        case "B": gradePoints = 3.0; break;
+                        case "B-": gradePoints = 2.7; break;
+                        case "C+": gradePoints = 2.3; break;
+                        case "C": gradePoints = 2.0; break;
+                        case "C-": gradePoints = 1.7; break;
+                        case "D": gradePoints = 1.0; break;
+                        default: gradePoints = 0;
+                    }
+                }
+                totalPoints += gradePoints * credits;
+                
+                details.append(String.format("%-15s %-40s %-8s %-8d %-10s %-10s\n", 
+                    courseRs.getString("course_code"),
+                    truncateString(courseRs.getString("course_name"), 40),
+                    grade,
+                    credits,
+                    courseRs.getString("semester"),
+                    courseRs.getString("academic_year")));
+            }
+            
+            if (courseCount > 0 && totalCredits > 0) {
+                double cgpa = totalPoints / totalCredits;
+                details.append("\n");
+                details.append(String.format("Recent CGPA (from shown courses): %.2f\n", cgpa));
+                details.append(String.format("Total Credits (shown): %.0f\n", totalCredits));
+            }
+            
+            if (courseCount == 0) {
+                details.append("No course information found.\n");
+            } else if (courseCount == 10) {
+                details.append("\n(Showing 10 most recent courses)\n");
+            }
+            
+            // ========== CREATE TEXT AREA WITH SCROLLING ==========
             TextArea textArea = new TextArea(details.toString());
             textArea.setEditable(false);
             textArea.setWrapText(true);
-            textArea.setPrefSize(600, 400);
+            textArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 12px;");
             
-            dialog.getDialogPane().setContent(textArea);
-            dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-            dialog.showAndWait();
+            ScrollPane scrollPane = new ScrollPane(textArea);
+            scrollPane.setFitToWidth(true);
+            scrollPane.setFitToHeight(true);
+            scrollPane.setPrefSize(680, 550);
+            
+            // Add buttons for actions
+            ButtonType editDormButton = new ButtonType("Edit Dormitory Info");
+            ButtonType viewFullReport = new ButtonType("Full Report");
+            dialog.getDialogPane().getButtonTypes().addAll(editDormButton, viewFullReport, ButtonType.CLOSE);
+            
+            dialog.getDialogPane().setContent(scrollPane);
+            
+            dialog.showAndWait().ifPresent(buttonType -> {
+                if (buttonType == editDormButton) {
+                    editStudentDormitoryInfo(student);
+                } else if (buttonType == viewFullReport) {
+                    generateStudentFullReport(student);
+                }
+            });
             
         } catch (Exception e) {
             showAlert("Error", "Failed to load student details: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // Helper method to truncate long strings
+    private String truncateString(String str, int maxLength) {
+        if (str == null) return "";
+        if (str.length() <= maxLength) return str;
+        return str.substring(0, maxLength - 3) + "...";
+    }
+
+    // Method to generate a full PDF report (optional)
+    private void generateStudentFullReport(User student) {
+        showAlert("Info", "Full report generation would be implemented here.\n\n" +
+                         "Student: " + student.getFullName() + "\n" +
+                         "ID: " + student.getUsername() + "\n" +
+                         "This feature would generate a PDF with all student information.");
+    }
+
+    // Method to edit dormitory info from details view
+    private void editStudentDormitoryInfo(User student) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Edit Dormitory Information");
+        dialog.setHeaderText("Update Dormitory Details for " + student.getFullName());
+        
+        ButtonType saveButton = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+        
+        TextField txtBlockNumber = new TextField();
+        txtBlockNumber.setPromptText("Block Letter (A, B, C...)");
+        
+        TextField txtRoomNumber = new TextField();
+        txtRoomNumber.setPromptText("Room Number (101, 205...)");
+        
+        CheckBox chkKeyReturned = new CheckBox("Key Returned");
+        DatePicker dpKeyReturnDate = new DatePicker();
+        dpKeyReturnDate.setPromptText("Key return date");
+        
+        TextArea txtDamageDescription = new TextArea();
+        txtDamageDescription.setPromptText("Damage description");
+        txtDamageDescription.setPrefRowCount(3);
+        
+        TextField txtDamageAmount = new TextField();
+        txtDamageAmount.setPromptText("Damage amount ($)");
+        
+        CheckBox chkDamagePaid = new CheckBox("Damage Paid");
+        
+        // Load existing data
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT block_number, room_number, key_returned, key_return_date,
+                       damage_description, damage_amount, damage_paid
+                FROM student_dormitory_credentials 
+                WHERE student_id = ?
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, student.getId());
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                txtBlockNumber.setText(rs.getString("block_number"));
+                txtRoomNumber.setText(rs.getString("room_number"));
+                chkKeyReturned.setSelected(rs.getBoolean("key_returned"));
+                
+                if (rs.getDate("key_return_date") != null) {
+                    dpKeyReturnDate.setValue(rs.getDate("key_return_date").toLocalDate());
+                }
+                
+                txtDamageDescription.setText(rs.getString("damage_description"));
+                txtDamageAmount.setText(String.valueOf(rs.getDouble("damage_amount")));
+                chkDamagePaid.setSelected(rs.getBoolean("damage_paid"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        // Enable/disable date picker based on checkbox
+        chkKeyReturned.setOnAction(e -> {
+            dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
+            if (!chkKeyReturned.isSelected()) {
+                dpKeyReturnDate.setValue(null);
+            }
+        });
+        dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
+        
+        grid.add(new Label("Block Number*:"), 0, 0);
+        grid.add(txtBlockNumber, 1, 0);
+        grid.add(new Label("Room Number*:"), 0, 1);
+        grid.add(txtRoomNumber, 1, 1);
+        grid.add(new Label("Key Status:"), 0, 2);
+        grid.add(chkKeyReturned, 1, 2);
+        grid.add(new Label("Key Return Date:"), 0, 3);
+        grid.add(dpKeyReturnDate, 1, 3);
+        grid.add(new Label("Damage Description:"), 0, 4);
+        grid.add(txtDamageDescription, 1, 4);
+        grid.add(new Label("Damage Amount:"), 0, 5);
+        grid.add(txtDamageAmount, 1, 5);
+        grid.add(new Label("Damage Status:"), 0, 6);
+        grid.add(chkDamagePaid, 1, 6);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == saveButton) {
+                String blockNum = txtBlockNumber.getText().trim();
+                String roomNum = txtRoomNumber.getText().trim();
+                
+                if (blockNum.isEmpty() || roomNum.isEmpty()) {
+                    showAlert("Error", "Both block and room numbers are required!");
+                    return null;
+                }
+                
+                try {
+                    double damageAmount = 0;
+                    if (!txtDamageAmount.getText().trim().isEmpty()) {
+                        damageAmount = Double.parseDouble(txtDamageAmount.getText().trim());
+                    }
+                    
+                    if (updateDormitoryInfoFull(student.getId(), blockNum, roomNum,
+                            chkKeyReturned.isSelected(), dpKeyReturnDate.getValue(),
+                            txtDamageDescription.getText().trim(), damageAmount,
+                            chkDamagePaid.isSelected())) {
+                        
+                        showAlert("Success", "Dormitory information updated successfully!");
+                        return ButtonType.OK;
+                    }
+                } catch (NumberFormatException e) {
+                    showAlert("Error", "Please enter a valid damage amount!");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                // Refresh student details view if open
+                viewStudentDetails(student);
+            }
+        });
+    }
+
+    private boolean updateDormitoryInfoFull(int studentId, String blockNumber, String roomNumber,
+                                           boolean keyReturned, LocalDate keyReturnDate,
+                                           String damageDescription, double damageAmount,
+                                           boolean damagePaid) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Check if record exists
+            String checkSql = "SELECT COUNT(*) FROM student_dormitory_credentials WHERE student_id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, studentId);
+            ResultSet rs = checkStmt.executeQuery();
+            rs.next();
+            
+            String sql;
+            PreparedStatement stmt;
+            
+            if (rs.getInt(1) > 0) {
+                // Update existing record
+                sql = """
+                    UPDATE student_dormitory_credentials 
+                    SET block_number = ?, room_number = ?, 
+                        key_returned = ?, key_return_date = ?,
+                        damage_description = ?, damage_amount = ?, damage_paid = ?,
+                        last_updated = NOW()
+                    WHERE student_id = ?
+                    """;
+                stmt = conn.prepareStatement(sql);
+                stmt.setString(1, blockNumber);
+                stmt.setString(2, roomNumber);
+                stmt.setBoolean(3, keyReturned);
+                stmt.setDate(4, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
+                stmt.setString(5, damageDescription.isEmpty() ? null : damageDescription);
+                stmt.setDouble(6, damageAmount);
+                stmt.setBoolean(7, damagePaid);
+                stmt.setInt(8, studentId);
+            } else {
+                // Insert new record
+                sql = """
+                    INSERT INTO student_dormitory_credentials 
+                    (student_id, block_number, room_number, 
+                     key_returned, key_return_date,
+                     damage_description, damage_amount, damage_paid,
+                     clearance_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                    """;
+                stmt = conn.prepareStatement(sql);
+                stmt.setInt(1, studentId);
+                stmt.setString(2, blockNumber);
+                stmt.setString(3, roomNumber);
+                stmt.setBoolean(4, keyReturned);
+                stmt.setDate(5, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
+                stmt.setString(6, damageDescription.isEmpty() ? null : damageDescription);
+                stmt.setDouble(7, damageAmount);
+                stmt.setBoolean(8, damagePaid);
+            }
+            
+            boolean success = stmt.executeUpdate() > 0;
+            
+            // Update clearance status based on conditions
+            if (success) {
+                String statusUpdateSql = """
+                    UPDATE student_dormitory_credentials 
+                    SET clearance_status = CASE 
+                        WHEN key_returned = TRUE AND damage_paid = TRUE THEN 'APPROVED'
+                        ELSE 'PENDING'
+                    END
+                    WHERE student_id = ?
+                    """;
+                PreparedStatement statusStmt = conn.prepareStatement(statusUpdateSql);
+                statusStmt.setInt(1, studentId);
+                statusStmt.executeUpdate();
+            }
+            
+            return success;
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to update dormitory info: " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
     
@@ -830,6 +1423,13 @@ public class AdminDashboardController {
         ComboBox<String> cmbYear = new ComboBox<>();
         cmbYear.getItems().addAll("1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year");
         cmbYear.setPromptText("Select Year");
+        
+        // NEW: Add Block and Dorm Number fields
+        TextField txtBlockNumber = new TextField();
+        txtBlockNumber.setPromptText("e.g., A, B, C");
+        
+        TextField txtDormNumber = new TextField();
+        txtDormNumber.setPromptText("e.g., 101, 205, 301");
 
         grid.add(new Label("Student ID*:"), 0, 0);
         grid.add(txtStudentId, 1, 0);
@@ -847,10 +1447,16 @@ public class AdminDashboardController {
         grid.add(cmbDepartment, 1, 6);
         grid.add(new Label("Year Level*:"), 0, 7);
         grid.add(cmbYear, 1, 7);
+        // NEW: Add block and dorm number fields
+        grid.add(new Label("Block Number:"), 0, 8);
+        grid.add(txtBlockNumber, 1, 8);
+        grid.add(new Label("Dorm/Room Number:"), 0, 9);
+        grid.add(txtDormNumber, 1, 9);
 
         grid.setUserData(new Object[]{
             txtStudentId, txtUsername, txtFullName, txtPassword,
-            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear
+            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear,
+            txtBlockNumber, txtDormNumber  // Add new fields to user data
         });
 
         return grid;
@@ -867,6 +1473,8 @@ public class AdminDashboardController {
         TextField txtPhoneSuffix = (TextField) fields[6];
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
+        TextField txtBlockNumber = (TextField) fields[9];  // New
+        TextField txtDormNumber = (TextField) fields[10];  // New
 
         String inputId = txtStudentId.getText().trim();
         if (!inputId.startsWith("DBU") || inputId.length() != 10) {
@@ -883,6 +1491,8 @@ public class AdminDashboardController {
         String email = txtEmail.getText().trim();
         String department = cmbDepartment.getValue();
         String year = cmbYear.getValue();
+        String blockNumber = txtBlockNumber.getText().trim();  // New
+        String dormNumber = txtDormNumber.getText().trim();    // New
 
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
@@ -911,39 +1521,210 @@ public class AdminDashboardController {
         String finalPhone = phonePrefix + phoneSuffix;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
-            checkStmt.setString(1, username);
-            checkStmt.setString(2, finalPhone);
-            ResultSet checkRs = checkStmt.executeQuery();
+            // Start transaction
+            conn.setAutoCommit(false);
+            
+            try {
+                // 1. Check for duplicates
+                String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
+                checkStmt.setString(1, username);
+                checkStmt.setString(2, finalPhone);
+                ResultSet checkRs = checkStmt.executeQuery();
 
-            if (checkRs.next()) {
-                showAlert("Error", "Username or Phone number already exists!");
-                return false;
+                if (checkRs.next()) {
+                    showAlert("Error", "Username or Phone number already exists!");
+                    conn.rollback();
+                    return false;
+                }
+
+                // 2. Insert user into users table
+                String userSql = """
+                    INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status)
+                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')
+                """;
+
+                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
+                userStmt.setString(1, username);
+                userStmt.setString(2, password);
+                userStmt.setString(3, fullName);
+                userStmt.setString(4, email.isEmpty() ? null : email);
+                userStmt.setString(5, finalPhone);
+                userStmt.setString(6, department);
+                userStmt.setString(7, year);
+
+                int userRows = userStmt.executeUpdate();
+                
+                if (userRows <= 0) {
+                    conn.rollback();
+                    return false;
+                }
+                
+                // Get the generated student ID
+                ResultSet generatedKeys = userStmt.getGeneratedKeys();
+                int studentDbId = -1;
+                if (generatedKeys.next()) {
+                    studentDbId = generatedKeys.getInt(1);
+                }
+                
+                // 3. Insert dormitory credentials if block and dorm numbers are provided
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    String dormSql = """
+                        INSERT INTO student_dormitory_credentials 
+                        (student_id, block_number, room_number, key_returned, damage_paid, clearance_status)
+                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING')
+                    """;
+                    
+                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
+                    dormStmt.setInt(1, studentDbId);
+                    dormStmt.setString(2, blockNumber);
+                    dormStmt.setString(3, dormNumber);
+                    
+                    dormStmt.executeUpdate();
+                }
+                
+                // Commit transaction
+                conn.commit();
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
-            String sql = """
-                INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status)
-                VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')
-            """;
-
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, username);
-            stmt.setString(2, password);
-            stmt.setString(3, fullName);
-            stmt.setString(4, email.isEmpty() ? null : email);
-            stmt.setString(5, finalPhone);
-            stmt.setString(6, department);
-            stmt.setString(7, year);
-
-            int rows = stmt.executeUpdate();
-            return rows > 0;
 
         } catch (SQLException e) {
             showAlert("Error", "Registration failed: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
+    
+    
+    
+    @FXML
+    private void editStudentDormitoryInfo() {
+        User selectedStudent = tableAllStudents.getSelectionModel().getSelectedItem();
+        if (selectedStudent == null) {
+            showAlert("Error", "Please select a student first!");
+            return;
+        }
+        
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Edit Dormitory Information");
+        dialog.setHeaderText("Update Dormitory Details for " + selectedStudent.getFullName());
+        
+        ButtonType saveButton = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+        
+        TextField txtBlockNumber = new TextField();
+        txtBlockNumber.setPromptText("Block Letter (A, B, C...)");
+        
+        TextField txtRoomNumber = new TextField();
+        txtRoomNumber.setPromptText("Room Number (101, 205...)");
+        
+        // Load existing data
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT block_number, room_number 
+                FROM student_dormitory_credentials 
+                WHERE student_id = ?
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, selectedStudent.getId());
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                txtBlockNumber.setText(rs.getString("block_number"));
+                txtRoomNumber.setText(rs.getString("room_number"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        grid.add(new Label("Block Number:"), 0, 0);
+        grid.add(txtBlockNumber, 1, 0);
+        grid.add(new Label("Room Number:"), 0, 1);
+        grid.add(txtRoomNumber, 1, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == saveButton) {
+                String blockNum = txtBlockNumber.getText().trim();
+                String roomNum = txtRoomNumber.getText().trim();
+                
+                if (blockNum.isEmpty() || roomNum.isEmpty()) {
+                    showAlert("Error", "Both block and room numbers are required!");
+                    return null;
+                }
+                
+                if (updateDormitoryInfo(selectedStudent.getId(), blockNum, roomNum)) {
+                    showAlert("Success", "Dormitory information updated successfully!");
+                    return ButtonType.OK;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait();
+    }
+
+    private boolean updateDormitoryInfo(int studentId, String blockNumber, String roomNumber) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Check if record exists
+            String checkSql = "SELECT COUNT(*) FROM student_dormitory_credentials WHERE student_id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, studentId);
+            ResultSet rs = checkStmt.executeQuery();
+            rs.next();
+            
+            if (rs.getInt(1) > 0) {
+                // Update existing record
+                String updateSql = """
+                    UPDATE student_dormitory_credentials 
+                    SET block_number = ?, room_number = ?, last_updated = NOW()
+                    WHERE student_id = ?
+                    """;
+                PreparedStatement updateStmt = conn.prepareStatement(updateSql);
+                updateStmt.setString(1, blockNumber);
+                updateStmt.setString(2, roomNumber);
+                updateStmt.setInt(3, studentId);
+                return updateStmt.executeUpdate() > 0;
+            } else {
+                // Insert new record
+                String insertSql = """
+                    INSERT INTO student_dormitory_credentials 
+                    (student_id, block_number, room_number, key_returned, damage_paid, clearance_status)
+                    VALUES (?, ?, ?, FALSE, FALSE, 'PENDING')
+                    """;
+                PreparedStatement insertStmt = conn.prepareStatement(insertSql);
+                insertStmt.setInt(1, studentId);
+                insertStmt.setString(2, blockNumber);
+                insertStmt.setString(3, roomNumber);
+                return insertStmt.executeUpdate() > 0;
+            }
+        } catch (Exception e) {
+            showAlert("Error", "Failed to update dormitory info: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     // 2. OFFICER MANAGEMENT
     @FXML

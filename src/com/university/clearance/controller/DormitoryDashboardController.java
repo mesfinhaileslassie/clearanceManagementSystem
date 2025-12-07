@@ -239,9 +239,9 @@ public class DormitoryDashboardController implements Initializable {
                 stage.setScene(newScene);
                 
                 // Center the window
-                stage.centerOnScreen();
+                //stage.centerOnScreen();
                 
-                showAlert("Logged Out", "You have been successfully logged out.");
+              
             }
         } catch (Exception e) {
             e.printStackTrace();

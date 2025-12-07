@@ -5,22 +5,24 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+<BorderPane xmlns="http://javafx.com/javafx/21.0.1" 
+            xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="com.university.clearance.controller.LibrarianDashboardController">
     
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
             <children>
-                <!-- Simplified header -->
-                <Label text="Library Dashboard" textFill="WHITE">
+                <Label text="Debre Birhan University - Library Clearance System" textFill="WHITE">
                     <font>
                         <Font name="System Bold" size="18.0" />
                     </font>
                 </Label>
-                <Label fx:id="lblWelcome" textFill="WHITE" />
+                <Label fx:id="lblWelcome" text="Welcome, Librarian" textFill="WHITE" />
                 <Region HBox.hgrow="ALWAYS" />
                 <Label fx:id="lblPendingCount" text="Pending: 0" 
-                       style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;"/>
+                       style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 10 0 0;"/>
+                <Button fx:id="btnLogout" onAction="#handleLogout" text="Logout" 
+                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;"/>
             </children>
         </HBox>
     </top>
@@ -28,30 +30,53 @@
     <left>
         <VBox spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;" minWidth="200">
             <children>
-                <!-- Clearance Actions - SIMPLIFIED -->
-                <Label text="ACTIONS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
-                <Button onAction="#refreshRequests" text="Refresh Requests" 
-                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 180;" />
+                <Label text="LIBRARY DASHBOARD" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 0 0 10 0;" />
                 
-                <Separator style="-fx-padding: 10 0 10 0;" />
+                <Button onAction="#refreshRequests" text="🔄 Refresh Requests" 
+                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 180; -fx-pref-height: 35;" />
                 
-                <!-- Quick Status Guide -->
-                <Label text="STATUS GUIDE" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
-                <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                <Separator style="-fx-padding: 15 0 15 0;" />
+                
+                <Label text="LIBRARY STATUS GUIDE" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 10 0;" />
+                <VBox spacing="8" style="-fx-padding: 12; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 16px;" />
+                        <VBox spacing="2">
+                            <Label text="CLEAR" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                            <Label text="No books borrowed" style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" />
+                        </VBox>
+                    </HBox>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold; -fx-font-size: 16px;" />
+                        <VBox spacing="2">
+                            <Label text="WARNING" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                            <Label text="Has borrowed books" style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" />
+                        </VBox>
+                    </HBox>
+                    <HBox spacing="8" alignment="CENTER_LEFT">
+                        <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 16px;" />
+                        <VBox spacing="2">
+                            <Label text="ISSUE" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                            <Label text="Overdue books/unpaid fines" style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" />
+                        </VBox>
+                    </HBox>
+                </VBox>
+                
+                <Separator style="-fx-padding: 15 0 15 0;" />
+                
+                <Label text="LIBRARY STATISTICS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 10 0;" />
+                <VBox spacing="8" style="-fx-padding: 12; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
                     <HBox spacing="5">
-                        <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
-                        <Label text="Clear:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
-                        <Label text="No books borrowed" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                        <Label text="📚 Total Borrowings:" style="-fx-text-fill: #ecf0f1;" />
+                        <Label fx:id="lblTotalBooks" text="0" style="-fx-text-fill: #3498db; -fx-font-weight: bold;" />
                     </HBox>
                     <HBox spacing="5">
-                        <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
-                        <Label text="Warning:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
-                        <Label text="Has borrowed books" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                        <Label text="👥 Active Borrowers:" style="-fx-text-fill: #ecf0f1;" />
+                        <Label fx:id="lblActiveBorrowers" text="0" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
                     </HBox>
                     <HBox spacing="5">
-                        <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
-                        <Label text="Issue:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
-                        <Label text="Overdue books/fines" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" />
+                        <Label text="⏰ Overdue Books:" style="-fx-text-fill: #ecf0f1;" />
+                        <Label fx:id="lblOverdueCount" text="0" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
                     </HBox>
                 </VBox>
             </children>
@@ -61,8 +86,8 @@
     <center>
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" style="-fx-padding: 10;">
             
-            <!-- Clearance Requests Tab (MAIN TAB) -->
-            <Tab text="Clearance Requests">
+            <!-- Clearance Requests Tab -->
+            <Tab text="📋 Clearance Requests">
                 <VBox spacing="15">
                     <padding>
                         <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
@@ -70,42 +95,71 @@
                     
                     <!-- Header -->
                     <HBox spacing="10" alignment="CENTER_LEFT">
-                        <Label text="Pending Library Clearances" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Label text="Pending Library Clearance Approvals" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
                         <Region HBox.hgrow="ALWAYS" />
-                        <Button onAction="#refreshRequests" text="Refresh" 
-                                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" />
+                        <Button onAction="#refreshRequests" text="🔄 Refresh" 
+                                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-height: 35;" />
                     </HBox>
                     
-                    <!-- Instructions -->
-                    <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #e8f4f8; -fx-background-radius: 5;">
-                        <Label text="Instructions:" style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" />
-                        <Label text="1. Review each student's book status below" 
-                               style="-fx-text-fill: #2c3e50;" />
-                        <Label text="2. Click Approve or Reject for each student" 
-                               style="-fx-text-fill: #2c3e50;" />
-                        <Label text="3. Student book details will show automatically" 
-                               style="-fx-text-fill: #2c3e50;" />
-                    </VBox>
+                    <!-- Quick Stats Bar -->
+                    <HBox spacing="20" style="-fx-padding: 12; -fx-background-color: #f8f9fa; -fx-background-radius: 8;">
+                        <Label text="Total:" style="-fx-font-weight: bold;" />
+                        <Label fx:id="lblTotalRequests" text="0" style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" />
+                        
+                        <Separator orientation="VERTICAL" />
+                        
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                            <Label fx:id="lblClearCount" text="Clear: 0" />
+                        </HBox>
+                        
+                        <Separator orientation="VERTICAL" />
+                        
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
+                            <Label fx:id="lblWarningCount" text="Warning: 0" />
+                        </HBox>
+                        
+                        <Separator orientation="VERTICAL" />
+                        
+                        <HBox spacing="5">
+                            <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                            <Label fx:id="lblIssueCount" text="Issue: 0" />
+                        </HBox>
+                    </HBox>
                     
                     <!-- Clearance Requests Table -->
-                    <TableView fx:id="tableRequests" prefHeight="400">
+                    <TableView fx:id="tableRequests" prefHeight="400" style="-fx-background-color: white; -fx-border-color: #ddd; -fx-border-radius: 5;">
                         <columns>
                             <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
                             <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
                             <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
                             <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
-                            <TableColumn fx:id="colBookStatus" text="Book Status" prefWidth="200"/>
-                            <TableColumn fx:id="colActions" text="Actions" prefWidth="150"/>
+                            <TableColumn fx:id="colBookStatus" text="Book Status" prefWidth="120"/>
+                            <TableColumn fx:id="colActions" text="Actions" prefWidth="200"/>
                         </columns>
                         <columnResizePolicy>
                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                         </columnResizePolicy>
                     </TableView>
+                    
+                    <!-- Instructions -->
+                    <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #e8f4f8; -fx-background-radius: 5;">
+                        <Label text="Instructions:" style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" />
+                        <Label text="1. Review each student's borrowing status in the table above" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="2. Click 'Details' to view individual student's book borrowing records" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="3. Click 'Approve' if student has no overdue books or fines" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="4. Click 'Reject' if student has outstanding library issues" 
+                               style="-fx-text-fill: #2c3e50;" />
+                    </VBox>
                 </VBox>
             </Tab>
             
-            <!-- Book Details Tab -->
-            <Tab text="Book Details">
+            <!-- Borrowing History Tab -->
+            <Tab text="📚 Borrowing History">
                 <VBox spacing="15">
                     <padding>
                         <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
@@ -113,46 +167,160 @@
                     
                     <!-- Header -->
                     <HBox spacing="10" alignment="CENTER_LEFT">
-                        <Label text="Student Book Borrowing Records" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Label text="All Student Borrowing Records" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
                         <Region HBox.hgrow="ALWAYS" />
-                        <Label fx:id="lblBookStatus" text="Select a student from Clearance Requests tab" 
-                               style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" />
+                        <Button onAction="#refreshBorrowingHistory" text="🔄 Refresh History" 
+                                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-height: 35;" />
                     </HBox>
                     
-                    <!-- Book Details Table -->
-                    <TableView fx:id="tableBookDetails" prefHeight="450">
+                    <!-- Search and Filter -->
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <TextField fx:id="txtSearchStudent" promptText="Search by student name or ID" 
+                                   style="-fx-pref-width: 250;" />
+                        <Button onAction="#searchBorrowingHistory" text="🔍 Search" 
+                                style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <ComboBox fx:id="cmbStatusFilter" promptText="Filter by Status" 
+                                  style="-fx-pref-width: 150;" />
+                        <Button onAction="#clearFilters" text="Clear Filters" 
+                                style="-fx-background-color: #95a5a6; -fx-text-fill: white;" />
+                    </HBox>
+                    
+                    <!-- Borrowing History Table -->
+                    <TableView fx:id="tableBorrowingHistory" prefHeight="450">
                         <columns>
-                            <TableColumn fx:id="colBookTitle" text="Book Title" prefWidth="250"/>
-                            <TableColumn fx:id="colBorrowDate" text="Borrow Date" prefWidth="100"/>
-                            <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
-                            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
-                            <TableColumn fx:id="colFine" text="Fine Amount" prefWidth="100"/>
+                            <TableColumn fx:id="colHistoryStudentId" text="Student ID" prefWidth="100"/>
+                            <TableColumn fx:id="colHistoryStudentName" text="Student Name" prefWidth="150"/>
+                            <TableColumn fx:id="colHistoryDepartment" text="Department" prefWidth="120"/>
+                            <TableColumn fx:id="colHistoryBookTitle" text="Book Title" prefWidth="250"/>
+                            <TableColumn fx:id="colHistoryBorrowDate" text="Borrow Date" prefWidth="100"/>
+                            <TableColumn fx:id="colHistoryDueDate" text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colHistoryStatus" text="Status" prefWidth="100"/>
+                            <TableColumn fx:id="colHistoryFine" text="Fine" prefWidth="80"/>
                         </columns>
                         <columnResizePolicy>
                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                         </columnResizePolicy>
                     </TableView>
                     
-                    <!-- Status Legend -->
-                    <HBox spacing="15" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
-                        <Label text="Status Colors:" style="-fx-font-weight: bold;"/>
-                        <HBox spacing="5">
-                            <Label text="●" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
-                            <Label text="Returned" />
+                    <!-- Summary Stats -->
+                    <HBox spacing="30" style="-fx-padding: 12; -fx-background-color: #f8f9fa; -fx-background-radius: 8;">
+                        <VBox spacing="5">
+                            <Label text="Total Borrowed Books" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                            <Label fx:id="lblTotalBorrowed" text="0" style="-fx-text-fill: #2c3e50; -fx-font-size: 20px; -fx-font-weight: bold;" />
+                        </VBox>
+                        <VBox spacing="5">
+                            <Label text="Currently Borrowed" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                            <Label fx:id="lblCurrentlyBorrowed" text="0" style="-fx-text-fill: #f39c12; -fx-font-size: 20px; -fx-font-weight: bold;" />
+                        </VBox>
+                        <VBox spacing="5">
+                            <Label text="Total Fines" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                            <Label fx:id="lblTotalFines" text="₦0.00" style="-fx-text-fill: #e74c3c; -fx-font-size: 20px; -fx-font-weight: bold;" />
+                        </VBox>
+                    </HBox>
+                </VBox>
+            </Tab>
+            
+            <!-- Student Details Tab -->
+            <Tab fx:id="tabStudentDetails" text="👤 Student Details" closable="true" onClosed="#handleTabClosed">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <!-- Student Header Info -->
+                    <VBox spacing="8" style="-fx-padding: 15; -fx-background-color: #e8f4f8; -fx-background-radius: 8;">
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <Label text="Student Library Details" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2980b9;" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Button onAction="#goBackToRequests" text="⬅ Back to Requests" 
+                                    style="-fx-background-color: #95a5a6; -fx-text-fill: white;" />
                         </HBox>
-                        <HBox spacing="5">
-                            <Label text="●" style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" />
-                            <Label text="Borrowed" />
-                        </HBox>
-                        <HBox spacing="5">
-                            <Label text="●" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
-                            <Label text="Overdue" />
-                        </HBox>
+                        <GridPane hgap="10" vgap="8">
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="100" />
+                                <ColumnConstraints prefWidth="200" />
+                                <ColumnConstraints prefWidth="100" />
+                                <ColumnConstraints prefWidth="200" />
+                            </columnConstraints>
+                            <children>
+                                <Label text="Student ID:" style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                                <Label fx:id="lblDetailStudentId" text="" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+                                <Label text="Name:" style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="2" />
+                                <Label fx:id="lblDetailStudentName" text="" GridPane.rowIndex="0" GridPane.columnIndex="3" />
+                                
+                                <Label text="Department:" style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                                <Label fx:id="lblDetailDepartment" text="" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                                <Label text="Clearance Status:" style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="2" />
+                                <Label fx:id="lblDetailStatus" text="" GridPane.rowIndex="1" GridPane.columnIndex="3" />
+                                
+                                <Label text="Email:" style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                                <Label fx:id="lblDetailEmail" text="" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                                <Label text="Phone:" style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="2" />
+                                <Label fx:id="lblDetailPhone" text="" GridPane.rowIndex="2" GridPane.columnIndex="3" />
+                            </children>
+                        </GridPane>
+                    </VBox>
+                    
+                    <!-- Borrowing Summary -->
+                    <HBox spacing="20" style="-fx-padding: 10; -fx-background-color: #f8f9fa; -fx-background-radius: 5;">
+                        <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: white; -fx-background-radius: 5; -fx-border-color: #ddd;">
+                            <Label text="📊 Library Borrowing Summary" style="-fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+                            <HBox spacing="15">
+                                <VBox spacing="2" alignment="CENTER">
+                                    <Label text="Total Borrowed" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                                    <Label fx:id="lblDetailTotalBorrowed" text="0" style="-fx-text-fill: #2c3e50; -fx-font-size: 18px; -fx-font-weight: bold;" />
+                                </VBox>
+                                <VBox spacing="2" alignment="CENTER">
+                                    <Label text="Currently Borrowed" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                                    <Label fx:id="lblDetailCurrentBorrowed" text="0" style="-fx-text-fill: #f39c12; -fx-font-size: 18px; -fx-font-weight: bold;" />
+                                </VBox>
+                                <VBox spacing="2" alignment="CENTER">
+                                    <Label text="Overdue" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                                    <Label fx:id="lblDetailOverdue" text="0" style="-fx-text-fill: #e74c3c; -fx-font-size: 18px; -fx-font-weight: bold;" />
+                                </VBox>
+                                <VBox spacing="2" alignment="CENTER">
+                                    <Label text="Total Fines" style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" />
+                                    <Label fx:id="lblDetailTotalFines" text="₦0.00" style="-fx-text-fill: #c0392b; -fx-font-size: 18px; -fx-font-weight: bold;" />
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </HBox>
+                    
+                    <!-- Student's Book Details -->
+                    <Label text="📚 Book Borrowing Records" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+                    <TableView fx:id="tableStudentBookDetails" prefHeight="300">
+                        <columns>
+                            <TableColumn fx:id="colDetailBookTitle" text="Book Title" prefWidth="250"/>
+                            <TableColumn fx:id="colDetailAuthor" text="Author" prefWidth="150"/>
+                            <TableColumn fx:id="colDetailBorrowDate" text="Borrow Date" prefWidth="100"/>
+                            <TableColumn fx:id="colDetailDueDate" text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colDetailReturnDate" text="Return Date" prefWidth="100"/>
+                            <TableColumn fx:id="colDetailStatus" text="Status" prefWidth="100"/>
+                            <TableColumn fx:id="colDetailFine" text="Fine" prefWidth="80"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                        </columnResizePolicy>
+                    </TableView>
+                    
+                    <!-- Action Buttons -->
+                    <HBox spacing="10" alignment="CENTER_RIGHT">
+                        <Button fx:id="btnApproveFromDetails" onAction="#approveFromDetails" text="✅ Approve Clearance" 
+                                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 180; -fx-pref-height: 35;" />
+                        <Button fx:id="btnRejectFromDetails" onAction="#rejectFromDetails" text="❌ Reject Clearance" 
+                                style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 180; -fx-pref-height: 35;" />
                     </HBox>
                 </VBox>
             </Tab>
             
         </TabPane>
     </center>
+    
+    <bottom>
+        <HBox alignment="CENTER" style="-fx-background-color: #ecf0f1; -fx-padding: 10;">
+            <Label text="Debre Birhan University Clearance Management System - Library Module v1.0" style="-fx-text-fill: #7f8c8d;" />
+        </HBox>
+    </bottom>
     
 </BorderPane>

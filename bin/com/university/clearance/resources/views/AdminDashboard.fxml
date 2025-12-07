@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
@@ -137,11 +138,36 @@
                         <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
                     </padding>
                     
-                    <HBox alignment="CENTER_LEFT" spacing="10">
-                        <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All System Users" />
-                        <Region HBox.hgrow="ALWAYS" />
-                    </HBox>
+                    <!-- Search Header Section -->
+                    <VBox spacing="10">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All System Users" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            
+                            <!-- Search Type ComboBox - ULTRA SIMPLIFIED -->
+                            <ComboBox fx:id="cmbSearchType" prefWidth="130" />
+                            
+                            <!-- Search Text Field -->
+                            <TextField fx:id="txtSearchUsers" prefWidth="250" promptText="Search by ID, name, department..." />
+                            
+                            <!-- Search Button -->
+                            <Button fx:id="btnSearchUsers" onAction="#handleUserSearch" 
+                                    style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15;" 
+                                    text="Search" />
+                            
+                            <!-- Clear Button -->
+                            <Button fx:id="btnClearSearch" onAction="#handleClearSearch" 
+                                    style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15;" 
+                                    text="Clear" />
+                        </HBox>
+                        
+                        <!-- Search Status Label -->
+                        <Label fx:id="lblSearchStatus" 
+                               style="-fx-text-fill: #3498db; -fx-font-size: 12px;"
+                               visible="false" />
+                    </VBox>
                     
+                    <!-- Users Table -->
                     <TableView fx:id="tableAllUsers" prefHeight="500">
                         <columns>
                             <TableColumn fx:id="colAllUserId" prefWidth="120" text="Username" />
@@ -303,9 +329,13 @@
                     
                     <HBox alignment="CENTER_LEFT" spacing="10">
                         <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All Clearance Requests" />
-                        <TextField fx:id="txtSearch" prefWidth="300" promptText="Search by student ID or name" />
+                        <TextField fx:id="txtSearchRequests" prefWidth="300" promptText="Search by student ID or name" />
                         <Region HBox.hgrow="ALWAYS" />
-                        <Button onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" 
+                        <Button fx:id="btnSearchRequests" onAction="#handleRequestsSearch" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" 
+                                text="Search" />
+                        <Button fx:id="btnClearRequestsSearch" onAction="#handleClearRequestsSearch" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" 
+                                text="Clear" />
+                        <Button onAction="#handleRefresh" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" 
                                 text="Refresh" />
                     </HBox>
                     

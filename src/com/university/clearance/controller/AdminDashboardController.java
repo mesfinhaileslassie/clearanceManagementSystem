@@ -3,8 +3,12 @@ package com.university.clearance.controller;
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
 import com.university.clearance.model.ClearanceRequest;
+
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -17,6 +21,7 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -25,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import java.net.URL;
+
 public class AdminDashboardController {
 
     // Top Section
@@ -33,14 +39,14 @@ public class AdminDashboardController {
     @FXML private Label lblTotalOfficers;
     @FXML private Label lblTotalRequests;
     
-    
- // Add these to your existing FXML field declarations
+    // Card Labels
     @FXML private Label lblTotalStudentsCard;
     @FXML private Label lblTotalOfficersCard;
     @FXML private Label lblTotalRequestsCard;
     @FXML private Label lblApprovedCount;
     @FXML private Label lblRejectedCount;
     @FXML private Label lblPendingCount;
+    
     // Main Tab Pane
     @FXML private TabPane mainTabPane;
     
@@ -75,7 +81,7 @@ public class AdminDashboardController {
     @FXML private TableColumn<User, String> colAllUserDepartment;
     @FXML private TableColumn<User, String> colAllUserStatus;
     
-    // Clearance Requests Table (from original)
+    // Clearance Requests Table
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colRequestStudentId;
     @FXML private TableColumn<ClearanceRequest, String> colRequestName;
@@ -84,7 +90,17 @@ public class AdminDashboardController {
     @FXML private TableColumn<ClearanceRequest, String> colRequestDate;
     @FXML private TableColumn<ClearanceRequest, Integer> colRequestApproved;
     
-    @FXML private TextField txtSearch;
+    // Search Components (NEW)
+    @FXML private TextField txtSearchUsers;
+    @FXML private ComboBox<String> cmbSearchType;
+    @FXML private Button btnSearchUsers;
+    @FXML private Button btnClearSearch;
+    @FXML private Label lblSearchStatus;
+    
+    // For Requests Search (if you want to add it there too)
+    @FXML private TextField txtSearchRequests;
+    @FXML private Button btnSearchRequests;
+    @FXML private Button btnClearRequestsSearch;
     
     private User currentUser;
     private ObservableList<User> allStudentsData = FXCollections.observableArrayList();
@@ -95,10 +111,17 @@ public class AdminDashboardController {
     private ObservableList<User> officersData = FXCollections.observableArrayList();
     private ObservableList<User> allUsersData = FXCollections.observableArrayList();
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
+    
+    // Filtered lists for search functionality
+    private FilteredList<User> filteredUsersData;
+    private FilteredList<User> filteredStudentsData;
+    private FilteredList<User> filteredOfficersData;
+    private FilteredList<ClearanceRequest> filteredRequestsData;
 
     @FXML
     private void initialize() {
         setupAllTables();
+        setupSearchFunctionality();
     }
     
     public void setCurrentUser(User user) {
@@ -166,6 +189,265 @@ public class AdminDashboardController {
         });
     }
     
+    // ==================== SEARCH FUNCTIONALITY SETUP ====================
+    
+    private void setupSearchFunctionality() {
+        // Initialize search type combobox
+        cmbSearchType.setItems(FXCollections.observableArrayList(
+            "All Users",
+            "Students Only", 
+            "Officers Only"
+        ));
+        cmbSearchType.setValue("All Users");
+        
+        // Initialize search status label
+        if (lblSearchStatus != null) {
+            lblSearchStatus.setText("");
+            lblSearchStatus.setVisible(false);
+        }
+        
+        // Set up button actions
+        btnSearchUsers.setOnAction(e -> handleUserSearch());
+        btnClearSearch.setOnAction(e -> handleClearSearch());
+        
+        // Enable search button only when there's text
+        btnSearchUsers.disableProperty().bind(
+            txtSearchUsers.textProperty().isEmpty()
+        );
+        
+        // Add Enter key support for search
+        txtSearchUsers.setOnAction(e -> handleUserSearch());
+        
+        // Set up combo box tooltip
+        cmbSearchType.setTooltip(new Tooltip("Select user type to filter"));
+        
+        // Set up requests search if components exist
+        if (txtSearchRequests != null && btnSearchRequests != null) {
+            setupRequestsSearch();
+        }
+    }
+    
+    private void setupRequestsSearch() {
+        btnSearchRequests.setOnAction(e -> handleRequestsSearch());
+        btnClearRequestsSearch.setOnAction(e -> handleClearRequestsSearch());
+        
+        if (txtSearchRequests != null) {
+            txtSearchRequests.setOnAction(e -> handleRequestsSearch());
+        }
+    }
+    
+    @FXML
+    private void handleUserSearch() {
+        String searchQuery = txtSearchUsers.getText().trim();
+        String searchType = cmbSearchType.getValue();
+        
+        if (searchQuery.isEmpty()) {
+            updateSearchStatus("Please enter a search term", "warning");
+            return;
+        }
+        
+        performSearch(searchQuery, searchType);
+    }
+    
+    @FXML
+    private void handleClearSearch() {
+        txtSearchUsers.clear();
+        cmbSearchType.setValue("All Users");
+        loadAllUsers(); // Reload all users without filter
+        
+        if (lblSearchStatus != null) {
+            lblSearchStatus.setText("Showing all users");
+            lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+            lblSearchStatus.setVisible(true);
+        }
+    }
+    
+    @FXML
+    private void handleRequestsSearch() {
+        if (txtSearchRequests != null) {
+            String query = txtSearchRequests.getText().trim();
+            if (!query.isEmpty()) {
+                searchRequests(query);
+            }
+        }
+    }
+    
+    @FXML
+    private void handleClearRequestsSearch() {
+        if (txtSearchRequests != null) {
+            txtSearchRequests.clear();
+            loadClearanceRequests(); // Reload all requests
+        }
+    }
+    
+    private void performSearch(String searchQuery, String searchType) {
+        allUsersData.clear();
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql;
+            PreparedStatement ps;
+            
+            switch (searchType) {
+                case "Students Only":
+                    sql = """
+                        SELECT * FROM users 
+                        WHERE role = 'STUDENT'
+                        AND (username LIKE ? OR full_name LIKE ? OR department LIKE ? 
+                             OR email LIKE ? OR phone LIKE ?)
+                        ORDER BY username
+                        """;
+                    ps = conn.prepareStatement(sql);
+                    String pattern = "%" + searchQuery + "%";
+                    for (int i = 1; i <= 5; i++) {
+                        ps.setString(i, pattern);
+                    }
+                    break;
+                    
+                case "Officers Only":
+                    sql = """
+                        SELECT * FROM users 
+                        WHERE role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD', 'ADMIN')
+                        AND (username LIKE ? OR full_name LIKE ? OR department LIKE ? OR email LIKE ?)
+                        ORDER BY role, username
+                        """;
+                    ps = conn.prepareStatement(sql);
+                    pattern = "%" + searchQuery + "%";
+                    for (int i = 1; i <= 4; i++) {
+                        ps.setString(i, pattern);
+                    }
+                    break;
+                    
+                default: // All Users
+                    sql = """
+                        SELECT * FROM users 
+                        WHERE (username LIKE ? OR full_name LIKE ? OR department LIKE ? OR email LIKE ?)
+                        ORDER BY role, username
+                        """;
+                    ps = conn.prepareStatement(sql);
+                    pattern = "%" + searchQuery + "%";
+                    for (int i = 1; i <= 4; i++) {
+                        ps.setString(i, pattern);
+                    }
+                    break;
+            }
+            
+            ResultSet rs = ps.executeQuery();
+            int count = 0;
+            
+            while (rs.next()) {
+                count++;
+                User user = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("role"),
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                user.setStatus(rs.getString("status"));
+                
+                // Add additional fields for students
+                if ("STUDENT".equals(user.getRole())) {
+                    user.setYearLevel(rs.getString("year_level"));
+                    user.setPhone(rs.getString("phone"));
+                }
+                
+                allUsersData.add(user);
+            }
+            
+            tableAllUsers.setItems(allUsersData);
+            
+            // Update search status
+            if (count > 0) {
+                updateSearchStatus("Found " + count + " " + 
+                    (searchType.equals("All Users") ? "users" : 
+                     searchType.equals("Students Only") ? "students" : "officers") + 
+                    " matching: '" + searchQuery + "'", "success");
+            } else {
+                updateSearchStatus("No " + 
+                    (searchType.equals("All Users") ? "users" : 
+                     searchType.equals("Students Only") ? "students" : "officers") + 
+                    " found matching: '" + searchQuery + "'", "warning");
+            }
+            
+        } catch (Exception e) {
+            updateSearchStatus("Error searching: " + e.getMessage(), "error");
+            e.printStackTrace();
+        }
+    }
+    
+    private void searchRequests(String searchQuery) {
+        requestData.clear();
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT cr.id, u.username, u.full_name, u.department, 
+                       cr.request_date, cr.status, COUNT(ca.id) as approved_count
+                FROM clearance_requests cr
+                JOIN users u ON cr.student_id = u.id
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.status = 'APPROVED'
+                WHERE (u.username LIKE ? OR u.full_name LIKE ? OR u.department LIKE ?)
+                GROUP BY cr.id, u.username, u.full_name, u.department, cr.request_date, cr.status
+                ORDER BY cr.request_date DESC
+                """;
+            
+            PreparedStatement ps = conn.prepareStatement(sql);
+            String pattern = "%" + searchQuery + "%";
+            ps.setString(1, pattern);
+            ps.setString(2, pattern);
+            ps.setString(3, pattern);
+            
+            ResultSet rs = ps.executeQuery();
+            int count = 0;
+            
+            while (rs.next()) {
+                count++;
+                ClearanceRequest req = new ClearanceRequest(
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("department"),
+                    rs.getString("status"),
+                    rs.getTimestamp("request_date").toString(),
+                    rs.getInt("approved_count")
+                );
+                req.setRequestId(rs.getInt("id"));
+                requestData.add(req);
+            }
+            
+            tableRequests.setItems(requestData);
+            
+            showAlert("Search Results", "Found " + count + " clearance requests matching: '" + searchQuery + "'");
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to search requests: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void updateSearchStatus(String message, String type) {
+        if (lblSearchStatus != null) {
+            lblSearchStatus.setText(message);
+            lblSearchStatus.setVisible(true);
+            
+            // Apply styling based on type
+            switch (type) {
+                case "success":
+                    lblSearchStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    break;
+                case "warning":
+                    lblSearchStatus.setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    break;
+                case "error":
+                    lblSearchStatus.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    break;
+                default:
+                    lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+            }
+        }
+    }
+    
+    // ==================== TABLE SETUP METHODS ====================
+    
     private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
                                   TableColumn<User, String> colName, TableColumn<User, String> colDept,
                                   TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
@@ -199,6 +481,40 @@ public class AdminDashboardController {
                 });
             }
 
+            
+            private void updateStudentClearanceStatus(int studentId, String newStatus) {
+                try (Connection conn = DatabaseConnection.getConnection()) {
+                    String sql = """
+                        UPDATE clearance_requests 
+                        SET status = ?, request_date = NOW()
+                        WHERE student_id = ? 
+                        AND id = (SELECT MAX(id) FROM clearance_requests WHERE student_id = ?)
+                        """;
+                    
+                    PreparedStatement stmt = conn.prepareStatement(sql);
+                    stmt.setString(1, newStatus);
+                    stmt.setInt(2, studentId);
+                    stmt.setInt(3, studentId);
+                    
+                    int updated = stmt.executeUpdate();
+                    
+                    if (updated > 0) {
+                        // Update UI for all student tables
+                        Platform.runLater(() -> {
+                            loadAllStudents(); // Reload all student data
+                            tableAllStudents.refresh();
+                            tableRejectedStudents.refresh();
+                            tableInProgressStudents.refresh();
+                            tablePendingStudents.refresh();
+                            tableApprovedStudents.refresh();
+                        });
+                    }
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -341,6 +657,7 @@ public class AdminDashboardController {
     }
     
     // ==================== LOAD DATA METHODS ====================
+    
     @FXML
     private void handleRefresh() {
         loadAllData();
@@ -417,8 +734,6 @@ public class AdminDashboardController {
                 } else if (clearanceStatus.equals("IN_PROGRESS")) {
                     inProgressStudentsData.add(student);
                 }
-                // Note: Students with REJECTED and canReapply=true don't appear in any category tab
-                // They only appear in "All Students" tab
             }
             
             // Set data to tables
@@ -432,7 +747,8 @@ public class AdminDashboardController {
             showAlert("Error", "Failed to load students: " + e.getMessage());
             e.printStackTrace();
         }
-    }    
+    }
+    
     private void loadOfficers() {
         officersData.clear();
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -556,8 +872,6 @@ public class AdminDashboardController {
         return formatClearanceStatus(status, false);
     }
     
-    
-    
     private void updateDashboardStats() {
         lblTotalStudents.setText("Students: " + allStudentsData.size());
         lblTotalOfficers.setText("Officers: " + officersData.size());
@@ -606,10 +920,8 @@ public class AdminDashboardController {
         }
     }
     
-    
-    
-    
     // ==================== ALLOW STUDENT TO REAPPLY ====================
+    
     private void allowStudentReapply(User student) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Allow Student to Reapply");
@@ -617,7 +929,10 @@ public class AdminDashboardController {
         confirm.setContentText("Allow " + student.getFullName() + " (" + student.getUsername() + 
                              ") to submit a new clearance request?\n\n" +
                              "This student's previous request was rejected.\n" +
-                             "Allowing reapplication will enable them to submit a new request.");
+                             "Allowing reapplication will:\n" +
+                             "• Reset their clearance status to 'IN_PROGRESS'\n" +
+                             "• Enable them to submit a new request\n" +
+                             "• Update all UI elements in real-time");
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
@@ -625,73 +940,124 @@ public class AdminDashboardController {
             }
         });
     }
+
     
     private void enableStudentReapply(User student) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Allow Student to Reapply");
-        confirm.setHeaderText("Allow Clearance Reapplication");
-        confirm.setContentText("Allow " + student.getFullName() + " (" + student.getUsername() + 
-                             ") to submit a new clearance request?\n\n" +
-                             "This student's previous request was rejected.\n" +
-                             "Allowing reapplication will enable them to submit a new request.");
-        
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try (Connection conn = DatabaseConnection.getConnection()) {
-                    // First, get the latest rejected request ID
-                    String getLatestIdSql = """
-                        SELECT MAX(id) as latest_id 
-                        FROM clearance_requests 
-                        WHERE student_id = ? AND status = 'REJECTED'
-                        """;
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // 1. Get the latest rejected request ID
+                String getLatestIdSql = """
+                    SELECT MAX(id) as latest_id 
+                    FROM clearance_requests 
+                    WHERE student_id = ? AND status = 'REJECTED'
+                    """;
+                
+                PreparedStatement getStmt = conn.prepareStatement(getLatestIdSql);
+                getStmt.setInt(1, student.getId());
+                ResultSet rs = getStmt.executeQuery();
+                
+                if (rs.next()) {
+                    int latestRequestId = rs.getInt("latest_id");
                     
-                    PreparedStatement getStmt = conn.prepareStatement(getLatestIdSql);
-                    getStmt.setInt(1, student.getId());
-                    ResultSet rs = getStmt.executeQuery();
-                    
-                    if (rs.next()) {
-                        int latestRequestId = rs.getInt("latest_id");
+                    if (latestRequestId > 0) {
+                        // 2. Update the rejected request to allow reapplication
+                        String updateRequestSql = """
+                            UPDATE clearance_requests 
+                            SET can_reapply = TRUE, 
+                                status = 'IN_PROGRESS',
+                                request_date = NOW()
+                            WHERE id = ?
+                            """;
                         
-                        if (latestRequestId > 0) {
-                            // Now update using the ID we found
-                            String updateSql = """
-                                UPDATE clearance_requests 
-                                SET can_reapply = TRUE 
-                                WHERE id = ?
-                                """;
+                        PreparedStatement updateRequestStmt = conn.prepareStatement(updateRequestSql);
+                        updateRequestStmt.setInt(1, latestRequestId);
+                        int requestUpdated = updateRequestStmt.executeUpdate();
+                        
+                        // 3. Clear all existing approvals for this request
+                        String clearApprovalsSql = """
+                            DELETE FROM clearance_approvals 
+                            WHERE request_id = ?
+                            """;
+                        
+                        PreparedStatement clearApprovalsStmt = conn.prepareStatement(clearApprovalsSql);
+                        clearApprovalsStmt.setInt(1, latestRequestId);
+                        clearApprovalsStmt.executeUpdate();
+                        
+                        // 4. Create new pending approvals based on workflow
+                        String workflowSql = """
+                            SELECT role FROM workflow_config ORDER BY sequence_order
+                            """;
+                        
+                        PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
+                        ResultSet workflowRs = workflowStmt.executeQuery();
+                        
+                        String insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, status)
+                            VALUES (?, ?, 'PENDING')
+                            """;
+                        
+                        PreparedStatement insertApprovalStmt = conn.prepareStatement(insertApprovalSql);
+                        
+                        while (workflowRs.next()) {
+                            insertApprovalStmt.setInt(1, latestRequestId);
+                            insertApprovalStmt.setString(2, workflowRs.getString("role"));
+                            insertApprovalStmt.addBatch();
+                        }
+                        
+                        insertApprovalStmt.executeBatch();
+                        
+                        // 5. Update student's dormitory clearance status if needed
+                        String updateDormSql = """
+                            UPDATE student_dormitory_credentials 
+                            SET clearance_status = 'PENDING'
+                            WHERE student_id = ?
+                            """;
+                        
+                        PreparedStatement updateDormStmt = conn.prepareStatement(updateDormSql);
+                        updateDormStmt.setInt(1, student.getId());
+                        updateDormStmt.executeUpdate();
+                        
+                        conn.commit();
+                        
+                        if (requestUpdated > 0) {
+                            // Update the student's status in the UI immediately
+                            student.setCanReapply(true);
+                            student.setClearanceStatus("🔄 In Progress");
                             
-                            PreparedStatement updateStmt = conn.prepareStatement(updateSql);
-                            updateStmt.setInt(1, latestRequestId);
+                            // Refresh the table data
+                            refreshStudentTableRows();
                             
-                            int updated = updateStmt.executeUpdate();
-                            if (updated > 0) {
-                                // Update the student's status in the UI immediately
-                                student.setCanReapply(true);
-                                student.setClearanceStatus(formatClearanceStatus("REJECTED", true));
-                                
-                                // Refresh the table data
-                                refreshStudentTableRows();
-                                
-                                showAlert("Success", student.getFullName() + " can now reapply for clearance!");
-                            } else {
-                                showAlert("Error", "Failed to update clearance request.");
-                            }
+                            // Show success message
+                            showAlert("Success", 
+                                student.getFullName() + " can now reapply for clearance!\n\n" +
+                                "Status has been updated to: 🔄 IN PROGRESS\n" +
+                                "The student can now proceed with their clearance request.");
                         } else {
-                            showAlert("Error", "No rejected request found for this student.");
+                            conn.rollback();
+                            showAlert("Error", "Failed to update clearance request.");
                         }
                     } else {
                         showAlert("Error", "No rejected request found for this student.");
                     }
-                    
-                } catch (Exception e) {
-                    showAlert("Error", "Failed to allow reapplication: " + e.getMessage());
-                    e.printStackTrace();
+                } else {
+                    showAlert("Error", "No rejected request found for this student.");
                 }
+                
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-        });
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to allow reapplication: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
-    // Add this helper method to refresh table rows
     private void refreshStudentTableRows() {
         // Refresh the tables to reflect changes
         tableAllStudents.refresh();
@@ -701,10 +1067,8 @@ public class AdminDashboardController {
         loadAllStudents();
     }
     
-    
-    
     // ==================== VIEW STUDENT DETAILS ====================
- // ==================== VIEW STUDENT DETAILS ====================
+    
     private void viewStudentDetails(User student) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Student Details");
@@ -788,266 +1152,6 @@ public class AdminDashboardController {
                 details.append("(Use Edit Dormitory Info to add block and room numbers)\n");
             }
             
-            // ========== ACADEMIC RECORDS ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("ACADEMIC RECORDS\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String academicSql = """
-                SELECT academic_hold, outstanding_fees, incomplete_courses, gpa
-                FROM student_academic_records 
-                WHERE student_id = ?
-                """;
-            
-            PreparedStatement academicPs = conn.prepareStatement(academicSql);
-            academicPs.setInt(1, student.getId());
-            ResultSet academicRs = academicPs.executeQuery();
-            
-            if (academicRs.next()) {
-                details.append(String.format("%-20s: %s\n", "Academic Hold", 
-                    academicRs.getString("academic_hold")));
-                details.append(String.format("%-20s: $%.2f\n", "Outstanding Fees", 
-                    academicRs.getDouble("outstanding_fees")));
-                details.append(String.format("%-20s: %d\n", "Incomplete Courses", 
-                    academicRs.getInt("incomplete_courses")));
-                details.append(String.format("%-20s: %.2f\n", "GPA", 
-                    academicRs.getDouble("gpa")));
-            } else {
-                details.append("No academic records found.\n");
-            }
-            
-            // ========== LIBRARY STATUS ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("LIBRARY STATUS\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String librarySql = """
-                SELECT 
-                    COUNT(*) as total_books,
-                    SUM(CASE WHEN status = 'BORROWED' THEN 1 ELSE 0 END) as borrowed,
-                    SUM(CASE WHEN status = 'OVERDUE' THEN 1 ELSE 0 END) as overdue,
-                    SUM(fine_amount) as total_fine
-                FROM book_borrowings 
-                WHERE student_id = ? 
-                AND (status = 'BORROWED' OR status = 'OVERDUE' OR fine_amount > 0)
-                """;
-            
-            PreparedStatement libraryPs = conn.prepareStatement(librarySql);
-            libraryPs.setInt(1, student.getId());
-            ResultSet libraryRs = libraryPs.executeQuery();
-            
-            if (libraryRs.next()) {
-                int borrowed = libraryRs.getInt("borrowed");
-                int overdue = libraryRs.getInt("overdue");
-                double totalFine = libraryRs.getDouble("total_fine");
-                
-                details.append(String.format("%-20s: %d books\n", "Currently Borrowed", borrowed));
-                details.append(String.format("%-20s: %d books\n", "Overdue Books", overdue));
-                details.append(String.format("%-20s: $%.2f\n", "Total Fines", totalFine));
-                
-                if (borrowed > 0 || overdue > 0 || totalFine > 0) {
-                    details.append("\nBook Details:\n");
-                    String bookSql = """
-                        SELECT book_title, borrow_date, due_date, return_date, status, fine_amount
-                        FROM book_borrowings 
-                        WHERE student_id = ?
-                        ORDER BY due_date DESC
-                        """;
-                    
-                    PreparedStatement bookPs = conn.prepareStatement(bookSql);
-                    bookPs.setInt(1, student.getId());
-                    ResultSet bookRs = bookPs.executeQuery();
-                    
-                    int bookCount = 1;
-                    while (bookRs.next()) {
-                        details.append(String.format("\n  Book #%d:\n", bookCount++));
-                        details.append(String.format("    Title: %s\n", bookRs.getString("book_title")));
-                        details.append(String.format("    Borrowed: %s\n", bookRs.getDate("borrow_date")));
-                        details.append(String.format("    Due: %s\n", bookRs.getDate("due_date")));
-                        
-                        if (bookRs.getDate("return_date") != null) {
-                            details.append(String.format("    Returned: %s\n", bookRs.getDate("return_date")));
-                        }
-                        
-                        details.append(String.format("    Status: %s\n", bookRs.getString("status")));
-                        
-                        double fine = bookRs.getDouble("fine_amount");
-                        if (fine > 0) {
-                            details.append(String.format("    Fine: $%.2f\n", fine));
-                        }
-                    }
-                }
-            } else {
-                details.append("No library issues found. All clear!\n");
-            }
-            
-            // ========== CAFETERIA STATUS ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("CAFETERIA STATUS\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String cafeteriaSql = """
-                SELECT 
-                    record_type, description, amount, transaction_date, status, meal_plan_type
-                FROM cafeteria_records 
-                WHERE student_id = ? 
-                AND (status = 'Pending' OR amount > 0)
-                ORDER BY transaction_date DESC
-                """;
-            
-            PreparedStatement cafePs = conn.prepareStatement(cafeteriaSql);
-            cafePs.setInt(1, student.getId());
-            ResultSet cafeRs = cafePs.executeQuery();
-            
-            double totalCafeteriaBalance = 0;
-            int cafeRecordCount = 0;
-            
-            while (cafeRs.next()) {
-                cafeRecordCount++;
-                if (cafeRecordCount == 1) {
-                    details.append("Cafeteria Records:\n");
-                }
-                
-                details.append(String.format("\n  Record #%d:\n", cafeRecordCount));
-                details.append(String.format("    Type: %s\n", cafeRs.getString("record_type")));
-                details.append(String.format("    Description: %s\n", cafeRs.getString("description")));
-                details.append(String.format("    Amount: $%.2f\n", cafeRs.getDouble("amount")));
-                details.append(String.format("    Date: %s\n", cafeRs.getDate("transaction_date")));
-                details.append(String.format("    Status: %s\n", cafeRs.getString("status")));
-                
-                String mealPlan = cafeRs.getString("meal_plan_type");
-                if (mealPlan != null) {
-                    details.append(String.format("    Meal Plan: %s\n", mealPlan));
-                }
-                
-                if ("Pending".equals(cafeRs.getString("status"))) {
-                    totalCafeteriaBalance += cafeRs.getDouble("amount");
-                }
-            }
-            
-            if (cafeRecordCount == 0) {
-                details.append("No cafeteria issues found. All clear!\n");
-            } else if (totalCafeteriaBalance > 0) {
-                details.append(String.format("\n%-20s: $%.2f\n", "Total Pending Balance", totalCafeteriaBalance));
-            }
-            
-            // ========== DEPARTMENT REQUIREMENTS ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("DEPARTMENT REQUIREMENTS\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String deptSql = """
-                SELECT requirement_name, requirement_type, status, completed_date, remarks
-                FROM department_requirements 
-                WHERE student_id = ?
-                ORDER BY completed_date DESC, requirement_name
-                """;
-            
-            PreparedStatement deptPs = conn.prepareStatement(deptSql);
-            deptPs.setInt(1, student.getId());
-            ResultSet deptRs = deptPs.executeQuery();
-            
-            int deptReqCount = 0;
-            int completedCount = 0;
-            
-            while (deptRs.next()) {
-                deptReqCount++;
-                if (deptReqCount == 1) {
-                    details.append("Department Requirements:\n");
-                }
-                
-                details.append(String.format("\n  %s:\n", deptRs.getString("requirement_name")));
-                details.append(String.format("    Type: %s\n", deptRs.getString("requirement_type")));
-                details.append(String.format("    Status: %s\n", deptRs.getString("status")));
-                
-                if ("Completed".equals(deptRs.getString("status"))) {
-                    completedCount++;
-                }
-                
-                if (deptRs.getDate("completed_date") != null) {
-                    details.append(String.format("    Completed: %s\n", deptRs.getDate("completed_date")));
-                }
-                
-                String reqRemarks = deptRs.getString("remarks");
-                if (reqRemarks != null && !reqRemarks.isEmpty()) {
-                    details.append(String.format("    Remarks: %s\n", reqRemarks));
-                }
-            }
-            
-            if (deptReqCount == 0) {
-                details.append("No department requirements recorded.\n");
-            } else {
-                details.append(String.format("\nProgress: %d/%d requirements completed\n", 
-                    completedCount, deptReqCount));
-            }
-            
-            // ========== CLEARANCE HISTORY ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("CLEARANCE HISTORY\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String historySql = """
-                SELECT 
-                    cr.id,
-                    cr.request_date,
-                    cr.status,
-                    cr.completion_date,
-                    cr.can_reapply,
-                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status) ORDER BY ca.officer_role) as approvals
-                FROM clearance_requests cr
-                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
-                WHERE cr.student_id = ?
-                GROUP BY cr.id
-                ORDER BY cr.request_date DESC
-                """;
-            
-            PreparedStatement historyPs = conn.prepareStatement(historySql);
-            historyPs.setInt(1, student.getId());
-            ResultSet historyRs = historyPs.executeQuery();
-            
-            int requestCount = 0;
-            
-            while (historyRs.next()) {
-                requestCount++;
-                details.append(String.format("Request #%d:\n", requestCount));
-                details.append(String.format("  Request ID: %d\n", historyRs.getInt("id")));
-                details.append(String.format("  Date: %s\n", historyRs.getTimestamp("request_date")));
-                details.append(String.format("  Status: %s\n", historyRs.getString("status")));
-                
-                if (historyRs.getTimestamp("completion_date") != null) {
-                    details.append(String.format("  Completed: %s\n", historyRs.getTimestamp("completion_date")));
-                }
-                
-                details.append(String.format("  Can Reapply: %s\n", 
-                    historyRs.getBoolean("can_reapply") ? "Yes" : "No"));
-                
-                String approvals = historyRs.getString("approvals");
-                if (approvals != null) {
-                    details.append("  Department Approvals:\n");
-                    String[] approvalList = approvals.split(",");
-                    for (String approval : approvalList) {
-                        String[] parts = approval.trim().split(":");
-                        if (parts.length == 2) {
-                            String dept = parts[0].trim();
-                            String status = parts[1].trim();
-                            
-                            String statusIcon = "❌";
-                            if (status.equals("APPROVED")) statusIcon = "✅";
-                            else if (status.equals("PENDING")) statusIcon = "⏳";
-                            
-                            details.append(String.format("    %s %s: %s\n", statusIcon, dept, status));
-                        }
-                    }
-                }
-                details.append("\n");
-            }
-            
-            if (requestCount == 0) {
-                details.append("No clearance requests found.\n");
-            } else {
-                details.append(String.format("Total Requests: %d\n", requestCount));
-            }
-            
             // ========== COURSE INFORMATION ==========
             details.append("\n").append("=".repeat(60)).append("\n");
             details.append("COURSE INFORMATION (Recent)\n");
@@ -1119,6 +1223,73 @@ public class AdminDashboardController {
                 details.append("No course information found.\n");
             } else if (courseCount == 10) {
                 details.append("\n(Showing 10 most recent courses)\n");
+            }
+            
+            // ========== CLEARANCE HISTORY ==========
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("CLEARANCE HISTORY\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String historySql = """
+                SELECT 
+                    cr.id,
+                    cr.request_date,
+                    cr.status,
+                    cr.completion_date,
+                    cr.can_reapply,
+                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status) ORDER BY ca.officer_role) as approvals
+                FROM clearance_requests cr
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
+                WHERE cr.student_id = ?
+                GROUP BY cr.id
+                ORDER BY cr.request_date DESC
+                """;
+            
+            PreparedStatement historyPs = conn.prepareStatement(historySql);
+            historyPs.setInt(1, student.getId());
+            ResultSet historyRs = historyPs.executeQuery();
+            
+            int requestCount = 0;
+            
+            while (historyRs.next()) {
+                requestCount++;
+                details.append(String.format("Request #%d:\n", requestCount));
+                details.append(String.format("  Request ID: %d\n", historyRs.getInt("id")));
+                details.append(String.format("  Date: %s\n", historyRs.getTimestamp("request_date")));
+                details.append(String.format("  Status: %s\n", historyRs.getString("status")));
+                
+                if (historyRs.getTimestamp("completion_date") != null) {
+                    details.append(String.format("  Completed: %s\n", historyRs.getTimestamp("completion_date")));
+                }
+                
+                details.append(String.format("  Can Reapply: %s\n", 
+                    historyRs.getBoolean("can_reapply") ? "Yes" : "No"));
+                
+                String approvals = historyRs.getString("approvals");
+                if (approvals != null) {
+                    details.append("  Department Approvals:\n");
+                    String[] approvalList = approvals.split(",");
+                    for (String approval : approvalList) {
+                        String[] parts = approval.trim().split(":");
+                        if (parts.length == 2) {
+                            String dept = parts[0].trim();
+                            String status = parts[1].trim();
+                            
+                            String statusIcon = "❌";
+                            if (status.equals("APPROVED")) statusIcon = "✅";
+                            else if (status.equals("PENDING")) statusIcon = "⏳";
+                            
+                            details.append(String.format("    %s %s: %s\n", statusIcon, dept, status));
+                        }
+                    }
+                }
+                details.append("\n");
+            }
+            
+            if (requestCount == 0) {
+                details.append("No clearance requests found.\n");
+            } else {
+                details.append(String.format("Total Requests: %d\n", requestCount));
             }
             
             // ========== CREATE TEXT AREA WITH SCROLLING ==========
@@ -1377,9 +1548,9 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== ORIGINAL METHODS FROM YOUR CODE ====================
+    // ==================== ORIGINAL METHODS ====================
     
-    // 1. STUDENT REGISTRATION
+    // STUDENT REGISTRATION
     @FXML
     private void openRegisterStudent() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -1504,7 +1675,7 @@ public class AdminDashboardController {
         grid.setUserData(new Object[]{
             txtStudentId, txtUsername, txtFullName, txtPassword,
             txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear,
-            txtBlockNumber, txtDormNumber  // Add new fields to user data
+            txtBlockNumber, txtDormNumber
         });
 
         return grid;
@@ -1521,8 +1692,8 @@ public class AdminDashboardController {
         TextField txtPhoneSuffix = (TextField) fields[6];
         ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
         ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
-        TextField txtBlockNumber = (TextField) fields[9];  // New
-        TextField txtDormNumber = (TextField) fields[10];  // New
+        TextField txtBlockNumber = (TextField) fields[9];
+        TextField txtDormNumber = (TextField) fields[10];
 
         String inputId = txtStudentId.getText().trim();
         if (!inputId.startsWith("DBU") || inputId.length() != 10) {
@@ -1539,8 +1710,8 @@ public class AdminDashboardController {
         String email = txtEmail.getText().trim();
         String department = cmbDepartment.getValue();
         String year = cmbYear.getValue();
-        String blockNumber = txtBlockNumber.getText().trim();  // New
-        String dormNumber = txtDormNumber.getText().trim();    // New
+        String blockNumber = txtBlockNumber.getText().trim();
+        String dormNumber = txtDormNumber.getText().trim();
 
         String phonePrefix = cmbPhonePrefix.getValue();
         String phoneSuffix = txtPhoneSuffix.getText().trim();
@@ -1649,132 +1820,7 @@ public class AdminDashboardController {
         }
     }
     
-    
-    
-    @FXML
-    private void editStudentDormitoryInfo() {
-        User selectedStudent = tableAllStudents.getSelectionModel().getSelectedItem();
-        if (selectedStudent == null) {
-            showAlert("Error", "Please select a student first!");
-            return;
-        }
-        
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Edit Dormitory Information");
-        dialog.setHeaderText("Update Dormitory Details for " + selectedStudent.getFullName());
-        
-        ButtonType saveButton = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
-        
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
-        
-        TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("Block Nuber (1, 2, 10...)");
-        
-        TextField txtRoomNumber = new TextField();
-        txtRoomNumber.setPromptText("Room Number (101, 205...)");
-        
-        // Load existing data
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT block_number, room_number 
-                FROM student_dormitory_credentials 
-                WHERE student_id = ?
-                """;
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, selectedStudent.getId());
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                txtBlockNumber.setText(rs.getString("block_number"));
-                txtRoomNumber.setText(rs.getString("room_number"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        grid.add(new Label("Block Number:"), 0, 0);
-        grid.add(txtBlockNumber, 1, 0);
-        grid.add(new Label("Room Number:"), 0, 1);
-        grid.add(txtRoomNumber, 1, 1);
-        
-        dialog.getDialogPane().setContent(grid);
-        
-        dialog.setResultConverter(buttonType -> {
-            if (buttonType == saveButton) {
-                String blockNum = txtBlockNumber.getText().trim();
-                String roomNum = txtRoomNumber.getText().trim();
-                
-                if (blockNum.isEmpty() || roomNum.isEmpty()) {
-                    showAlert("Error", "Both block and room numbers are required!");
-                    return null;
-                }
-                
-                if (updateDormitoryInfo(selectedStudent.getId(), blockNum, roomNum)) {
-                    showAlert("Success", "Dormitory information updated successfully!");
-                    return ButtonType.OK;
-                }
-            }
-            return null;
-        });
-        
-        dialog.showAndWait();
-    }
-
-    private boolean updateDormitoryInfo(int studentId, String blockNumber, String roomNumber) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if record exists
-            String checkSql = "SELECT COUNT(*) FROM student_dormitory_credentials WHERE student_id = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-            checkStmt.setInt(1, studentId);
-            ResultSet rs = checkStmt.executeQuery();
-            rs.next();
-            
-            if (rs.getInt(1) > 0) {
-                // Update existing record
-                String updateSql = """
-                    UPDATE student_dormitory_credentials 
-                    SET block_number = ?, room_number = ?, last_updated = NOW()
-                    WHERE student_id = ?
-                    """;
-                PreparedStatement updateStmt = conn.prepareStatement(updateSql);
-                updateStmt.setString(1, blockNumber);
-                updateStmt.setString(2, roomNumber);
-                updateStmt.setInt(3, studentId);
-                return updateStmt.executeUpdate() > 0;
-            } else {
-                // Insert new record
-                String insertSql = """
-                    INSERT INTO student_dormitory_credentials 
-                    (student_id, block_number, room_number, key_returned, damage_paid, clearance_status)
-                    VALUES (?, ?, ?, FALSE, FALSE, 'PENDING')
-                    """;
-                PreparedStatement insertStmt = conn.prepareStatement(insertSql);
-                insertStmt.setInt(1, studentId);
-                insertStmt.setString(2, blockNumber);
-                insertStmt.setString(3, roomNumber);
-                return insertStmt.executeUpdate() > 0;
-            }
-        } catch (Exception e) {
-            showAlert("Error", "Failed to update dormitory info: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    // 2. OFFICER MANAGEMENT
+    // OFFICER MANAGEMENT
     @FXML
     private void openManageOfficers() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -1966,7 +2012,7 @@ public class AdminDashboardController {
         }
     }
     
-    // 3. USER MANAGEMENT
+    // USER MANAGEMENT
     @FXML
     private void resetUserPassword() {
         User selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
@@ -2053,7 +2099,7 @@ public class AdminDashboardController {
         }
     }
     
-    // 4. WORKFLOW MANAGEMENT
+    // WORKFLOW MANAGEMENT
     @FXML
     private void openWorkflowManagement() {
         Dialog<String> dialog = new Dialog<>();
@@ -2189,7 +2235,7 @@ public class AdminDashboardController {
         }
     }
     
-    // 5. ACADEMIC SESSION MANAGEMENT
+    // ACADEMIC SESSION MANAGEMENT
     @FXML
     private void openSessionManagement() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -2271,7 +2317,7 @@ public class AdminDashboardController {
         return false;
     }
     
-    // 6. CERTIFICATE GENERATION
+    // CERTIFICATE GENERATION
     @FXML
     private void generateClearanceCertificates() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -2382,7 +2428,7 @@ public class AdminDashboardController {
         }
     }
     
-    // 7. CERTIFICATE VERIFICATION
+    // CERTIFICATE VERIFICATION
     @FXML
     private void openCertificateVerification() {
         TextInputDialog dialog = new TextInputDialog();
@@ -2462,7 +2508,7 @@ public class AdminDashboardController {
         }
     }
     
-    // 8. SEMESTER ROLLOVER
+    // SEMESTER ROLLOVER
     @FXML
     private void processSemesterRollover() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -2575,6 +2621,7 @@ public class AdminDashboardController {
     }
     
     // ==================== UTILITY METHODS ====================
+    
     @FXML
     private void handleLogout() {
         try {
@@ -2633,8 +2680,6 @@ public class AdminDashboardController {
         }
     }
 
-
-    
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

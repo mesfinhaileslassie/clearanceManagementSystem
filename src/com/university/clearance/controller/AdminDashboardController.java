@@ -33,6 +33,14 @@ public class AdminDashboardController {
     @FXML private Label lblTotalOfficers;
     @FXML private Label lblTotalRequests;
     
+    
+ // Add these to your existing FXML field declarations
+    @FXML private Label lblTotalStudentsCard;
+    @FXML private Label lblTotalOfficersCard;
+    @FXML private Label lblTotalRequestsCard;
+    @FXML private Label lblApprovedCount;
+    @FXML private Label lblRejectedCount;
+    @FXML private Label lblPendingCount;
     // Main Tab Pane
     @FXML private TabPane mainTabPane;
     
@@ -547,19 +555,59 @@ public class AdminDashboardController {
     private String formatClearanceStatus(String status) {
         return formatClearanceStatus(status, false);
     }
+    
+    
+    
     private void updateDashboardStats() {
         lblTotalStudents.setText("Students: " + allStudentsData.size());
         lblTotalOfficers.setText("Officers: " + officersData.size());
         
         // Count total requests
         int totalRequests = 0;
+        int approvedCount = 0;
+        int rejectedCount = 0;
+        int pendingCount = 0;
+        
         for (User student : allStudentsData) {
-            if (!student.getClearanceStatus().equals("📝 No Request")) {
+            String status = student.getClearanceStatus();
+            if (!status.equals("📝 No Request")) {
                 totalRequests++;
             }
+            
+            if (status.contains("✅")) {
+                approvedCount++;
+            } else if (status.contains("❌")) {
+                rejectedCount++;
+            } else if (status.contains("⏳") || status.contains("🔄")) {
+                pendingCount++;
+            }
         }
+        
         lblTotalRequests.setText("Requests: " + totalRequests);
+        
+        // Update card labels if they exist
+        if (lblTotalStudentsCard != null) {
+            lblTotalStudentsCard.setText(String.valueOf(allStudentsData.size()));
+        }
+        if (lblTotalOfficersCard != null) {
+            lblTotalOfficersCard.setText(String.valueOf(officersData.size()));
+        }
+        if (lblTotalRequestsCard != null) {
+            lblTotalRequestsCard.setText(String.valueOf(totalRequests));
+        }
+        if (lblApprovedCount != null) {
+            lblApprovedCount.setText(String.valueOf(approvedCount));
+        }
+        if (lblRejectedCount != null) {
+            lblRejectedCount.setText(String.valueOf(rejectedCount));
+        }
+        if (lblPendingCount != null) {
+            lblPendingCount.setText(String.valueOf(pendingCount));
+        }
     }
+    
+    
+    
     
     // ==================== ALLOW STUDENT TO REAPPLY ====================
     private void allowStudentReapply(User student) {
@@ -1624,7 +1672,7 @@ public class AdminDashboardController {
         grid.setPadding(new Insets(20, 150, 10, 10));
         
         TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("Block Letter (A, B, C...)");
+        txtBlockNumber.setPromptText("Block Nuber (1, 2, 10...)");
         
         TextField txtRoomNumber = new TextField();
         txtRoomNumber.setPromptText("Room Number (101, 205...)");

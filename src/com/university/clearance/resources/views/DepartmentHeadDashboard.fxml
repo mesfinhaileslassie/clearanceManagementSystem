@@ -7,7 +7,7 @@
 <?import javafx.scene.text.Text?>
 <?import javafx.scene.text.TextFlow?>
 
-<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="com.university.clearance.controller.DepartmentHeadDashboardController">
     
     <top>
@@ -25,6 +25,10 @@
                            style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;"/>
                     <Button text="📊 Generate Report" onAction="#generateDepartmentReport" 
                             style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    <Button text="🔄 Refresh" onAction="#refreshRequests"
+                            style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
+                    <Button text="🚪 Logout" onAction="#handleLogout" 
+                            style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;"/>
                 </HBox>
             </children>
         </HBox>
@@ -105,6 +109,11 @@
                     </HBox>
                 </VBox>
                 
+                <!-- Logout Button -->
+                <Separator style="-fx-padding: 20 0 10 0;" />
+                <Button onAction="#handleLogout" text="Logout" 
+                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold;" />
+                
             </children>
         </VBox>
     </left>
@@ -122,17 +131,17 @@
                         <HBox spacing="20">
                             <VBox style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
                                 <Label text="Pending Clearances" style="-fx-text-fill: white; -fx-font-size: 16px;" />
-                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                                <Label fx:id="lblPendingCard" text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
                             </VBox>
                             
                             <VBox style="-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
                                 <Label text="Cleared Students" style="-fx-text-fill: white; -fx-font-size: 16px;" />
-                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                                <Label fx:id="lblApprovedCard" text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
                             </VBox>
                             
                             <VBox style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
                                 <Label text="Requirements Pending" style="-fx-text-fill: white; -fx-font-size: 16px;" />
-                                <Label text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
+                                <Label fx:id="lblRequirementsCard" text="0" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" />
                             </VBox>
                         </HBox>
                         

@@ -16,6 +16,13 @@ import java.sql.*;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
+
+
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
 public class DepartmentHeadDashboardController implements Initializable {
 
     @FXML private Label lblWelcome;
@@ -23,6 +30,17 @@ public class DepartmentHeadDashboardController implements Initializable {
     @FXML private Label lblStudentInfo;
     @FXML private Label lblDepartmentRequirements;
     @FXML private TabPane mainTabPane;
+    
+    
+    
+    
+    
+    
+    @FXML private Label lblPendingCard;
+    @FXML private Label lblApprovedCard;
+    @FXML private Label lblRequirementsCard;
+
+    
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -64,6 +82,123 @@ public class DepartmentHeadDashboardController implements Initializable {
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Department Head");
         loadPendingRequests();
     }
+    
+    
+    
+    private void updateDashboardStats() {
+        int approvedCount = countApprovedStudents();
+        int requirementsPending = countPendingRequirements();
+        
+        if (lblApprovedCard != null) lblApprovedCard.setText(String.valueOf(approvedCount));
+        if (lblRequirementsCard != null) lblRequirementsCard.setText(String.valueOf(requirementsPending));
+    }
+
+    private int countApprovedStudents() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT COUNT(DISTINCT cr.student_id) as approved_count
+                FROM clearance_approvals ca
+                JOIN clearance_requests cr ON ca.request_id = cr.id
+                JOIN users u ON cr.student_id = u.id
+                WHERE ca.officer_role = 'DEPARTMENT_HEAD'
+                AND ca.status = 'APPROVED'
+                AND u.department = ?
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, currentUser.getDepartment());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("approved_count");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private int countPendingRequirements() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT COUNT(*) as pending_count
+                FROM department_requirements dr
+                JOIN users u ON dr.student_id = u.id
+                WHERE u.department = ?
+                AND dr.status IN ('Not Started', 'In Progress')
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, currentUser.getDepartment());
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("pending_count");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+    
+    
+    
+    
+    @FXML
+    private void handleLogout() {
+        try {
+            System.out.println("[DEBUG] Logout button clicked in Department Head Dashboard.");
+            
+            // Confirmation dialog
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Logout Confirmation");
+            confirm.setHeaderText("Confirm Logout");
+            confirm.setContentText("Are you sure you want to logout from the Department Head Dashboard?");
+            
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                System.out.println("[DEBUG] User confirmed logout.");
+                
+                // Get the logout button or any other UI component to preserve window size
+                Button logoutBtn = null; // You can get this from FXML if you add an fx:id
+                // For now, use the welcome label to get the scene
+                Scene currentScene = lblWelcome.getScene();
+                
+                // Load the Login FXML
+                String fxmlPath = "/com/university/clearance/resources/views/Login.fxml";
+                System.out.println("[DEBUG] Trying FXML: " + fxmlPath);
+                
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                
+                if (loader.getLocation() == null) {
+                    System.out.println("[DEBUG] ERROR: FXML not found at: " + fxmlPath);
+                    showAlert("Error", "Login screen not found. Check FXML path.");
+                    return;
+                }
+                
+                Parent root = loader.load();
+                System.out.println("[DEBUG] Login FXML loaded successfully.");
+                
+                // Get the current stage
+                Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                
+                // Preserve current window size
+                Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
+                stage.setScene(newScene);
+                stage.setTitle("University Clearance System - Login");
+                stage.centerOnScreen();
+                
+                System.out.println("[DEBUG] Successfully logged out and returned to login screen.");
+            } else {
+                System.out.println("[DEBUG] Logout cancelled by user.");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[DEBUG] Exception occurred during logout: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Error", "Failed to logout: " + e.getMessage());
+        }
+    }
+    
+    
+    
+    
 
     private void setupTableColumns() {
         System.out.println("=== DEBUG: Setting up table columns ===");
@@ -156,39 +291,12 @@ public class DepartmentHeadDashboardController implements Initializable {
     }
 
     private void loadPendingRequests() {
-        System.out.println("\n=== DEBUG: Loading pending requests ===");
-        System.out.println("Current user department: " + currentUser.getDepartment());
         requestData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            System.out.println("✅ Database connection established");
+            System.out.println("Loading pending requests for department: " + currentUser.getDepartment());
             
-            // DEBUG: Check all students with requests
-            debugStudentDepartmentInfo(conn);
-            
-            // DEBUG: Check specifically for Software Engineering students
-            String checkDeptSql = """
-                SELECT u.username, u.full_name, u.department, cr.status, COUNT(cr.id) as count
-                FROM users u
-                LEFT JOIN clearance_requests cr ON u.id = cr.student_id 
-                    AND cr.status IN ('PENDING', 'IN_PROGRESS')
-                WHERE u.department = ?
-                GROUP BY u.username, u.full_name, u.department, cr.status
-                """;
-            
-            PreparedStatement deptStmt = conn.prepareStatement(checkDeptSql);
-            deptStmt.setString(1, currentUser.getDepartment());
-            ResultSet deptRs = deptStmt.executeQuery();
-            
-            System.out.println("\n=== DEBUG: Students in " + currentUser.getDepartment() + " department ===");
-            while (deptRs.next()) {
-                System.out.println("Student: " + deptRs.getString("username") + 
-                                 " (" + deptRs.getString("full_name") + ") - " +
-                                 "Request Status: " + deptRs.getString("status") +
-                                 " - Count: " + deptRs.getInt("count"));
-            }
-            
-            // Main query
+            // FIXED QUERY: This will find students from the same department who need department head approval
             String sql = """
                 SELECT 
                     cr.id as request_id,
@@ -196,37 +304,30 @@ public class DepartmentHeadDashboardController implements Initializable {
                     u.full_name as student_name,
                     u.department,
                     u.year_level,
-                    DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date,
-                    COALESCE(ca.status, 'PENDING') as approval_status
+                    DATE_FORMAT(cr.request_date, '%Y-%m-%d %H:%i') as request_date
                 FROM clearance_requests cr
                 JOIN users u ON cr.student_id = u.id
-                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
-                    AND ca.officer_role = 'DEPARTMENT_HEAD'
                 WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
                 AND u.department = ?
-                AND (ca.status IS NULL OR ca.status = 'PENDING')
+                AND NOT EXISTS (
+                    SELECT 1 FROM clearance_approvals ca 
+                    WHERE ca.request_id = cr.id 
+                    AND ca.officer_role = 'DEPARTMENT_HEAD'
+                    AND ca.status = 'APPROVED'
+                )
                 ORDER BY cr.request_date ASC
                 """;
                 
-            System.out.println("\nSQL Query: " + sql);
-            System.out.println("Department parameter: " + currentUser.getDepartment());
-            
+            System.out.println("Executing query...");
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, currentUser.getDepartment());
             ResultSet rs = ps.executeQuery();
 
             int pendingCount = 0;
-            System.out.println("Query executed, processing results...");
             
             while (rs.next()) {
                 pendingCount++;
                 String studentId = rs.getString("student_id");
-                System.out.println("\nFound student #" + pendingCount + ": " + studentId);
-                System.out.println("Student Name: " + rs.getString("student_name"));
-                System.out.println("Department: " + rs.getString("department"));
-                System.out.println("Year Level: " + rs.getString("year_level"));
-                System.out.println("Request Date: " + rs.getString("request_date"));
-                System.out.println("Approval Status: " + rs.getString("approval_status"));
                 
                 String departmentStatus = checkStudentDepartmentStatus(conn, studentId);
                 String gpa = getStudentGPA(conn, studentId);
@@ -245,61 +346,21 @@ public class DepartmentHeadDashboardController implements Initializable {
                 requestData.add(request);
             }
             
-            System.out.println("\n=== DEBUG: Query Results Summary ===");
-            System.out.println("Total records found: " + pendingCount);
-            
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Department Clearances: " + pendingCount);
             
-            if (pendingCount == 0) {
-                System.out.println("⚠️ WARNING: No records found.");
-                
-                debugMissingStudent(conn, "DBU16001111");
-                // Check what's in the database
-                String allSql = """
-                    SELECT 
-                        cr.id,
-                        u.username,
-                        u.full_name,
-                        u.department,
-                        cr.status as request_status,
-                        ca.status as approval_status,
-                        ca.officer_role
-                    FROM clearance_requests cr
-                    JOIN users u ON cr.student_id = u.id
-                    LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
-                    WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
-                    AND u.department = ?
-                    ORDER BY cr.id
-                    """;
-                    
-                PreparedStatement allStmt = conn.prepareStatement(allSql);
-                allStmt.setString(1, currentUser.getDepartment());
-                ResultSet allRs = allStmt.executeQuery();
-                
-                System.out.println("\n=== DEBUG: All records for " + currentUser.getDepartment() + " ===");
-                int total = 0;
-                while (allRs.next()) {
-                    total++;
-                    System.out.println("Record " + total + ":");
-                    System.out.println("  ID: " + allRs.getInt("id"));
-                    System.out.println("  Student: " + allRs.getString("username"));
-                    System.out.println("  Name: " + allRs.getString("full_name"));
-                    System.out.println("  Department: " + allRs.getString("department"));
-                    System.out.println("  Request Status: " + allRs.getString("request_status"));
-                    System.out.println("  Approval Status: " + allRs.getString("approval_status"));
-                    System.out.println("  Officer Role: " + allRs.getString("officer_role"));
-                }
-                System.out.println("\nTotal records in database: " + total);
-            }
+            // Update dashboard cards
+            if (lblPendingCard != null) lblPendingCard.setText(String.valueOf(pendingCount));
+            
+            System.out.println("Loaded " + pendingCount + " pending requests");
             
         } catch (Exception e) {
             System.err.println("❌ ERROR in loadPendingRequests:");
-            System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
         }
     }
+    
     
     
     

@@ -836,13 +836,20 @@ public class LibrarianDashboardController implements Initializable {
                             connection.close();
                         }
                         
+                        // Get current window and scene information
+                        Scene currentScene = btnLogout.getScene();
+                        Stage stage = (Stage) currentScene.getWindow();
+                        
                         // Load login screen
-                        Stage stage = (Stage) btnLogout.getScene().getWindow();
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/university/clearance/resources/views/Login.fxml"));
                         Parent root = loader.load();
-                        Scene scene = new Scene(root);
-                        stage.setScene(scene);
-                        stage.setTitle("University Clearance Management System - Login");
+                        
+                        // Preserve current window dimensions
+                        Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
+                        stage.setScene(newScene);
+                        
+                        // Center and set title
+                        stage.setTitle("Debre Birhan University - Clearance System Login");
                         stage.centerOnScreen();
                         
                     } catch (IOException e) {

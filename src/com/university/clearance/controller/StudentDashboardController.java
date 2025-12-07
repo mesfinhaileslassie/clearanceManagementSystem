@@ -1,12 +1,12 @@
 package com.university.clearance.controller;
 
-import java.io.IOException;
-
-
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
 import com.university.clearance.service.PDFCertificateService;
 import com.university.clearance.service.SimpleCertificateService;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -15,23 +15,21 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.File;
 import java.net.URL;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 public class StudentDashboardController implements Initializable {
 
@@ -43,6 +41,14 @@ public class StudentDashboardController implements Initializable {
     @FXML private TableColumn<ApprovalStatus, String> colDepartment;
     @FXML private TableColumn<ApprovalStatus, String> colStatus;
     @FXML private TableColumn<ApprovalStatus, String> colRemarks;
+    @FXML private TableColumn<ApprovalStatus, String> colOfficer;
+    @FXML private TableColumn<ApprovalStatus, String> colDate;
+    
+    @FXML private Label lblProfileStatus;
+    @FXML private Button btnReapplyInline;
+    @FXML private Button btnSubmitRequestInline;
+    @FXML private Button btnProfileSubmitRequest;
+    @FXML private Label lblQuickStatus;
     
     // Profile display labels
     @FXML private Label lblProfileId;
@@ -52,26 +58,39 @@ public class StudentDashboardController implements Initializable {
     @FXML private Label lblProfileYearLevel;
     @FXML private Label lblProfilePhone;
     @FXML private Label lblClearanceStatus;
-
+    
+    @FXML private Label lblStatusIcon;
+    @FXML private Button btnProfileReapply;
+    
     // Statistics labels
     @FXML private Label lblUserName;
     @FXML private Label lblUserRole;
     @FXML private Label lblTotalApprovals;
     @FXML private Label lblApprovedCount;
     @FXML private Label lblPendingCount;
-    @FXML private Label lblRejectedCount;
-
-    @FXML private Button btnReapplyClearance; // Add this to your FXML file too
-    private boolean canReapply = false;
     
+    @FXML private ProgressBar progressBar;
+    @FXML private Label lblProgressText;
+    @FXML private Label lblRejectedCount;
+    @FXML private Label lblProgressPercentage;
+    @FXML private Button btnReapplyClearance;
+    
+    private boolean canReapply = false;
     private User currentUser;
     private int currentRequestId = -1;
     private ObservableList<ApprovalStatus> approvalData = FXCollections.observableArrayList();
+    private Timeline autoRefreshTimeline;
+    private boolean autoRefreshEnabled = false;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         setupTableColumns();
         btnGenerateCertificate.setDisable(true);
+        
+        // Setup tooltip for download button
+        Tooltip tooltip = new Tooltip("This button is inactive until all departments approve your request");
+        tooltip.setStyle("-fx-font-size: 12px; -fx-font-weight: normal;");
+        btnGenerateCertificate.setTooltip(tooltip);
     }
     
     public void setCurrentUser(User user) {
@@ -87,17 +106,19 @@ public class StudentDashboardController implements Initializable {
             lblUserRole.setText("Student - " + user.getDepartment());
         }
         
-        // Initialize reapply button state
-        if (btnReapplyClearance != null) {
-            updateReapplyButtonState();
-        }
+        // Initialize UI states
+        updateButtonStates();
     }
     
     private void setupTableColumns() {
+        // Link table columns to ApprovalStatus properties
         colDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+        colOfficer.setCellValueFactory(new PropertyValueFactory<>("officer"));
+        colDate.setCellValueFactory(new PropertyValueFactory<>("date"));
         colRemarks.setCellValueFactory(new PropertyValueFactory<>("remarks"));
         
+        // Custom cell factory for status column to add icons
         colStatus.setCellFactory(column -> new TableCell<ApprovalStatus, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -107,12 +128,40 @@ public class StudentDashboardController implements Initializable {
                     setStyle("");
                 } else {
                     setText(item);
-                    if (item.contains("Approved")) {
+                    if (item.contains("✅")) {
                         setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    } else if (item.contains("Rejected")) {
+                    } else if (item.contains("❌")) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                    } else {
+                    } else if (item.contains("⏳")) {
                         setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #7f8c8d; -fx-font-weight: bold;");
+                    }
+                }
+            }
+        });
+        
+        // Custom cell factory for department column to add icons
+        colDepartment.setCellFactory(column -> new TableCell<ApprovalStatus, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    // Add icons to department names
+                    if (item.contains("Library")) {
+                        setStyle("-fx-font-weight: bold;");
+                    } else if (item.contains("Cafeteria")) {
+                        setStyle("-fx-font-weight: bold;");
+                    } else if (item.contains("Dormitory")) {
+                        setStyle("-fx-font-weight: bold;");
+                    } else if (item.contains("Registrar")) {
+                        setStyle("-fx-font-weight: bold;");
+                    } else if (item.contains("Department")) {
+                        setStyle("-fx-font-weight: bold;");
                     }
                 }
             }
@@ -126,7 +175,6 @@ public class StudentDashboardController implements Initializable {
             return;
         }
 
-        // Check if previous request was rejected and admin hasn't allowed reapply
         if (hasRejectedRequestAndCannotReapply()) {
             showAlert("Request Rejected", 
                 "Your previous clearance request was rejected.\n" +
@@ -365,22 +413,240 @@ public class StudentDashboardController implements Initializable {
             }
             lblClearanceStatus.setText(statusText);
             
-            // Update reapply button state
-            updateReapplyButtonState();
+            // Check if fully approved
+            boolean isFullyApproved = isClearanceFullyApproved();
+            btnGenerateCertificate.setDisable(!isFullyApproved);
             
-            // ... rest of the existing loadClearanceStatus method remains the same ...
+            // Update certificate button tooltip
+            if (isFullyApproved) {
+                btnGenerateCertificate.setTooltip(new Tooltip("Click to download clearance certificate"));
+                showMessage("Your clearance is fully approved! You can now download your certificate.", "success");
+            } else {
+                btnGenerateCertificate.setTooltip(new Tooltip("This button is inactive until all departments approve your request"));
+                showMessage("Clearance in progress...", "info");
+            }
+            
+            // Load approval details for all 5 departments
+            String approvalSql = """
+                SELECT 
+                    ca.officer_role,
+                    ca.status as raw_status,
+                    ca.remarks,
+                    ca.approval_date,
+                    u.full_name as officer_name,
+                    u.department as officer_department
+                FROM clearance_approvals ca
+                LEFT JOIN users u ON ca.officer_id = u.id
+                WHERE ca.request_id = ?
+                AND ca.officer_role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
+                ORDER BY FIELD(ca.officer_role, 'LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD')
+                """;
+                
+            PreparedStatement approvalStmt = conn.prepareStatement(approvalSql);
+            approvalStmt.setInt(1, currentRequestId);
+            ResultSet approvalRs = approvalStmt.executeQuery();
+            
+            int approvedCount = 0;
+            int pendingCount = 0;
+            int rejectedCount = 0;
+            
+            // Create default department list if no records found
+            if (!approvalRs.isBeforeFirst()) {
+                // No approval records found, create default pending entries
+                String[] departments = {"LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD"};
+                for (String dept : departments) {
+                    String department = formatDepartmentName(dept);
+                    String displayStatus = "⏳ Pending";
+                    String officer = "Not Assigned";
+                    String date = "";
+                    String remarks = "Waiting for review...";
+                    
+                    approvalData.add(new ApprovalStatus(department, displayStatus, officer, date, remarks));
+                    pendingCount++;
+                }
+            } else {
+                // Process existing approval records
+                while (approvalRs.next()) {
+                    String officerRole = approvalRs.getString("officer_role");
+                    String rawStatus = approvalRs.getString("raw_status");
+                    String remarks = approvalRs.getString("remarks");
+                    String officerName = approvalRs.getString("officer_name");
+                    Timestamp approvalDate = approvalRs.getTimestamp("approval_date");
+                    
+                    // Format display values
+                    String displayStatus = formatStatus(rawStatus);
+                    String department = formatDepartmentName(officerRole);
+                    String officer = (officerName != null && !officerName.isEmpty()) ? officerName : "Not Assigned";
+                    String date = (approvalDate != null) ? 
+                        new SimpleDateFormat("MMM dd, HH:mm").format(approvalDate) : "";
+                    
+                    // Build detailed remarks
+                    String detailedRemarks = (remarks != null && !remarks.trim().isEmpty()) ? 
+                        remarks : "Waiting for review...";
+                    
+                    // Count statuses
+                    switch (rawStatus) {
+                        case "APPROVED":
+                            approvedCount++;
+                            break;
+                        case "REJECTED":
+                            rejectedCount++;
+                            break;
+                        default:
+                            pendingCount++;
+                    }
+                    
+                    // Add to table data
+                    ApprovalStatus status = new ApprovalStatus(
+                        department, displayStatus, officer, date, detailedRemarks
+                    );
+                    approvalData.add(status);
+                }
+            }
+            
+            // Update statistics labels
+            updateStatistics(5, approvedCount, pendingCount, rejectedCount);
+            
+            // Update table with data
+            tableApprovals.setItems(approvalData);
+            
+            // Update button states based on status
+            updateButtonStates();
             
         } catch (Exception e) {
             showMessage("Error loading status: " + e.getMessage(), "error");
             e.printStackTrace();
         }
     }
+    
+    private void updateButtonStates() {
+        if (currentUser == null) return;
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Check if student can reapply
+            String checkSql = """
+                SELECT 
+                    CASE 
+                        WHEN cr.status = 'REJECTED' AND cr.can_reapply = TRUE THEN TRUE
+                        ELSE FALSE
+                    END as can_reapply_now,
+                    (SELECT COUNT(*) FROM clearance_requests cr2 
+                     WHERE cr2.student_id = ? 
+                     AND cr2.status IN ('IN_PROGRESS', 'PENDING')) as active_requests
+                FROM clearance_requests cr
+                WHERE cr.student_id = ?
+                ORDER BY cr.request_date DESC 
+                LIMIT 1
+                """;
+            
+            PreparedStatement stmt = conn.prepareStatement(checkSql);
+            stmt.setInt(1, currentUser.getId());
+            stmt.setInt(2, currentUser.getId());
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                boolean canReapplyNow = rs.getBoolean("can_reapply_now");
+                int activeRequests = rs.getInt("active_requests");
+                
+                // Update reapply button
+                if (btnReapplyClearance != null) {
+                    boolean showReapply = canReapplyNow && activeRequests == 0;
+                    btnReapplyClearance.setVisible(showReapply);
+                    btnReapplyClearance.setDisable(!showReapply);
+                }
+                
+                if (btnReapplyInline != null) {
+                    boolean showReapply = canReapplyNow && activeRequests == 0;
+                    btnReapplyInline.setVisible(showReapply);
+                    btnReapplyInline.setDisable(!showReapply);
+                }
+                
+                if (btnProfileReapply != null) {
+                    boolean showReapply = canReapplyNow && activeRequests == 0;
+                    btnProfileReapply.setVisible(showReapply);
+                    btnProfileReapply.setDisable(!showReapply);
+                }
+                
+                // Update submit button
+                boolean hasActive = activeRequests > 0;
+                if (btnSubmitRequest != null) {
+                    btnSubmitRequest.setDisable(hasActive || canReapplyNow);
+                }
+                
+                if (btnSubmitRequestInline != null) {
+                    btnSubmitRequestInline.setVisible(!hasActive && !canReapplyNow);
+                    btnSubmitRequestInline.setDisable(hasActive || canReapplyNow);
+                }
+                
+                if (btnProfileSubmitRequest != null) {
+                    btnProfileSubmitRequest.setVisible(!hasActive && !canReapplyNow);
+                    btnProfileSubmitRequest.setDisable(hasActive || canReapplyNow);
+                }
+                
+                // Update quick status
+                if (lblQuickStatus != null) {
+                    String quickStatus = getQuickStatus();
+                    lblQuickStatus.setText(quickStatus);
+                }
+                
+                // Update profile status
+                if (lblProfileStatus != null) {
+                    lblProfileStatus.setText(getQuickStatus());
+                }
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
+    private String getQuickStatus() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT status 
+                FROM clearance_requests 
+                WHERE student_id = ? 
+                ORDER BY request_date DESC 
+                LIMIT 1
+                """;
+            
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setInt(1, currentUser.getId());
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                String status = rs.getString("status");
+                return formatStatus(status);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "No Request";
+    }
+    
     private void updateStatistics(int total, int approved, int pending, int rejected) {
-        if (lblTotalApprovals != null) lblTotalApprovals.setText(String.valueOf(total));
-        if (lblApprovedCount != null) lblApprovedCount.setText(String.valueOf(approved));
-        if (lblPendingCount != null) lblPendingCount.setText(String.valueOf(pending));
-        if (lblRejectedCount != null) lblRejectedCount.setText(String.valueOf(rejected));
+        Platform.runLater(() -> {
+            if (lblTotalApprovals != null) lblTotalApprovals.setText(String.valueOf(total));
+            if (lblApprovedCount != null) {
+                lblApprovedCount.setText(String.valueOf(approved));
+                // Update color based on count
+                if (approved == total) {
+                    lblApprovedCount.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                }
+            }
+            if (lblPendingCount != null) {
+                lblPendingCount.setText(String.valueOf(pending));
+                if (pending > 0) {
+                    lblPendingCount.setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                }
+            }
+            if (lblRejectedCount != null) {
+                lblRejectedCount.setText(String.valueOf(rejected));
+                if (rejected > 0) {
+                    lblRejectedCount.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                }
+            }
+        });
     }
 
     private String formatStatus(String status) {
@@ -390,15 +656,19 @@ public class StudentDashboardController implements Initializable {
             case "REJECTED": return "❌ Rejected";
             case "IN_PROGRESS": return "🔄 In Progress";
             case "PENDING": return "⏳ Pending";
-            default: return status;
+            default: return "❓ " + status;
         }
     }
 
-    private void updateOverallStatus(Connection conn, int requestId) throws SQLException {
-        String updateSql = "UPDATE clearance_requests SET status = 'FULLY_CLEARED', completion_date = NOW() WHERE id = ?";
-        PreparedStatement ps = conn.prepareStatement(updateSql);
-        ps.setInt(1, requestId);
-        ps.executeUpdate();
+    private String formatDepartmentName(String role) {
+        switch (role) {
+            case "LIBRARIAN": return "📚 Library";
+            case "CAFETERIA": return "🍽️ Cafeteria";
+            case "DORMITORY": return "🏠 Dormitory";
+            case "REGISTRAR": return "📋 Registrar";
+            case "DEPARTMENT_HEAD": return "👨‍🏫 Department Head";
+            default: return role;
+        }
     }
 
     private void loadProfileInformation() {
@@ -411,12 +681,44 @@ public class StudentDashboardController implements Initializable {
             ResultSet rs = ps.executeQuery();
             
             if (rs.next()) {
-                lblProfileId.setText(rs.getString("username"));
-                lblProfileName.setText(rs.getString("full_name"));
-                lblProfileDepartment.setText(rs.getString("department"));
-                lblProfileEmail.setText(rs.getString("email"));
-                lblProfileYearLevel.setText(rs.getString("year_level") != null ? rs.getString("year_level") : "Not set");
-                lblProfilePhone.setText(rs.getString("phone") != null ? rs.getString("phone") : "Not provided");
+                Platform.runLater(() -> {
+                    try {
+						lblProfileId.setText(rs.getString("username"));
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    try {
+						lblProfileName.setText(rs.getString("full_name"));
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    try {
+						lblProfileDepartment.setText(rs.getString("department"));
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    try {
+						lblProfileEmail.setText(rs.getString("email"));
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    try {
+						lblProfileYearLevel.setText(rs.getString("year_level") != null ? rs.getString("year_level") : "Not set");
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    try {
+						lblProfilePhone.setText(rs.getString("phone") != null ? rs.getString("phone") : "Not provided");
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                });
             }
         } catch (Exception e) {
             showMessage("Error loading profile: " + e.getMessage(), "error");
@@ -424,37 +726,30 @@ public class StudentDashboardController implements Initializable {
         }
     }
 
-    private String formatDepartmentName(String role) {
-        return switch (role) {
-            case "LIBRARIAN" -> "📚 Library";
-            case "CAFETERIA" -> "🍽️ Cafeteria";
-            case "DORMITORY" -> "🏠 Dormitory";
-            case "REGISTRAR" -> "📋 Registrar";
-            case "DEPARTMENT_HEAD" -> "👨‍🏫 Department Head";
-            default -> role;
-        };
-    }
-
     private void showMessage(String message, String type) {
-        lblStatusMessage.setText(message);
-        switch (type) {
-            case "success":
-                lblStatusMessage.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                break;
-            case "error":
-                lblStatusMessage.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                break;
-            default:
-                lblStatusMessage.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-        }
+        Platform.runLater(() -> {
+            lblStatusMessage.setText(message);
+            switch (type) {
+                case "success":
+                    lblStatusMessage.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    break;
+                case "error":
+                    lblStatusMessage.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    break;
+                default:
+                    lblStatusMessage.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+            }
+        });
     }
 
     private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
     }
 
     @FXML
@@ -569,29 +864,10 @@ public class StudentDashboardController implements Initializable {
     private void viewProfile() {
         loadProfileInformation();
     }
-
-    
-    
     
     @FXML
     private void handleReapplyClearance() {
         if (currentUser == null) return;
-        
-        // Check if student is allowed to reapply
-        if (!canReapply) {
-            showAlert("Cannot Reapply", 
-                "You are not allowed to reapply at this time.\n" +
-                "Please contact the administrator to enable reapplication.");
-            return;
-        }
-        
-        // Check if there's already an active request
-        if (hasActiveRequest()) {
-            showAlert("Active Request", 
-                "You already have an active clearance request.\n" +
-                "Please wait for it to be completed or rejected.");
-            return;
-        }
         
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Reapply for Clearance");
@@ -664,31 +940,14 @@ public class StudentDashboardController implements Initializable {
                     requestId = generatedKeys.getInt(1);
                 }
                 
-                // Get workflow departments in order
-                String workflowSql = """
-                    SELECT role FROM workflow_config ORDER BY sequence_order
-                    """;
-                
-                PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
-                ResultSet workflowRs = workflowStmt.executeQuery();
-                
                 // Create pending approvals for each department
+                String[] departments = {"LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD"};
                 String approvalSql = """
                     INSERT INTO clearance_approvals (request_id, officer_role, status)
                     VALUES (?, ?, 'PENDING')
                     """;
                 
                 PreparedStatement approvalStmt = conn.prepareStatement(approvalSql);
-                List<String> departments = new ArrayList<>();
-                
-                while (workflowRs.next()) {
-                    departments.add(workflowRs.getString("role"));
-                }
-                
-                // If no workflow config found, use default departments
-                if (departments.isEmpty()) {
-                    departments = Arrays.asList("LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD");
-                }
                 
                 for (String dept : departments) {
                     approvalStmt.setInt(1, requestId);
@@ -697,17 +956,6 @@ public class StudentDashboardController implements Initializable {
                 }
                 
                 approvalStmt.executeBatch();
-                
-                // Update dormitory clearance status if needed
-                String updateDormSql = """
-                    UPDATE student_dormitory_credentials 
-                    SET clearance_status = 'PENDING'
-                    WHERE student_id = ?
-                    """;
-                
-                PreparedStatement updateDormStmt = conn.prepareStatement(updateDormSql);
-                updateDormStmt.setInt(1, currentUser.getId());
-                updateDormStmt.executeUpdate();
                 
                 conn.commit();
                 
@@ -786,9 +1034,6 @@ public class StudentDashboardController implements Initializable {
         }
     }
     
-    
-    
-    
     @FXML
     private void handleLogout() {
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
@@ -799,28 +1044,18 @@ public class StudentDashboardController implements Initializable {
         Optional<ButtonType> result = confirmation.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                // Get the current stage and scene
                 Stage currentStage = (Stage) lblStatusMessage.getScene().getWindow();
                 Scene currentScene = currentStage.getScene();
                 
-                // Use the correct path from your debug output
                 URL loginFxmlUrl = getClass().getResource("/com/university/clearance/resources/views/Login.fxml");
                 
                 if (loginFxmlUrl != null) {
-                    // Load the login screen
                     Parent root = FXMLLoader.load(loginFxmlUrl);
-                    
-                    // Preserve current window size
                     Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
-                    
-                    // Set the new scene while preserving window size
                     currentStage.setScene(newScene);
                     currentStage.setTitle("University Clearance System - Login");
-                    
-                    // Center on screen
                     currentStage.centerOnScreen();
                 } else {
-                    // If Login.fxml not found, show error and close
                     showAlert("Error", "Login screen not found. Closing application.");
                     currentStage.close();
                 }
@@ -828,8 +1063,6 @@ public class StudentDashboardController implements Initializable {
             } catch (Exception e) {
                 e.printStackTrace();
                 showAlert("Error", "Failed to logout: " + e.getMessage());
-                
-                // Fallback: Just close the window
                 Stage stage = (Stage) lblStatusMessage.getScene().getWindow();
                 stage.close();
             }
@@ -857,15 +1090,21 @@ public class StudentDashboardController implements Initializable {
         private final String department;
         private final String status;
         private final String remarks;
+        private final String officer;
+        private final String date;
 
-        public ApprovalStatus(String department, String status, String remarks) {
+        public ApprovalStatus(String department, String status, String officer, String date, String remarks) {
             this.department = department;
             this.status = status;
             this.remarks = remarks;
+            this.officer = officer;
+            this.date = date;
         }
 
         public String getDepartment() { return department; }
         public String getStatus() { return status; }
         public String getRemarks() { return remarks; }
+        public String getOfficer() { return officer; }
+        public String getDate() { return date; }
     }
 }

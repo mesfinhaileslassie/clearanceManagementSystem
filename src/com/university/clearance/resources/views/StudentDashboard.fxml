@@ -72,7 +72,7 @@
                     style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-pref-width: 180; -fx-cursor: hand;" 
                     text="Download Certificate">
                 <tooltip>
-                    <Tooltip text="Generate clearance certificate in PDF, HTML or TEXT format" />
+                    <Tooltip text="This button is inactive until all departments approve your request" />
                 </tooltip>
             </Button>
             
@@ -151,7 +151,9 @@
                             <columns>
                                 <TableColumn fx:id="colDepartment" prefWidth="200" text="Department" />
                                 <TableColumn fx:id="colStatus" prefWidth="120" text="Status" />
-                                <TableColumn fx:id="colRemarks" prefWidth="400" text="Remarks" />
+                                <TableColumn fx:id="colOfficer" prefWidth="150" text="Officer" />
+                                <TableColumn fx:id="colDate" prefWidth="120" text="Date/Time" />
+                                <TableColumn fx:id="colRemarks" prefWidth="300" text="Remarks" />
                             </columns>
                         </TableView>
                         

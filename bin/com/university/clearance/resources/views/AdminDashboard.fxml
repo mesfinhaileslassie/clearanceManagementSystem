@@ -2,7 +2,6 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
@@ -19,8 +18,7 @@
 <?import javafx.scene.text.Text?>
 <?import javafx.scene.text.TextFlow?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.university.clearance.controller.AdminDashboardController">
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
     
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
@@ -30,18 +28,14 @@
                         <Font name="System Bold" size="18.0" />
                     </font>
                 </Label>
-                <Label fx:id="lblWelcome" textFill="WHITE">
-                    <font>
-                        <Font name="System" size="14.0" />
-                    </font>
-                </Label>
+                <Label fx:id="lblWelcome" textFill="WHITE" />
                 <Region HBox.hgrow="ALWAYS" />
                 <HBox alignment="CENTER_RIGHT" spacing="20">
                     <Label fx:id="lblTotalStudents" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="Students: 0" />
                     <Label fx:id="lblTotalOfficers" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="Officers: 0" />
                     <Label fx:id="lblTotalRequests" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="Requests: 0" />
                 </HBox>
-                <Button onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;" text="Logout" />
+                <Button onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" text="Logout" />
             </children>
         </HBox>
     </top>
@@ -51,43 +45,32 @@
             <children>
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="USER MANAGEMENT" />
                 
-                <Button onAction="#openRegisterStudent" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Register Student" />
-                <Button onAction="#openManageOfficers" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Register Officers" />
-                <Button onAction="#resetUserPassword" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Reset Password" />
-                <Button onAction="#toggleUserStatus" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Toggle Status" />
+                <Button onAction="#openRegisterStudent" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Register Student" />
+                <Button onAction="#openManageOfficers" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Register Officers" />
+                <Button onAction="#resetUserPassword" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Reset Password" />
+                <Button onAction="#toggleUserStatus" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Toggle Status" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="SYSTEM CONFIGURATION" />
                 
-                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Approval Workflow" />
-                <Button onAction="#openSessionManagement" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Academic Sessions" />
-                <Button onAction="#processSemesterRollover" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Semester Rollover" />
+                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Approval Workflow" />
+                <Button onAction="#openSessionManagement" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Academic Sessions" />
+                <Button onAction="#processSemesterRollover" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Semester Rollover" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="CERTIFICATES" />
                 
-                <Button onAction="#generateClearanceCertificates" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Generate Certificates" />
-                <Button onAction="#openCertificateVerification" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Verify Certificate" />
-                <Button onAction="#verifyCertificate" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Verify (New)" />
+                <Button onAction="#generateClearanceCertificates" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Generate Certificates" />
+                <Button onAction="#openCertificateVerification" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Verify Certificate" />
+                <Button onAction="#verifyCertificate" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Verify (New)" />
                 
                 <Separator style="-fx-padding: 10 0 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="QUICK ACTIONS" />
                 
-                <Button onAction="#handleRefresh" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-pref-width: 200;" 
-                        text="Refresh All" />
+                <Button onAction="#handleRefresh" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200;" text="Refresh All" />
             </children>
         </VBox>
     </left>
@@ -96,7 +79,7 @@
         <TabPane fx:id="mainTabPane" style="-fx-padding: 10; -fx-background-color: #2980b9;" tabClosingPolicy="UNAVAILABLE">
             
             <Tab text="Dashboard">
-                <ScrollPane fitToWidth="true" fitToHeight="true">
+                <ScrollPane fitToWidth="true">
                     <VBox spacing="20" style="-fx-padding: 20;">
                         <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Admin Dashboard Overview" />
                         
@@ -138,36 +121,11 @@
                         <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
                     </padding>
                     
-                    <!-- Search Header Section -->
-                    <VBox spacing="10">
-                        <HBox alignment="CENTER_LEFT" spacing="10">
-                            <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All System Users" />
-                            <Region HBox.hgrow="ALWAYS" />
-                            
-                            <!-- Search Type ComboBox - ULTRA SIMPLIFIED -->
-                            <ComboBox fx:id="cmbSearchType" prefWidth="130" />
-                            
-                            <!-- Search Text Field -->
-                            <TextField fx:id="txtSearchUsers" prefWidth="250" promptText="Search by ID, name, department..." />
-                            
-                            <!-- Search Button -->
-                            <Button fx:id="btnSearchUsers" onAction="#handleUserSearch" 
-                                    style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15;" 
-                                    text="Search" />
-                            
-                            <!-- Clear Button -->
-                            <Button fx:id="btnClearSearch" onAction="#handleClearSearch" 
-                                    style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15;" 
-                                    text="Clear" />
-                        </HBox>
-                        
-                        <!-- Search Status Label -->
-                        <Label fx:id="lblSearchStatus" 
-                               style="-fx-text-fill: #3498db; -fx-font-size: 12px;"
-                               visible="false" />
-                    </VBox>
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All System Users" />
+                        <Region HBox.hgrow="ALWAYS" />
+                    </HBox>
                     
-                    <!-- Users Table -->
                     <TableView fx:id="tableAllUsers" prefHeight="500">
                         <columns>
                             <TableColumn fx:id="colAllUserId" prefWidth="120" text="Username" />
@@ -329,14 +287,9 @@
                     
                     <HBox alignment="CENTER_LEFT" spacing="10">
                         <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All Clearance Requests" />
-                        <TextField fx:id="txtSearchRequests" prefWidth="300" promptText="Search by student ID or name" />
+                        <TextField fx:id="txtSearch" prefWidth="300" promptText="Search by student ID or name" />
                         <Region HBox.hgrow="ALWAYS" />
-                        <Button fx:id="btnSearchRequests" onAction="#handleRequestsSearch" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                text="Search" />
-                        <Button fx:id="btnClearRequestsSearch" onAction="#handleClearRequestsSearch" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                text="Clear" />
-                        <Button onAction="#handleRefresh" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                text="Refresh" />
+                        <Button onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="Refresh" />
                     </HBox>
                     
                     <TableView fx:id="tableRequests" prefHeight="500">
@@ -353,7 +306,7 @@
             </Tab>
             
             <Tab text="Reports">
-                <ScrollPane fitToWidth="true" fitToHeight="true">
+                <ScrollPane fitToWidth="true">
                     <VBox spacing="20" style="-fx-padding: 20;">
                         <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="System Reports &amp; Analytics" />
                         

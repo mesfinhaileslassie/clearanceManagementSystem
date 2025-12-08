@@ -3,6 +3,7 @@ package com.university.clearance.controller;
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
 import com.university.clearance.model.ClearanceRequest;
+import com.university.clearance.utils.PhoneInputField;
 import com.university.clearance.utils.ValidationHelper;
 import com.university.clearance.utils.ValidationHelper.ValidationResult;
 
@@ -10,8 +11,6 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -24,8 +23,6 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -103,6 +100,24 @@ public class AdminDashboardController {
     @FXML private Button btnSearchRequests;
     @FXML private Button btnClearRequestsSearch;
     
+    @FXML private VBox cardsContainer;
+    @FXML private Label lblActiveSessions;
+    @FXML private Label lblSessionStatus;
+    @FXML private Label lblPendingActions;
+    @FXML private Label lblActionStatus;
+    @FXML private Label lblSystemLoad;
+    @FXML private Label lblLoadStatus;
+    @FXML private Label lblUptime;
+    @FXML private Label lblUptimeStatus;
+    @FXML private Label lblDatabaseSize;
+    @FXML private Label lblDbStatus;
+    @FXML private Label lblTodayLogins;
+    @FXML private Label lblLoginTrend;
+    @FXML private Label lblActiveOfficers;
+    @FXML private Label lblOfficerStatus;
+    @FXML private Label lblClearanceRate;
+    @FXML private Label lblRateStatus;
+    
     private User currentUser;
     private ObservableList<User> allStudentsData = FXCollections.observableArrayList();
     private ObservableList<User> approvedStudentsData = FXCollections.observableArrayList();
@@ -125,6 +140,47 @@ public class AdminDashboardController {
         loadAllData();
     }
     
+    @FXML
+    private void showCurrentInfo() {
+        boolean isVisible = cardsContainer.isVisible();
+        cardsContainer.setVisible(!isVisible);
+        cardsContainer.setManaged(!isVisible);
+        
+        if (!isVisible) {
+            loadCurrentInfoData();
+        }
+    }
+
+    private void loadCurrentInfoData() {
+        // Load data from your services/database
+        // These are example values - replace with actual data retrieval
+        
+        // Example data loading
+        lblActiveSessions.setText("3");
+        lblSessionStatus.setText("Current: 2024 Spring");
+        
+        lblPendingActions.setText("12");
+        lblActionStatus.setText("Requires attention");
+        
+        lblSystemLoad.setText("42%");
+        lblLoadStatus.setText("Optimal");
+        
+        lblUptime.setText("15d 6h 30m");
+        lblUptimeStatus.setText("Running");
+        
+        lblDatabaseSize.setText("256 MB");
+        lblDbStatus.setText("Connected");
+        
+        lblTodayLogins.setText("47");
+        lblLoginTrend.setText("+12%");
+        
+        lblActiveOfficers.setText("8");
+        lblOfficerStatus.setText("Online: 5");
+        
+        lblClearanceRate.setText("78%");
+        lblRateStatus.setText("This week");
+    }
+        
     private void setupAllTables() {
         // Setup Students Table
         setupStudentTable(tableAllStudents, colStudentId, colStudentName, colStudentDepartment, 
@@ -896,6 +952,33 @@ public class AdminDashboardController {
         }
     }
     
+    
+    
+    
+ // Test method to verify student ID pattern
+    private void testStudentIdPattern() {
+        System.out.println("=== STUDENT ID PATTERN TEST ===");
+        String[] testIds = {
+            "DBU1601111",
+            "dbu1601111",  // lowercase
+            "DBU160111",   // too short
+            "DBU16011111", // too long
+            "ABC1601111",  // wrong prefix
+            "DBU1601ABC",  // letters in digits
+            "DBU 1601111", // space
+            "DBU-1601111"  // dash
+        };
+        
+        for (String id : testIds) {
+            ValidationResult result = ValidationHelper.validateStudentId(id);
+            System.out.println(id + " -> " + result.getMessage() + " (" + result.isValid() + ")");
+        }
+        System.out.println("=============================");
+    }
+    
+    
+    
+    
     private GridPane createStudentFormWithValidation() {
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -915,28 +998,48 @@ public class AdminDashboardController {
         Label lblStudentIdValidation = new Label("Required");
         lblStudentIdValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
+        // ===== USERNAME (Auto-filled) =====
+        TextField txtUsername = new TextField();
+        txtUsername.setPromptText("dbu1601111");
+        txtUsername.setEditable(false);
+        txtUsername.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #000000;");
+        
+        // Student ID text change listener
         txtStudentId.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.startsWith("DBU")) {
-                Platform.runLater(() -> {
-                    txtStudentId.setText("DBU" + newVal.replaceAll("[^\\d]", ""));
-                    txtStudentId.positionCaret(txtStudentId.getText().length());
-                });
-            }
-            
-            ValidationResult result = ValidationHelper.validateStudentId(newVal);
-            updateValidationLabel(lblStudentIdValidation, result);
-            
-            // Auto-fill username
-            String username = ValidationHelper.generateUsername(newVal);
-            if (!username.isEmpty()) {
-                for (javafx.scene.Node node : grid.getChildren()) {
-                    if (GridPane.getRowIndex(node) == 3 && GridPane.getColumnIndex(node) == 1) {
-                        if (node instanceof TextField) {
-                            ((TextField) node).setText(username);
-                            break;
-                        }
+            if (newVal != null) {
+                // Auto-add DBU prefix if not present
+                if (!newVal.startsWith("DBU")) {
+                    Platform.runLater(() -> {
+                        txtStudentId.setText("DBU" + newVal.replaceAll("[^\\d]", ""));
+                        txtStudentId.positionCaret(txtStudentId.getText().length());
+                    });
+                }
+                
+                // Ensure maximum 7 digits after DBU (total 10 characters)
+                if (newVal.startsWith("DBU") && newVal.length() > 10) {
+                    Platform.runLater(() -> {
+                        txtStudentId.setText(newVal.substring(0, 10));
+                        txtStudentId.positionCaret(txtStudentId.getText().length());
+                    });
+                }
+                
+                // Only allow digits after DBU
+                if (newVal.startsWith("DBU") && newVal.length() > 3) {
+                    String afterDBU = newVal.substring(3);
+                    if (!afterDBU.matches("\\d*")) {
+                        Platform.runLater(() -> {
+                            txtStudentId.setText("DBU" + afterDBU.replaceAll("[^\\d]", ""));
+                            txtStudentId.positionCaret(txtStudentId.getText().length());
+                        });
                     }
                 }
+                
+                ValidationResult result = ValidationHelper.validateStudentId(newVal);
+                updateValidationLabel(lblStudentIdValidation, result);
+                
+                // Auto-fill username in real-time
+                String username = ValidationHelper.generateUsername(newVal);
+                txtUsername.setText(username);
             }
         });
         
@@ -948,15 +1051,10 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblStudentIdValidation, 2);
         row++;
         
-        // ===== USERNAME (Auto-filled) =====
-        TextField txtUsername = new TextField();
-        txtUsername.setPromptText("dbu1601111");
-        txtUsername.setEditable(false);
-        txtUsername.setStyle("-fx-background-color: #f0f0f0;");
-        
+        // Username row
         grid.add(new Label("Username*:"), 0, row);
         grid.add(txtUsername, 1, row);
-        grid.add(new Label("(Auto-generated)"), 2, row);
+        grid.add(new Label("(Auto-generated from Student ID)"), 2, row);
         row++;
         row++; // Empty row for spacing
         
@@ -1010,18 +1108,18 @@ public class AdminDashboardController {
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("student@dbu.edu.et");
         
-        Label lblEmailHint = new Label("Optional - leave empty if none");
+        Label lblEmailHint = new Label("Required - must be valid email");
         lblEmailHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
         
-        Label lblEmailValidation = new Label("Optional");
-        lblEmailValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        Label lblEmailValidation = new Label("Required");
+        lblEmailValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
         txtEmail.textProperty().addListener((obs, oldVal, newVal) -> {
             ValidationResult result = ValidationHelper.validateEmail(newVal);
             updateValidationLabel(lblEmailValidation, result);
         });
         
-        grid.add(new Label("Email:"), 0, row);
+        grid.add(new Label("Email*:"), 0, row);
         grid.add(txtEmail, 1, row);
         grid.add(lblEmailHint, 2, row);
         row++;
@@ -1030,44 +1128,30 @@ public class AdminDashboardController {
         row++;
         
         // ===== PHONE =====
-        HBox phoneBox = new HBox(5);
-        ComboBox<String> cmbPhonePrefix = new ComboBox<>(FXCollections.observableArrayList("09", "07"));
-        cmbPhonePrefix.setPromptText("Prefix");
-        cmbPhonePrefix.setPrefWidth(80);
+        PhoneInputField phoneInputField = new PhoneInputField();
         
-        TextField txtPhoneSuffix = new TextField();
-        txtPhoneSuffix.setPromptText("12345678");
-        txtPhoneSuffix.setPrefWidth(150);
-        
-        Label lblPhoneHint = new Label("09 or 07 + 8 digits");
+        Label lblPhoneHint = new Label("Format: 09xxxxxxx (Provider A) or 07xxxxxxx (Provider B)");
         lblPhoneHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
         
         Label lblPhoneValidation = new Label("Required");
         lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
-        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*")) {
-                txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
-            }
-            if (txtPhoneSuffix.getText().length() > 8) {
-                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
-            }
-            
-            ValidationResult result = ValidationHelper.validatePhoneNumber(
-                cmbPhonePrefix.getValue(), newVal);
+        // Validation listener for phone
+        phoneInputField.getPhoneField().textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneWithProvider(newVal, phoneInputField.getProvider());
             updateValidationLabel(lblPhoneValidation, result);
         });
         
-        cmbPhonePrefix.valueProperty().addListener((obs, oldVal, newVal) -> {
-            ValidationResult result = ValidationHelper.validatePhoneNumber(
-                newVal, txtPhoneSuffix.getText());
+        phoneInputField.getProviderComboBox().valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneWithProvider(
+                phoneInputField.getPhoneNumber(), 
+                newVal
+            );
             updateValidationLabel(lblPhoneValidation, result);
         });
-        
-        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
         
         grid.add(new Label("Phone*:"), 0, row);
-        grid.add(phoneBox, 1, row);
+        grid.add(phoneInputField, 1, row);
         grid.add(lblPhoneHint, 2, row);
         row++;
         grid.add(lblPhoneValidation, 1, row);
@@ -1123,18 +1207,19 @@ public class AdminDashboardController {
         
         // ===== BLOCK NUMBER =====
         TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("1-10");
-        
-        Label lblBlockHint = new Label("Block number 1-10 (optional)");
+        txtBlockNumber.setPromptText("1-45");
+
+        Label lblBlockHint = new Label("Block number 1-45 (optional)");
         lblBlockHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
-        
+
         Label lblBlockValidation = new Label("Optional");
         lblBlockValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
-        
+
         txtBlockNumber.textProperty().addListener((obs, oldVal, newVal) -> {
             if (!newVal.matches("\\d*")) {
                 txtBlockNumber.setText(newVal.replaceAll("[^\\d]", ""));
             }
+            // Limit to 2 digits maximum (for 1-45)
             if (txtBlockNumber.getText().length() > 2) {
                 txtBlockNumber.setText(txtBlockNumber.getText().substring(0, 2));
             }
@@ -1142,7 +1227,7 @@ public class AdminDashboardController {
             ValidationResult result = ValidationHelper.validateBlockNumber(newVal);
             updateValidationLabel(lblBlockValidation, result);
         });
-        
+
         grid.add(new Label("Block Number:"), 0, row);
         grid.add(txtBlockNumber, 1, row);
         grid.add(lblBlockHint, 2, row);
@@ -1183,7 +1268,7 @@ public class AdminDashboardController {
         // Store all components for later access
         grid.setUserData(new Object[]{
             txtStudentId, txtUsername, txtFullName, txtPassword,
-            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear,
+            txtEmail, phoneInputField, cmbDepartment, cmbYear,
             txtBlockNumber, txtDormNumber,
             lblStudentIdValidation, lblFullNameValidation, lblPasswordValidation,
             lblEmailValidation, lblPhoneValidation, lblDeptValidation,
@@ -1193,30 +1278,49 @@ public class AdminDashboardController {
         return grid;
     }
     
+    
+    
+    
     private void setupValidationListeners(GridPane grid, SimpleBooleanProperty allFieldsValid) {
         Object[] components = (Object[]) grid.getUserData();
         
-        Label lblStudentIdValidation = (Label) components[11];
-        Label lblFullNameValidation = (Label) components[12];
-        Label lblPasswordValidation = (Label) components[13];
-        Label lblEmailValidation = (Label) components[14];
-        Label lblPhoneValidation = (Label) components[15];
-        Label lblDeptValidation = (Label) components[16];
-        Label lblYearValidation = (Label) components[17];
+        // Update indices based on new component order
+        Label lblStudentIdValidation = (Label) components[10];      // Index 10
+        Label lblFullNameValidation = (Label) components[11];      // Index 11
+        Label lblPasswordValidation = (Label) components[12];      // Index 12
+        Label lblEmailValidation = (Label) components[13];         // Index 13
+        Label lblPhoneValidation = (Label) components[14];         // Index 14
+        Label lblDeptValidation = (Label) components[15];          // Index 15
+        Label lblYearValidation = (Label) components[16];          // Index 16
         
         Runnable validationChecker = () -> {
-            boolean allValid = 
-                lblStudentIdValidation.getText().equals("Valid ✓") &&
-                lblFullNameValidation.getText().equals("Valid ✓") &&
-                lblPasswordValidation.getText().equals("Strong ✓") &&
-                (lblEmailValidation.getText().equals("Valid ✓") || lblEmailValidation.getText().equals("Optional - can be empty")) &&
-                lblPhoneValidation.getText().equals("Valid ✓") &&
-                lblDeptValidation.getText().equals("Valid ✓") &&
-                lblYearValidation.getText().equals("Valid ✓");
+            // Check if all fields are valid (contain checkmark)
+            boolean studentIdValid = lblStudentIdValidation.getText().contains("✓");
+            boolean nameValid = lblFullNameValidation.getText().contains("✓");
+            boolean passwordValid = lblPasswordValidation.getText().contains("✓");
+            boolean emailValid = lblEmailValidation.getText().contains("✓");
+            boolean phoneValid = lblPhoneValidation.getText().contains("✓");
+            boolean deptValid = lblDeptValidation.getText().contains("✓");
+            boolean yearValid = lblYearValidation.getText().contains("✓");
+            
+            boolean allValid = studentIdValid && nameValid && passwordValid && 
+                              emailValid && phoneValid && deptValid && yearValid;
+            
+            System.out.println("=== VALIDATION STATUS ===");
+            System.out.println("Student ID valid: " + studentIdValid + " (" + lblStudentIdValidation.getText() + ")");
+            System.out.println("Full Name valid: " + nameValid + " (" + lblFullNameValidation.getText() + ")");
+            System.out.println("Password valid: " + passwordValid + " (" + lblPasswordValidation.getText() + ")");
+            System.out.println("Email valid: " + emailValid + " (" + lblEmailValidation.getText() + ")");
+            System.out.println("Phone valid: " + phoneValid + " (" + lblPhoneValidation.getText() + ")");
+            System.out.println("Department valid: " + deptValid + " (" + lblDeptValidation.getText() + ")");
+            System.out.println("Year valid: " + yearValid + " (" + lblYearValidation.getText() + ")");
+            System.out.println("All fields valid: " + allValid);
+            System.out.println("=========================");
             
             allFieldsValid.set(allValid);
         };
         
+        // Add listeners to all validation labels
         lblStudentIdValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblFullNameValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblPasswordValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
@@ -1224,217 +1328,14 @@ public class AdminDashboardController {
         lblPhoneValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblDeptValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblYearValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        
+        // Initial check
+        validationChecker.run();
     }
     
-    private void updateValidationLabel(Label label, ValidationResult result) {
-        label.setText(result.getMessage());
-        if (result.isValid()) {
-            label.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-        } else {
-            label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-        }
-    }
     
-    private boolean validateAllFields(GridPane grid) {
-        Object[] components = (Object[]) grid.getUserData();
-        
-        Label[] validationLabels = new Label[]{
-            (Label) components[11], // Student ID
-            (Label) components[12], // Full Name
-            (Label) components[13], // Password
-            (Label) components[14], // Email
-            (Label) components[15], // Phone
-            (Label) components[16], // Department
-            (Label) components[17]  // Year
-        };
-        
-        for (Label label : validationLabels) {
-            String text = label.getText();
-            if (!text.equals("Valid ✓") && 
-                !text.equals("Strong ✓") && 
-                !text.equals("Optional - can be empty")) {
-                return false;
-            }
-        }
-        
-        return true;
-    }
     
-    private boolean registerStudentFromForm(GridPane grid) {
-        Object[] components = (Object[]) grid.getUserData();
-        
-        TextField txtStudentId = (TextField) components[0];
-        TextField txtUsername = (TextField) components[1];
-        TextField txtFullName = (TextField) components[2];
-        PasswordField txtPassword = (PasswordField) components[3];
-        TextField txtEmail = (TextField) components[4];
-        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) components[5];
-        TextField txtPhoneSuffix = (TextField) components[6];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) components[7];
-        ComboBox<String> cmbYear = (ComboBox<String>) components[8];
-        TextField txtBlockNumber = (TextField) components[9];
-        TextField txtDormNumber = (TextField) components[10];
-        
-        String studentId = txtStudentId.getText().trim().toUpperCase();
-        String username = txtUsername.getText().trim();
-        String fullName = txtFullName.getText().trim();
-        String password = txtPassword.getText();
-        String email = txtEmail.getText().trim();
-        String phonePrefix = cmbPhonePrefix.getValue();
-        String phoneSuffix = txtPhoneSuffix.getText().trim();
-        String department = cmbDepartment.getValue();
-        String year = cmbYear.getValue();
-        String blockNumber = txtBlockNumber.getText().trim();
-        String dormNumber = txtDormNumber.getText().trim();
-        
-        ValidationResult[] validations = {
-            ValidationHelper.validateStudentId(studentId),
-            ValidationHelper.validateFullName(fullName),
-            ValidationHelper.validatePassword(password),
-            ValidationHelper.validateEmail(email),
-            ValidationHelper.validatePhoneNumber(phonePrefix, phoneSuffix),
-            ValidationHelper.validateDepartment(department),
-            ValidationHelper.validateYearLevel(year)
-        };
-        
-        for (ValidationResult result : validations) {
-            if (!result.isValid() && !result.getMessage().equals("Optional - can be empty")) {
-                showAlert("Validation Error", "Please fix all validation errors before submitting.");
-                return false;
-            }
-        }
-        
-        String finalPhone = phonePrefix + phoneSuffix;
-        
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            conn.setAutoCommit(false);
-            
-            try {
-                String checkDuplicate = """
-                    SELECT id FROM users WHERE username = ? OR phone = ? 
-                    OR (? IS NOT NULL AND email = ?)
-                """;
-                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
-                checkStmt.setString(1, username);
-                checkStmt.setString(2, finalPhone);
-                checkStmt.setString(3, email.isEmpty() ? null : email);
-                checkStmt.setString(4, email.isEmpty() ? null : email);
-                
-                ResultSet checkRs = checkStmt.executeQuery();
-                
-                if (checkRs.next()) {
-                    showAlert("Duplicate Entry", 
-                        "A student with this username, phone number, or email already exists.");
-                    conn.rollback();
-                    return false;
-                }
-
-                String userSql = """
-                    INSERT INTO users (username, password, full_name, role, email, phone, 
-                                      department, year_level, status, created_at)
-                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE', NOW())
-                """;
-
-                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
-                userStmt.setString(1, username);
-                userStmt.setString(2, password);
-                userStmt.setString(3, fullName);
-                userStmt.setString(4, email.isEmpty() ? null : email);
-                userStmt.setString(5, finalPhone);
-                userStmt.setString(6, department);
-                userStmt.setString(7, year);
-
-                int userRows = userStmt.executeUpdate();
-                
-                if (userRows <= 0) {
-                    conn.rollback();
-                    showAlert("Error", "Failed to register student!");
-                    return false;
-                }
-                
-                ResultSet generatedKeys = userStmt.getGeneratedKeys();
-                int studentDbId = -1;
-                if (generatedKeys.next()) {
-                    studentDbId = generatedKeys.getInt(1);
-                }
-                
-                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
-                    String dormSql = """
-                        INSERT INTO student_dormitory_credentials 
-                        (student_id, block_number, room_number, key_returned, 
-                         damage_paid, clearance_status, last_updated)
-                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING', NOW())
-                    """;
-                    
-                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
-                    dormStmt.setInt(1, studentDbId);
-                    dormStmt.setString(2, blockNumber);
-                    dormStmt.setString(3, dormNumber);
-                    
-                    dormStmt.executeUpdate();
-                }
-                
-                String academicSql = """
-                    INSERT INTO student_academic_records 
-                    (student_id, academic_hold, outstanding_fees, 
-                     incomplete_courses, gpa)
-                    VALUES (?, 'NONE', 0.00, 0, 0.00)
-                """;
-                PreparedStatement academicStmt = conn.prepareStatement(academicSql);
-                academicStmt.setInt(1, studentDbId);
-                academicStmt.executeUpdate();
-                
-                String auditSql = """
-                    INSERT INTO audit_logs (user_id, action, details, timestamp)
-                    VALUES (?, 'STUDENT_REGISTRATION', ?, NOW())
-                """;
-                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
-                auditStmt.setInt(1, currentUser.getId());
-                auditStmt.setString(2, "Registered student: " + username + " - " + fullName);
-                auditStmt.executeUpdate();
-                
-                conn.commit();
-                
-                StringBuilder successMsg = new StringBuilder();
-                successMsg.append("✅ Student Registered Successfully!\n\n");
-                successMsg.append("Name: ").append(fullName).append("\n");
-                successMsg.append("Student ID: ").append(username).append("\n");
-                successMsg.append("Department: ").append(department).append("\n");
-                successMsg.append("Year: ").append(year).append("\n");
-                successMsg.append("Phone: ").append(finalPhone).append("\n");
-                if (!email.isEmpty()) {
-                    successMsg.append("Email: ").append(email).append("\n");
-                }
-                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
-                    successMsg.append("Dormitory: Block ").append(blockNumber)
-                              .append(", Room ").append(dormNumber).append("\n");
-                }
-                successMsg.append("\nStudent can now login with username: ").append(username);
-                
-                showAlert("Registration Successful", successMsg.toString());
-                return true;
-                
-            } catch (SQLException e) {
-                conn.rollback();
-                if (e.getSQLState().equals("23000")) {
-                    showAlert("Error", "Student already exists in the system!");
-                } else {
-                    showAlert("Error", "Registration failed: " + e.getMessage());
-                }
-                e.printStackTrace();
-                return false;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-
-        } catch (SQLException e) {
-            showAlert("Error", "Database connection failed: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    // ==================== OFFICER REGISTRATION WITH REAL-TIME VALIDATION ====================
+    // ==================== OFFICER REGISTRATION ====================
     
     @FXML
     private void openManageOfficers() {
@@ -1608,44 +1509,30 @@ public class AdminDashboardController {
         row++;
         
         // ===== PHONE =====
-        HBox phoneBox = new HBox(5);
-        ComboBox<String> cmbPhonePrefix = new ComboBox<>(FXCollections.observableArrayList("09", "07"));
-        cmbPhonePrefix.setPromptText("Prefix");
-        cmbPhonePrefix.setPrefWidth(80);
+        PhoneInputField phoneInputField = new PhoneInputField();
         
-        TextField txtPhoneSuffix = new TextField();
-        txtPhoneSuffix.setPromptText("12345678");
-        txtPhoneSuffix.setPrefWidth(150);
-        
-        Label lblPhoneHint = new Label("09 or 07 + 8 digits");
+        Label lblPhoneHint = new Label("Select provider and enter 10 digits");
         lblPhoneHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
         
         Label lblPhoneValidation = new Label("Required");
         lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
-        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*")) {
-                txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
-            }
-            if (txtPhoneSuffix.getText().length() > 8) {
-                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
-            }
-            
-            ValidationResult result = ValidationHelper.validatePhoneNumber(
-                cmbPhonePrefix.getValue(), newVal);
+        // Validation listener for phone
+        phoneInputField.getPhoneField().textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneWithProvider(newVal, phoneInputField.getProvider());
             updateValidationLabel(lblPhoneValidation, result);
         });
         
-        cmbPhonePrefix.valueProperty().addListener((obs, oldVal, newVal) -> {
-            ValidationResult result = ValidationHelper.validatePhoneNumber(
-                newVal, txtPhoneSuffix.getText());
+        phoneInputField.getProviderComboBox().valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneWithProvider(
+                phoneInputField.getPhoneNumber(), 
+                newVal
+            );
             updateValidationLabel(lblPhoneValidation, result);
         });
-        
-        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
         
         grid.add(new Label("Phone*:"), 0, row);
-        grid.add(phoneBox, 1, row);
+        grid.add(phoneInputField, 1, row);
         grid.add(lblPhoneHint, 2, row);
         row++;
         grid.add(lblPhoneValidation, 1, row);
@@ -1709,7 +1596,7 @@ public class AdminDashboardController {
         
         grid.setUserData(new Object[]{
             txtFullName, txtUsername, txtPassword, txtEmail,
-            cmbPhonePrefix, txtPhoneSuffix, cmbRole, cmbDepartment,
+            phoneInputField, cmbRole, cmbDepartment,  // CHANGED: phoneInputField
             lblFullNameValidation, lblUsernameValidation, lblPasswordValidation,
             lblEmailValidation, lblPhoneValidation, lblRoleValidation, lblDeptValidation
         });
@@ -1779,67 +1666,39 @@ public class AdminDashboardController {
         TextField txtUsername = (TextField) components[1];
         PasswordField txtPassword = (PasswordField) components[2];
         TextField txtEmail = (TextField) components[3];
-        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) components[4];
-        TextField txtPhoneSuffix = (TextField) components[5];
-        ComboBox<String> cmbRole = (ComboBox<String>) components[6];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) components[7];
+        PhoneInputField phoneInputField = (PhoneInputField) components[4];
+        ComboBox<String> cmbRole = (ComboBox<String>) components[5];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) components[6];
         
         String fullName = txtFullName.getText().trim();
         String username = txtUsername.getText().trim().toLowerCase();
         String password = txtPassword.getText();
         String email = txtEmail.getText().trim();
-        String phonePrefix = cmbPhonePrefix.getValue();
-        String phoneSuffix = txtPhoneSuffix.getText().trim();
+        String phone = phoneInputField.getPhoneNumber();
         String role = cmbRole.getValue();
         String department = cmbDepartment.getValue();
         
         // Final validation
         if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
-            email.isEmpty() || phonePrefix == null || phoneSuffix.isEmpty() ||
-            role == null || department == null) {
+            email.isEmpty() || role == null || department == null) {
             showAlert("Validation Error", "All fields are required!");
             return false;
         }
         
-        if (!email.endsWith("@dbu.edu.et")) {
-            showAlert("Validation Error", "Officer email must end with @dbu.edu.et");
-            return false;
-        }
-        
-        if (password.length() < 8 || !password.matches(".*[A-Z].*") ||
-            !password.matches(".*[a-z].*") || !password.matches(".*\\d.*")) {
-            showAlert("Validation Error", "Password must be at least 8 characters with uppercase, lowercase, and number");
-            return false;
-        }
-        
-        String finalPhone = phonePrefix + phoneSuffix;
+        String finalPhone = phone;
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String checkSql = "SELECT username, phone, email FROM users WHERE username = ? OR email = ? OR phone = ?";
+            // Only check for username duplicate (officer ID)
+            String checkSql = "SELECT username FROM users WHERE username = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
-            checkStmt.setString(2, email);
-            checkStmt.setString(3, finalPhone);
             
             ResultSet checkRs = checkStmt.executeQuery();
             
-            List<String> existingFields = new ArrayList<>();
-            while (checkRs.next()) {
-                if (username.equals(checkRs.getString("username"))) {
-                    existingFields.add("Username '" + username + "'");
-                }
-                if (email.equals(checkRs.getString("email"))) {
-                    existingFields.add("Email '" + email + "'");
-                }
-                if (finalPhone.equals(checkRs.getString("phone"))) {
-                    existingFields.add("Phone number '" + finalPhone + "'");
-                }
-            }
-            
-            if (!existingFields.isEmpty()) {
-                showAlert("Duplicate Found", 
-                    "Cannot register officer. The following already exist:\n" +
-                    String.join("\n", existingFields));
+            if (checkRs.next()) {
+                showAlert("Duplicate Username", 
+                    "Officer username '" + username + "' already exists.\n\n" +
+                    "Username must be unique. Please choose a different username.");
                 return false;
             }
             
@@ -1923,7 +1782,7 @@ public class AdminDashboardController {
 
         } catch (SQLException e) {
             if (e.getSQLState().equals("23000")) {
-                showAlert("Error", "Officer already exists in the system!");
+                showAlert("Error", "Officer username '" + username + "' already exists in the system!");
             } else {
                 showAlert("Error", "Failed to register officer: " + e.getMessage());
             }
@@ -1932,7 +1791,271 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== OTHER EXISTING METHODS ====================
+    
+    
+    
+    private void updateValidationLabel(Label label, ValidationResult result) {
+        if (result.isValid()) {
+            label.setText("✓ " + result.getMessage().replace("✓", "").trim());
+            label.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+        } else {
+            label.setText(result.getMessage());
+            label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        }
+    }
+    
+    private boolean validateAllFields(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        // Get all validation labels
+        Label lblStudentIdValidation = (Label) components[10];  // Index 10
+        Label lblFullNameValidation = (Label) components[11];  // Index 11
+        Label lblPasswordValidation = (Label) components[12];  // Index 12
+        Label lblEmailValidation = (Label) components[13];     // Index 13
+        Label lblPhoneValidation = (Label) components[14];     // Index 14
+        Label lblDeptValidation = (Label) components[15];      // Index 15
+        Label lblYearValidation = (Label) components[16];      // Index 16
+        
+        // Check each validation label
+        boolean studentIdValid = lblStudentIdValidation.getText().contains("✓");
+        boolean nameValid = lblFullNameValidation.getText().contains("✓");
+        boolean passwordValid = lblPasswordValidation.getText().contains("✓");
+        boolean emailValid = lblEmailValidation.getText().contains("✓");
+        boolean phoneValid = lblPhoneValidation.getText().contains("✓");
+        boolean deptValid = lblDeptValidation.getText().contains("✓");
+        boolean yearValid = lblYearValidation.getText().contains("✓");
+        
+        boolean allValid = studentIdValid && nameValid && passwordValid && 
+                          emailValid && phoneValid && deptValid && yearValid;
+        
+        if (!allValid) {
+            // Show which field(s) are invalid
+            StringBuilder errorMsg = new StringBuilder("Please fix the following fields:\n");
+            
+            if (!studentIdValid) errorMsg.append("• Student ID: ").append(lblStudentIdValidation.getText()).append("\n");
+            if (!nameValid) errorMsg.append("• Full Name: ").append(lblFullNameValidation.getText()).append("\n");
+            if (!passwordValid) errorMsg.append("• Password: ").append(lblPasswordValidation.getText()).append("\n");
+            if (!emailValid) errorMsg.append("• Email: ").append(lblEmailValidation.getText()).append("\n");
+            if (!phoneValid) errorMsg.append("• Phone: ").append(lblPhoneValidation.getText()).append("\n");
+            if (!deptValid) errorMsg.append("• Department: ").append(lblDeptValidation.getText()).append("\n");
+            if (!yearValid) errorMsg.append("• Year Level: ").append(lblYearValidation.getText()).append("\n");
+            
+            showAlert("Validation Error", errorMsg.toString());
+        }
+        
+        return allValid;
+    }
+    
+    private boolean registerStudentFromForm(GridPane grid) {
+        // First validate all fields
+        if (!validateAllFields(grid)) {
+            return false;
+        }
+        
+        Object[] components = (Object[]) grid.getUserData();
+        
+        TextField txtStudentId = (TextField) components[0];
+        TextField txtUsername = (TextField) components[1];
+        TextField txtFullName = (TextField) components[2];
+        PasswordField txtPassword = (PasswordField) components[3];
+        TextField txtEmail = (TextField) components[4];
+        PhoneInputField phoneInputField = (PhoneInputField) components[5];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) components[6];
+        ComboBox<String> cmbYear = (ComboBox<String>) components[7];
+        TextField txtBlockNumber = (TextField) components[8];
+        TextField txtDormNumber = (TextField) components[9];
+        
+        String studentId = txtStudentId.getText().trim().toUpperCase();
+        String username = txtUsername.getText().trim().toLowerCase();
+        String fullName = txtFullName.getText().trim();
+        String password = txtPassword.getText();
+        String email = txtEmail.getText().trim();
+        String phone = phoneInputField.getPhoneNumber();
+        String provider = phoneInputField.getProvider();
+        String department = cmbDepartment.getValue();
+        String year = cmbYear.getValue();
+        String blockNumber = txtBlockNumber.getText().trim();
+        String dormNumber = txtDormNumber.getText().trim();
+        
+        System.out.println("=== ATTEMPTING REGISTRATION ===");
+        System.out.println("Student ID: " + studentId);
+        System.out.println("Username: " + username);
+        System.out.println("Full Name: " + fullName);
+        System.out.println("Department: " + department);
+        System.out.println("Year: " + year);
+        System.out.println("Phone: " + phone);
+        System.out.println("Provider: " + provider);
+        System.out.println("Email: " + email);
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // Check for duplicate username
+                String checkDuplicate = "SELECT username, full_name FROM users WHERE username = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
+                checkStmt.setString(1, username);
+                
+                ResultSet checkRs = checkStmt.executeQuery();
+                
+                if (checkRs.next()) {
+                    String existingUsername = checkRs.getString("username");
+                    String existingName = checkRs.getString("full_name");
+                    
+                    showAlert("Duplicate Student ID", 
+                        "Student ID '" + existingUsername + "' already exists in the system.\n\n" +
+                        "Associated with student: " + existingName + "\n\n" +
+                        "The Student ID must be unique. Please use a different Student ID.");
+                    conn.rollback();
+                    return false;
+                }
+                
+                // Insert student into users table
+                String userSql = """
+                    INSERT INTO users (username, password, full_name, role, email, phone, 
+                                      department, year_level, status, created_at)
+                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE', NOW())
+                """;
+
+                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
+                userStmt.setString(1, username);
+                userStmt.setString(2, password);
+                userStmt.setString(3, fullName);
+                userStmt.setString(4, email.isEmpty() ? null : email);
+                userStmt.setString(5, phone);
+                userStmt.setString(6, department);
+                userStmt.setString(7, year);
+
+                int userRows = userStmt.executeUpdate();
+                
+                if (userRows <= 0) {
+                    conn.rollback();
+                    showAlert("Error", "Failed to register student!");
+                    return false;
+                }
+                
+                // Get the auto-generated database ID
+                ResultSet generatedKeys = userStmt.getGeneratedKeys();
+                int studentDbId = -1;
+                if (generatedKeys.next()) {
+                    studentDbId = generatedKeys.getInt(1);
+                }
+                
+                // Insert dormitory information if provided
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    String dormSql = """
+                        INSERT INTO student_dormitory_credentials 
+                        (student_id, block_number, room_number, key_returned, 
+                         damage_paid, clearance_status, last_updated)
+                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING', NOW())
+                    """;
+                    
+                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
+                    dormStmt.setInt(1, studentDbId);
+                    dormStmt.setString(2, blockNumber);
+                    dormStmt.setString(3, dormNumber);
+                    dormStmt.executeUpdate();
+                }
+                
+                // Insert default academic record
+                String academicSql = """
+                    INSERT INTO student_academic_records 
+                    (student_id, academic_hold, outstanding_fees, 
+                     incomplete_courses, gpa)
+                    VALUES (?, 'NONE', 0.00, 0, 0.00)
+                """;
+                PreparedStatement academicStmt = conn.prepareStatement(academicSql);
+                academicStmt.setInt(1, studentDbId);
+                academicStmt.executeUpdate();
+                
+                // Add audit log entry
+                String auditSql = """
+                    INSERT INTO audit_logs (user_id, action, details, timestamp)
+                    VALUES (?, 'STUDENT_REGISTRATION', ?, NOW())
+                """;
+                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, currentUser.getId());
+                auditStmt.setString(2, "Registered student: " + username + " - " + fullName);
+                auditStmt.executeUpdate();
+                
+                conn.commit();
+                
+                // Show success message
+                StringBuilder successMsg = new StringBuilder();
+                successMsg.append("✅ Student Registered Successfully!\n\n");
+                successMsg.append("Name: ").append(fullName).append("\n");
+                successMsg.append("Student ID: ").append(studentId).append("\n");
+                successMsg.append("Username: ").append(username).append("\n");
+                successMsg.append("Department: ").append(department).append("\n");
+                successMsg.append("Year: ").append(year).append("\n");
+                successMsg.append("Phone: ").append(phone).append("\n");
+                successMsg.append("Provider: ").append(provider).append("\n");
+                if (!email.isEmpty()) {
+                    successMsg.append("Email: ").append(email).append("\n");
+                }
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    successMsg.append("Dormitory: Block ").append(blockNumber)
+                              .append(", Room ").append(dormNumber).append("\n");
+                }
+                successMsg.append("\nStudent can now login with username: ").append(username);
+                
+                showAlert("Registration Successful", successMsg.toString());
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                
+                if (e.getSQLState().equals("23000")) {
+                    showAlert("Duplicate Student ID", 
+                        "Student ID '" + username + "' already exists in the system.\n\n" +
+                        "The Student ID must be unique. Please use a different Student ID.");
+                } else {
+                    showAlert("Error", "Registration failed: " + e.getMessage());
+                }
+                e.printStackTrace();
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+
+        } catch (SQLException e) {
+            showAlert("Error", "Database connection failed: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    
+    
+ // Add this method to AdminDashboardController to check what IDs already exist
+    private void checkExistingStudentIds() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = "SELECT username, full_name, department FROM users WHERE role = 'STUDENT' ORDER BY username";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            System.out.println("=== EXISTING STUDENT IDs ===");
+            int count = 0;
+            while (rs.next()) {
+                count++;
+                System.out.println(count + ". " + rs.getString("username") + 
+                                 " - " + rs.getString("full_name") + 
+                                 " (" + rs.getString("department") + ")");
+            }
+            System.out.println("Total students: " + count);
+            System.out.println("============================");
+            
+        } catch (Exception e) {
+            System.out.println("Error checking existing IDs: " + e.getMessage());
+        }
+    }
+    
+    
+    
+    
+    
+    
+    // ==================== OTHER METHODS (truncated for brevity) ====================
     
     private void allowStudentReapply(User student) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -1952,7 +2075,6 @@ public class AdminDashboardController {
             }
         });
     }
-
     
     private void enableStudentReapply(User student) {
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -2061,7 +2183,7 @@ public class AdminDashboardController {
             e.printStackTrace();
         }
     }
-
+    
     private void refreshStudentTableRows() {
         tableAllStudents.refresh();
         tableRejectedStudents.refresh();
@@ -2155,6 +2277,8 @@ public class AdminDashboardController {
             }
         }
     }
+    
+  
     
     // ==================== VIEW STUDENT DETAILS ====================
     

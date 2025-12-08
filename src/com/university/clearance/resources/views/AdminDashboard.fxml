@@ -16,6 +16,9 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.RowConstraints?>
 
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
     
@@ -66,6 +69,7 @@
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="QUICK ACTIONS" />
                 
                 <Button onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
+                <Button fx:id="btnCurrentInfo" onAction="#showCurrentInfo" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📊 Current Info" />
             </children>
         </VBox>
     </left>
@@ -81,6 +85,77 @@
                             <VBox spacing="20" style="-fx-padding: 20;">
                                 <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Admin Dashboard Overview" />
                                 
+                                <!-- Current Info Cards Section - Initially hidden -->
+                                <VBox fx:id="cardsContainer" visible="false" managed="false" spacing="20">
+                                    <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Current System Information" />
+                                    
+                                    <GridPane hgap="20" vgap="20">
+                                        <columnConstraints>
+                                            <ColumnConstraints percentWidth="25" />
+                                            <ColumnConstraints percentWidth="25" />
+                                            <ColumnConstraints percentWidth="25" />
+                                            <ColumnConstraints percentWidth="25" />
+                                        </columnConstraints>
+                                        <rowConstraints>
+                                            <RowConstraints prefHeight="120" />
+                                            <RowConstraints prefHeight="120" />
+                                        </rowConstraints>
+                                        
+                                        <!-- Row 1 -->
+                                        <VBox GridPane.columnIndex="0" style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Active Sessions" />
+                                            <Label fx:id="lblActiveSessions" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                            <Label fx:id="lblSessionStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Current: N/A" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="1" style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Pending Actions" />
+                                            <Label fx:id="lblPendingActions" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                            <Label fx:id="lblActionStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Requires attention" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="2" style="-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="System Load" />
+                                            <Label fx:id="lblSystemLoad" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0%" />
+                                            <Label fx:id="lblLoadStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Optimal" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="3" style="-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Uptime" />
+                                            <Label fx:id="lblUptime" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-weight: bold;" text="0d 0h 0m" />
+                                            <Label fx:id="lblUptimeStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Running" />
+                                        </VBox>
+                                        
+                                        <!-- Row 2 -->
+                                        <VBox GridPane.rowIndex="1" GridPane.columnIndex="0" style="-fx-background-color: #9b59b6; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Database" />
+                                            <Label fx:id="lblDatabaseSize" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0 MB" />
+                                            <Label fx:id="lblDbStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Connected" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.rowIndex="1" GridPane.columnIndex="1" style="-fx-background-color: #1abc9c; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Today's Logins" />
+                                            <Label fx:id="lblTodayLogins" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                            <Label fx:id="lblLoginTrend" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="+0%" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.rowIndex="1" GridPane.columnIndex="2" style="-fx-background-color: #d35400; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Active Officers" />
+                                            <Label fx:id="lblActiveOfficers" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                            <Label fx:id="lblOfficerStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="Online: 0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.rowIndex="1" GridPane.columnIndex="3" style="-fx-background-color: #34495e; -fx-padding: 20; -fx-background-radius: 10;">
+                                            <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="Clearance Rate" />
+                                            <Label fx:id="lblClearanceRate" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0%" />
+                                            <Label fx:id="lblRateStatus" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px;" text="This week" />
+                                        </VBox>
+                                    </GridPane>
+                                    
+                                    <Separator style="-fx-padding: 10 0;" />
+                                </VBox>
+                                
+                                <!-- Existing Dashboard Content -->
                                 <HBox prefHeight="114.0" prefWidth="718.0" spacing="20">
                                     <VBox prefHeight="114.0" prefWidth="155.0" style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="Total Students" />

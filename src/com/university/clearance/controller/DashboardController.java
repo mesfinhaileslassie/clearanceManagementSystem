@@ -181,7 +181,7 @@ public class DashboardController {
             }
 
             Tab tab = new Tab(title, content);
-            tab.setClosable(true);
+            tab.setClosable(false);
             tabPane.getTabs().add(tab);
             tabPane.getSelectionModel().select(tab);
             

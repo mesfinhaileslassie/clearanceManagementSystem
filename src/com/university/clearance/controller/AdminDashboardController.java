@@ -3,8 +3,11 @@ package com.university.clearance.controller;
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
 import com.university.clearance.model.ClearanceRequest;
+import com.university.clearance.utils.ValidationHelper;
+import com.university.clearance.utils.ValidationHelper.ValidationResult;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -21,15 +24,14 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.util.StringConverter;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import java.net.URL;
 
 public class AdminDashboardController {
 
@@ -90,14 +92,13 @@ public class AdminDashboardController {
     @FXML private TableColumn<ClearanceRequest, String> colRequestDate;
     @FXML private TableColumn<ClearanceRequest, Integer> colRequestApproved;
     
-    // Search Components (NEW)
+    // Search Components
     @FXML private TextField txtSearchUsers;
     @FXML private ComboBox<String> cmbSearchType;
     @FXML private Button btnSearchUsers;
     @FXML private Button btnClearSearch;
     @FXML private Label lblSearchStatus;
     
-    // For Requests Search (if you want to add it there too)
     @FXML private TextField txtSearchRequests;
     @FXML private Button btnSearchRequests;
     @FXML private Button btnClearRequestsSearch;
@@ -111,12 +112,6 @@ public class AdminDashboardController {
     private ObservableList<User> officersData = FXCollections.observableArrayList();
     private ObservableList<User> allUsersData = FXCollections.observableArrayList();
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
-    
-    // Filtered lists for search functionality
-    private FilteredList<User> filteredUsersData;
-    private FilteredList<User> filteredStudentsData;
-    private FilteredList<User> filteredOfficersData;
-    private FilteredList<ClearanceRequest> filteredRequestsData;
 
     @FXML
     private void initialize() {
@@ -189,8 +184,6 @@ public class AdminDashboardController {
         });
     }
     
-    // ==================== SEARCH FUNCTIONALITY SETUP ====================
-    
     private void setupSearchFunctionality() {
         // Initialize search type combobox
         cmbSearchType.setItems(FXCollections.observableArrayList(
@@ -221,17 +214,10 @@ public class AdminDashboardController {
         // Set up combo box tooltip
         cmbSearchType.setTooltip(new Tooltip("Select user type to filter"));
         
-        // Set up requests search if components exist
+        // Set up requests search
         if (txtSearchRequests != null && btnSearchRequests != null) {
-            setupRequestsSearch();
-        }
-    }
-    
-    private void setupRequestsSearch() {
-        btnSearchRequests.setOnAction(e -> handleRequestsSearch());
-        btnClearRequestsSearch.setOnAction(e -> handleClearRequestsSearch());
-        
-        if (txtSearchRequests != null) {
+            btnSearchRequests.setOnAction(e -> handleRequestsSearch());
+            btnClearRequestsSearch.setOnAction(e -> handleClearRequestsSearch());
             txtSearchRequests.setOnAction(e -> handleRequestsSearch());
         }
     }
@@ -253,7 +239,7 @@ public class AdminDashboardController {
     private void handleClearSearch() {
         txtSearchUsers.clear();
         cmbSearchType.setValue("All Users");
-        loadAllUsers(); // Reload all users without filter
+        loadAllUsers();
         
         if (lblSearchStatus != null) {
             lblSearchStatus.setText("Showing all users");
@@ -276,7 +262,7 @@ public class AdminDashboardController {
     private void handleClearRequestsSearch() {
         if (txtSearchRequests != null) {
             txtSearchRequests.clear();
-            loadClearanceRequests(); // Reload all requests
+            loadClearanceRequests();
         }
     }
     
@@ -346,7 +332,6 @@ public class AdminDashboardController {
                 );
                 user.setStatus(rs.getString("status"));
                 
-                // Add additional fields for students
                 if ("STUDENT".equals(user.getRole())) {
                     user.setYearLevel(rs.getString("year_level"));
                     user.setPhone(rs.getString("phone"));
@@ -429,7 +414,6 @@ public class AdminDashboardController {
             lblSearchStatus.setText(message);
             lblSearchStatus.setVisible(true);
             
-            // Apply styling based on type
             switch (type) {
                 case "success":
                     lblSearchStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
@@ -446,8 +430,6 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== TABLE SETUP METHODS ====================
-    
     private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
                                   TableColumn<User, String> colName, TableColumn<User, String> colDept,
                                   TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
@@ -459,7 +441,7 @@ public class AdminDashboardController {
         colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
         
-        // Actions column with "Allow Reapply" button for rejected students
+        // Actions column
         colActions.setCellFactory(param -> new TableCell<User, String>() {
             private final Button btnAllowReapply = new Button("Allow Reapply");
             private final Button btnViewDetails = new Button("View Details");
@@ -481,40 +463,6 @@ public class AdminDashboardController {
                 });
             }
 
-            
-            private void updateStudentClearanceStatus(int studentId, String newStatus) {
-                try (Connection conn = DatabaseConnection.getConnection()) {
-                    String sql = """
-                        UPDATE clearance_requests 
-                        SET status = ?, request_date = NOW()
-                        WHERE student_id = ? 
-                        AND id = (SELECT MAX(id) FROM clearance_requests WHERE student_id = ?)
-                        """;
-                    
-                    PreparedStatement stmt = conn.prepareStatement(sql);
-                    stmt.setString(1, newStatus);
-                    stmt.setInt(2, studentId);
-                    stmt.setInt(3, studentId);
-                    
-                    int updated = stmt.executeUpdate();
-                    
-                    if (updated > 0) {
-                        // Update UI for all student tables
-                        Platform.runLater(() -> {
-                            loadAllStudents(); // Reload all student data
-                            tableAllStudents.refresh();
-                            tableRejectedStudents.refresh();
-                            tableInProgressStudents.refresh();
-                            tablePendingStudents.refresh();
-                            tableApprovedStudents.refresh();
-                        });
-                    }
-                    
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -523,7 +471,6 @@ public class AdminDashboardController {
                 } else {
                     User student = getTableView().getItems().get(getIndex());
                     if (student != null) {
-                        // Show "Allow Reapply" only for rejected students
                         if (student.getClearanceStatus() != null && 
                             student.getClearanceStatus().contains("❌")) {
                             btnAllowReapply.setVisible(true);
@@ -567,7 +514,6 @@ public class AdminDashboardController {
     }
     
     private void setupSimpleStudentTable(TableView<User> tableView) {
-        // Check if we have 5 columns (if so, the last one is Actions)
         boolean hasActionsColumn = tableView.getColumns().size() == 5;
         
         TableColumn<User, String> col1 = (TableColumn<User, String>) tableView.getColumns().get(0);
@@ -580,7 +526,6 @@ public class AdminDashboardController {
         col3.setCellValueFactory(new PropertyValueFactory<>("department"));
         col4.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
         
-        // Add Actions column for rejected students table
         if (hasActionsColumn) {
             TableColumn<User, String> col5 = (TableColumn<User, String>) tableView.getColumns().get(4);
             col5.setCellFactory(param -> new TableCell<User, String>() {
@@ -612,7 +557,6 @@ public class AdminDashboardController {
                     } else {
                         User student = getTableView().getItems().get(getIndex());
                         if (student != null) {
-                            // Show "Allow Reapply" only for rejected students
                             if (student.getClearanceStatus() != null && 
                                 student.getClearanceStatus().contains("❌")) {
                                 btnAllowReapply.setVisible(true);
@@ -630,7 +574,6 @@ public class AdminDashboardController {
             });
         }
         
-        // Color code based on status
         col4.setCellFactory(column -> new TableCell<User, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -655,8 +598,6 @@ public class AdminDashboardController {
             }
         });
     }
-    
-    // ==================== LOAD DATA METHODS ====================
     
     @FXML
     private void handleRefresh() {
@@ -718,13 +659,11 @@ public class AdminDashboardController {
                 String clearanceStatus = rs.getString("clearance_status");
                 boolean canReapply = rs.getBoolean("can_reapply");
                 
-                // Set formatted status with reapply info
                 student.setClearanceStatus(formatClearanceStatus(clearanceStatus, canReapply));
                 student.setCanReapply(canReapply);
                 
                 allStudentsData.add(student);
                 
-                // Categorize by status - only show in rejected tab if can't reapply
                 if (clearanceStatus.equals("FULLY_CLEARED") || clearanceStatus.equals("APPROVED")) {
                     approvedStudentsData.add(student);
                 } else if (clearanceStatus.equals("REJECTED") && !canReapply) {
@@ -736,7 +675,6 @@ public class AdminDashboardController {
                 }
             }
             
-            // Set data to tables
             tableAllStudents.setItems(allStudentsData);
             tableApprovedStudents.setItems(approvedStudentsData);
             tableRejectedStudents.setItems(rejectedStudentsData);
@@ -866,17 +804,11 @@ public class AdminDashboardController {
                 return status;
         }
     }
-
-    // Add overloaded method for single parameter (if needed elsewhere)
-    private String formatClearanceStatus(String status) {
-        return formatClearanceStatus(status, false);
-    }
     
     private void updateDashboardStats() {
         lblTotalStudents.setText("Students: " + allStudentsData.size());
         lblTotalOfficers.setText("Officers: " + officersData.size());
         
-        // Count total requests
         int totalRequests = 0;
         int approvedCount = 0;
         int rejectedCount = 0;
@@ -899,7 +831,6 @@ public class AdminDashboardController {
         
         lblTotalRequests.setText("Requests: " + totalRequests);
         
-        // Update card labels if they exist
         if (lblTotalStudentsCard != null) {
             lblTotalStudentsCard.setText(String.valueOf(allStudentsData.size()));
         }
@@ -920,7 +851,1088 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== ALLOW STUDENT TO REAPPLY ====================
+    // ==================== STUDENT REGISTRATION WITH REAL-TIME VALIDATION ====================
+    
+    @FXML
+    private void openRegisterStudent() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Register New Student");
+        dialog.setHeaderText("Enter Student Information");
+        dialog.getDialogPane().setPrefSize(850, 800);
+        
+        ButtonType registerButton = new ButtonType("Register", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(registerButton, ButtonType.CANCEL);
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        
+        GridPane grid = createStudentFormWithValidation();
+        content.getChildren().add(grid);
+        
+        dialog.getDialogPane().setContent(content);
+        
+        Button btnRegister = (Button) dialog.getDialogPane().lookupButton(registerButton);
+        btnRegister.setDisable(true);
+        
+        SimpleBooleanProperty allFieldsValid = new SimpleBooleanProperty(false);
+        setupValidationListeners(grid, allFieldsValid);
+        btnRegister.disableProperty().bind(allFieldsValid.not());
+        
+        btnRegister.addEventFilter(ActionEvent.ACTION, event -> {
+            if (!validateAllFields(grid)) {
+                event.consume();
+            } else {
+                if (!registerStudentFromForm(grid)) {
+                    event.consume();
+                }
+            }
+        });
+        
+        Optional<ButtonType> result = dialog.showAndWait();
+        
+        if (result.isPresent() && result.get() == registerButton) {
+            loadAllUsers();
+            loadAllStudents();
+        }
+    }
+    
+    private GridPane createStudentFormWithValidation() {
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(5);
+        grid.setPadding(new Insets(10));
+        
+        int row = 0;
+        
+        // ===== STUDENT ID =====
+        TextField txtStudentId = new TextField();
+        txtStudentId.setPromptText("DBU1601111");
+        txtStudentId.setPrefWidth(200);
+        
+        Label lblStudentIdHint = new Label("Format: DBU + 7 digits (e.g., DBU1601111)");
+        lblStudentIdHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblStudentIdValidation = new Label("Required");
+        lblStudentIdValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtStudentId.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.startsWith("DBU")) {
+                Platform.runLater(() -> {
+                    txtStudentId.setText("DBU" + newVal.replaceAll("[^\\d]", ""));
+                    txtStudentId.positionCaret(txtStudentId.getText().length());
+                });
+            }
+            
+            ValidationResult result = ValidationHelper.validateStudentId(newVal);
+            updateValidationLabel(lblStudentIdValidation, result);
+            
+            // Auto-fill username
+            String username = ValidationHelper.generateUsername(newVal);
+            if (!username.isEmpty()) {
+                for (javafx.scene.Node node : grid.getChildren()) {
+                    if (GridPane.getRowIndex(node) == 3 && GridPane.getColumnIndex(node) == 1) {
+                        if (node instanceof TextField) {
+                            ((TextField) node).setText(username);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+        
+        grid.add(new Label("Student ID*:"), 0, row);
+        grid.add(txtStudentId, 1, row);
+        grid.add(lblStudentIdHint, 2, row);
+        row++;
+        grid.add(lblStudentIdValidation, 1, row);
+        GridPane.setColumnSpan(lblStudentIdValidation, 2);
+        row++;
+        
+        // ===== USERNAME (Auto-filled) =====
+        TextField txtUsername = new TextField();
+        txtUsername.setPromptText("dbu1601111");
+        txtUsername.setEditable(false);
+        txtUsername.setStyle("-fx-background-color: #f0f0f0;");
+        
+        grid.add(new Label("Username*:"), 0, row);
+        grid.add(txtUsername, 1, row);
+        grid.add(new Label("(Auto-generated)"), 2, row);
+        row++;
+        row++; // Empty row for spacing
+        
+        // ===== FULL NAME =====
+        TextField txtFullName = new TextField();
+        txtFullName.setPromptText("John Smith");
+        
+        Label lblFullNameHint = new Label("First and last name, letters only");
+        lblFullNameHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblFullNameValidation = new Label("Required");
+        lblFullNameValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtFullName.textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validateFullName(newVal);
+            updateValidationLabel(lblFullNameValidation, result);
+        });
+        
+        grid.add(new Label("Full Name*:"), 0, row);
+        grid.add(txtFullName, 1, row);
+        grid.add(lblFullNameHint, 2, row);
+        row++;
+        grid.add(lblFullNameValidation, 1, row);
+        GridPane.setColumnSpan(lblFullNameValidation, 2);
+        row++;
+        
+        // ===== PASSWORD =====
+        PasswordField txtPassword = new PasswordField();
+        txtPassword.setPromptText("At least 6 chars, letters & numbers");
+        
+        Label lblPasswordHint = new Label("Min 6 chars, must include letters & numbers");
+        lblPasswordHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblPasswordValidation = new Label("Required");
+        lblPasswordValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtPassword.textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePassword(newVal);
+            updateValidationLabel(lblPasswordValidation, result);
+        });
+        
+        grid.add(new Label("Password*:"), 0, row);
+        grid.add(txtPassword, 1, row);
+        grid.add(lblPasswordHint, 2, row);
+        row++;
+        grid.add(lblPasswordValidation, 1, row);
+        GridPane.setColumnSpan(lblPasswordValidation, 2);
+        row++;
+        
+        // ===== EMAIL =====
+        TextField txtEmail = new TextField();
+        txtEmail.setPromptText("student@dbu.edu.et");
+        
+        Label lblEmailHint = new Label("Optional - leave empty if none");
+        lblEmailHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblEmailValidation = new Label("Optional");
+        lblEmailValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        
+        txtEmail.textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validateEmail(newVal);
+            updateValidationLabel(lblEmailValidation, result);
+        });
+        
+        grid.add(new Label("Email:"), 0, row);
+        grid.add(txtEmail, 1, row);
+        grid.add(lblEmailHint, 2, row);
+        row++;
+        grid.add(lblEmailValidation, 1, row);
+        GridPane.setColumnSpan(lblEmailValidation, 2);
+        row++;
+        
+        // ===== PHONE =====
+        HBox phoneBox = new HBox(5);
+        ComboBox<String> cmbPhonePrefix = new ComboBox<>(FXCollections.observableArrayList("09", "07"));
+        cmbPhonePrefix.setPromptText("Prefix");
+        cmbPhonePrefix.setPrefWidth(80);
+        
+        TextField txtPhoneSuffix = new TextField();
+        txtPhoneSuffix.setPromptText("12345678");
+        txtPhoneSuffix.setPrefWidth(150);
+        
+        Label lblPhoneHint = new Label("09 or 07 + 8 digits");
+        lblPhoneHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblPhoneValidation = new Label("Required");
+        lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+            if (txtPhoneSuffix.getText().length() > 8) {
+                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
+            }
+            
+            ValidationResult result = ValidationHelper.validatePhoneNumber(
+                cmbPhonePrefix.getValue(), newVal);
+            updateValidationLabel(lblPhoneValidation, result);
+        });
+        
+        cmbPhonePrefix.valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneNumber(
+                newVal, txtPhoneSuffix.getText());
+            updateValidationLabel(lblPhoneValidation, result);
+        });
+        
+        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
+        
+        grid.add(new Label("Phone*:"), 0, row);
+        grid.add(phoneBox, 1, row);
+        grid.add(lblPhoneHint, 2, row);
+        row++;
+        grid.add(lblPhoneValidation, 1, row);
+        GridPane.setColumnSpan(lblPhoneValidation, 2);
+        row++;
+        
+        // ===== DEPARTMENT =====
+        ComboBox<String> cmbDepartment = new ComboBox<>();
+        cmbDepartment.setItems(FXCollections.observableArrayList(
+            "Software Engineering", "Computer Science", "Electrical Engineering",
+            "Mechanical Engineering", "Civil Engineering", "Business Administration",
+            "Accounting", "Economics", "Mathematics", "Food Engineering", 
+            "Chemistry", "Biology"
+        ));
+        cmbDepartment.setPromptText("Select Department");
+        
+        Label lblDeptValidation = new Label("Required");
+        lblDeptValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        cmbDepartment.valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validateDepartment(newVal);
+            updateValidationLabel(lblDeptValidation, result);
+        });
+        
+        grid.add(new Label("Department*:"), 0, row);
+        grid.add(cmbDepartment, 1, row);
+        row++;
+        grid.add(lblDeptValidation, 1, row);
+        GridPane.setColumnSpan(lblDeptValidation, 2);
+        row++;
+        
+        // ===== YEAR LEVEL =====
+        ComboBox<String> cmbYear = new ComboBox<>();
+        cmbYear.setItems(FXCollections.observableArrayList(
+            "1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"
+        ));
+        cmbYear.setPromptText("Select Year");
+        
+        Label lblYearValidation = new Label("Required");
+        lblYearValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        cmbYear.valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validateYearLevel(newVal);
+            updateValidationLabel(lblYearValidation, result);
+        });
+        
+        grid.add(new Label("Year Level*:"), 0, row);
+        grid.add(cmbYear, 1, row);
+        row++;
+        grid.add(lblYearValidation, 1, row);
+        GridPane.setColumnSpan(lblYearValidation, 2);
+        row++;
+        
+        // ===== BLOCK NUMBER =====
+        TextField txtBlockNumber = new TextField();
+        txtBlockNumber.setPromptText("1-10");
+        
+        Label lblBlockHint = new Label("Block number 1-10 (optional)");
+        lblBlockHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblBlockValidation = new Label("Optional");
+        lblBlockValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        
+        txtBlockNumber.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                txtBlockNumber.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+            if (txtBlockNumber.getText().length() > 2) {
+                txtBlockNumber.setText(txtBlockNumber.getText().substring(0, 2));
+            }
+            
+            ValidationResult result = ValidationHelper.validateBlockNumber(newVal);
+            updateValidationLabel(lblBlockValidation, result);
+        });
+        
+        grid.add(new Label("Block Number:"), 0, row);
+        grid.add(txtBlockNumber, 1, row);
+        grid.add(lblBlockHint, 2, row);
+        row++;
+        grid.add(lblBlockValidation, 1, row);
+        GridPane.setColumnSpan(lblBlockValidation, 2);
+        row++;
+        
+        // ===== DORM NUMBER =====
+        TextField txtDormNumber = new TextField();
+        txtDormNumber.setPromptText("101-4999");
+        
+        Label lblDormHint = new Label("Room number 100-4999 (optional)");
+        lblDormHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblDormValidation = new Label("Optional");
+        lblDormValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        
+        txtDormNumber.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                txtDormNumber.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+            if (txtDormNumber.getText().length() > 4) {
+                txtDormNumber.setText(txtDormNumber.getText().substring(0, 4));
+            }
+            
+            ValidationResult result = ValidationHelper.validateDormNumber(newVal);
+            updateValidationLabel(lblDormValidation, result);
+        });
+        
+        grid.add(new Label("Dorm/Room Number:"), 0, row);
+        grid.add(txtDormNumber, 1, row);
+        grid.add(lblDormHint, 2, row);
+        row++;
+        grid.add(lblDormValidation, 1, row);
+        GridPane.setColumnSpan(lblDormValidation, 2);
+        
+        // Store all components for later access
+        grid.setUserData(new Object[]{
+            txtStudentId, txtUsername, txtFullName, txtPassword,
+            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear,
+            txtBlockNumber, txtDormNumber,
+            lblStudentIdValidation, lblFullNameValidation, lblPasswordValidation,
+            lblEmailValidation, lblPhoneValidation, lblDeptValidation,
+            lblYearValidation, lblBlockValidation, lblDormValidation
+        });
+        
+        return grid;
+    }
+    
+    private void setupValidationListeners(GridPane grid, SimpleBooleanProperty allFieldsValid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        Label lblStudentIdValidation = (Label) components[11];
+        Label lblFullNameValidation = (Label) components[12];
+        Label lblPasswordValidation = (Label) components[13];
+        Label lblEmailValidation = (Label) components[14];
+        Label lblPhoneValidation = (Label) components[15];
+        Label lblDeptValidation = (Label) components[16];
+        Label lblYearValidation = (Label) components[17];
+        
+        Runnable validationChecker = () -> {
+            boolean allValid = 
+                lblStudentIdValidation.getText().equals("Valid ✓") &&
+                lblFullNameValidation.getText().equals("Valid ✓") &&
+                lblPasswordValidation.getText().equals("Strong ✓") &&
+                (lblEmailValidation.getText().equals("Valid ✓") || lblEmailValidation.getText().equals("Optional - can be empty")) &&
+                lblPhoneValidation.getText().equals("Valid ✓") &&
+                lblDeptValidation.getText().equals("Valid ✓") &&
+                lblYearValidation.getText().equals("Valid ✓");
+            
+            allFieldsValid.set(allValid);
+        };
+        
+        lblStudentIdValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblFullNameValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblPasswordValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblEmailValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblPhoneValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblDeptValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblYearValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+    }
+    
+    private void updateValidationLabel(Label label, ValidationResult result) {
+        label.setText(result.getMessage());
+        if (result.isValid()) {
+            label.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+        } else {
+            label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        }
+    }
+    
+    private boolean validateAllFields(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        Label[] validationLabels = new Label[]{
+            (Label) components[11], // Student ID
+            (Label) components[12], // Full Name
+            (Label) components[13], // Password
+            (Label) components[14], // Email
+            (Label) components[15], // Phone
+            (Label) components[16], // Department
+            (Label) components[17]  // Year
+        };
+        
+        for (Label label : validationLabels) {
+            String text = label.getText();
+            if (!text.equals("Valid ✓") && 
+                !text.equals("Strong ✓") && 
+                !text.equals("Optional - can be empty")) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private boolean registerStudentFromForm(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        TextField txtStudentId = (TextField) components[0];
+        TextField txtUsername = (TextField) components[1];
+        TextField txtFullName = (TextField) components[2];
+        PasswordField txtPassword = (PasswordField) components[3];
+        TextField txtEmail = (TextField) components[4];
+        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) components[5];
+        TextField txtPhoneSuffix = (TextField) components[6];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) components[7];
+        ComboBox<String> cmbYear = (ComboBox<String>) components[8];
+        TextField txtBlockNumber = (TextField) components[9];
+        TextField txtDormNumber = (TextField) components[10];
+        
+        String studentId = txtStudentId.getText().trim().toUpperCase();
+        String username = txtUsername.getText().trim();
+        String fullName = txtFullName.getText().trim();
+        String password = txtPassword.getText();
+        String email = txtEmail.getText().trim();
+        String phonePrefix = cmbPhonePrefix.getValue();
+        String phoneSuffix = txtPhoneSuffix.getText().trim();
+        String department = cmbDepartment.getValue();
+        String year = cmbYear.getValue();
+        String blockNumber = txtBlockNumber.getText().trim();
+        String dormNumber = txtDormNumber.getText().trim();
+        
+        ValidationResult[] validations = {
+            ValidationHelper.validateStudentId(studentId),
+            ValidationHelper.validateFullName(fullName),
+            ValidationHelper.validatePassword(password),
+            ValidationHelper.validateEmail(email),
+            ValidationHelper.validatePhoneNumber(phonePrefix, phoneSuffix),
+            ValidationHelper.validateDepartment(department),
+            ValidationHelper.validateYearLevel(year)
+        };
+        
+        for (ValidationResult result : validations) {
+            if (!result.isValid() && !result.getMessage().equals("Optional - can be empty")) {
+                showAlert("Validation Error", "Please fix all validation errors before submitting.");
+                return false;
+            }
+        }
+        
+        String finalPhone = phonePrefix + phoneSuffix;
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                String checkDuplicate = """
+                    SELECT id FROM users WHERE username = ? OR phone = ? 
+                    OR (? IS NOT NULL AND email = ?)
+                """;
+                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
+                checkStmt.setString(1, username);
+                checkStmt.setString(2, finalPhone);
+                checkStmt.setString(3, email.isEmpty() ? null : email);
+                checkStmt.setString(4, email.isEmpty() ? null : email);
+                
+                ResultSet checkRs = checkStmt.executeQuery();
+                
+                if (checkRs.next()) {
+                    showAlert("Duplicate Entry", 
+                        "A student with this username, phone number, or email already exists.");
+                    conn.rollback();
+                    return false;
+                }
+
+                String userSql = """
+                    INSERT INTO users (username, password, full_name, role, email, phone, 
+                                      department, year_level, status, created_at)
+                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE', NOW())
+                """;
+
+                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
+                userStmt.setString(1, username);
+                userStmt.setString(2, password);
+                userStmt.setString(3, fullName);
+                userStmt.setString(4, email.isEmpty() ? null : email);
+                userStmt.setString(5, finalPhone);
+                userStmt.setString(6, department);
+                userStmt.setString(7, year);
+
+                int userRows = userStmt.executeUpdate();
+                
+                if (userRows <= 0) {
+                    conn.rollback();
+                    showAlert("Error", "Failed to register student!");
+                    return false;
+                }
+                
+                ResultSet generatedKeys = userStmt.getGeneratedKeys();
+                int studentDbId = -1;
+                if (generatedKeys.next()) {
+                    studentDbId = generatedKeys.getInt(1);
+                }
+                
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    String dormSql = """
+                        INSERT INTO student_dormitory_credentials 
+                        (student_id, block_number, room_number, key_returned, 
+                         damage_paid, clearance_status, last_updated)
+                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING', NOW())
+                    """;
+                    
+                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
+                    dormStmt.setInt(1, studentDbId);
+                    dormStmt.setString(2, blockNumber);
+                    dormStmt.setString(3, dormNumber);
+                    
+                    dormStmt.executeUpdate();
+                }
+                
+                String academicSql = """
+                    INSERT INTO student_academic_records 
+                    (student_id, academic_hold, outstanding_fees, 
+                     incomplete_courses, gpa)
+                    VALUES (?, 'NONE', 0.00, 0, 0.00)
+                """;
+                PreparedStatement academicStmt = conn.prepareStatement(academicSql);
+                academicStmt.setInt(1, studentDbId);
+                academicStmt.executeUpdate();
+                
+                String auditSql = """
+                    INSERT INTO audit_logs (user_id, action, details, timestamp)
+                    VALUES (?, 'STUDENT_REGISTRATION', ?, NOW())
+                """;
+                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, currentUser.getId());
+                auditStmt.setString(2, "Registered student: " + username + " - " + fullName);
+                auditStmt.executeUpdate();
+                
+                conn.commit();
+                
+                StringBuilder successMsg = new StringBuilder();
+                successMsg.append("✅ Student Registered Successfully!\n\n");
+                successMsg.append("Name: ").append(fullName).append("\n");
+                successMsg.append("Student ID: ").append(username).append("\n");
+                successMsg.append("Department: ").append(department).append("\n");
+                successMsg.append("Year: ").append(year).append("\n");
+                successMsg.append("Phone: ").append(finalPhone).append("\n");
+                if (!email.isEmpty()) {
+                    successMsg.append("Email: ").append(email).append("\n");
+                }
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    successMsg.append("Dormitory: Block ").append(blockNumber)
+                              .append(", Room ").append(dormNumber).append("\n");
+                }
+                successMsg.append("\nStudent can now login with username: ").append(username);
+                
+                showAlert("Registration Successful", successMsg.toString());
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                if (e.getSQLState().equals("23000")) {
+                    showAlert("Error", "Student already exists in the system!");
+                } else {
+                    showAlert("Error", "Registration failed: " + e.getMessage());
+                }
+                e.printStackTrace();
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+
+        } catch (SQLException e) {
+            showAlert("Error", "Database connection failed: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // ==================== OFFICER REGISTRATION WITH REAL-TIME VALIDATION ====================
+    
+    @FXML
+    private void openManageOfficers() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Register New Officer");
+        dialog.setHeaderText("Enter Officer Information");
+        dialog.getDialogPane().setPrefSize(800, 700);
+        
+        ButtonType saveButton = new ButtonType("Register", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        
+        GridPane grid = createOfficerFormWithValidation();
+        content.getChildren().add(grid);
+        
+        dialog.getDialogPane().setContent(content);
+        
+        Button btnSave = (Button) dialog.getDialogPane().lookupButton(saveButton);
+        btnSave.setDisable(true);
+        
+        SimpleBooleanProperty allFieldsValid = new SimpleBooleanProperty(false);
+        setupOfficerValidationListeners(grid, allFieldsValid);
+        btnSave.disableProperty().bind(allFieldsValid.not());
+        
+        btnSave.addEventFilter(ActionEvent.ACTION, event -> {
+            if (!validateOfficerFields(grid)) {
+                event.consume();
+            } else {
+                if (!registerOfficerFromForm(grid)) {
+                    event.consume();
+                }
+            }
+        });
+        
+        Optional<ButtonType> result = dialog.showAndWait();
+        
+        if (result.isPresent() && result.get() == saveButton) {
+            loadAllUsers();
+            loadOfficers();
+        }
+    }
+    
+    private GridPane createOfficerFormWithValidation() {
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(5);
+        grid.setPadding(new Insets(10));
+        
+        int row = 0;
+        
+        // ===== FULL NAME =====
+        TextField txtFullName = new TextField();
+        txtFullName.setPromptText("John Smith");
+        
+        Label lblFullNameHint = new Label("First and last name");
+        lblFullNameHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblFullNameValidation = new Label("Required");
+        lblFullNameValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtFullName.textProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validateFullName(newVal);
+            updateValidationLabel(lblFullNameValidation, result);
+        });
+        
+        grid.add(new Label("Full Name*:"), 0, row);
+        grid.add(txtFullName, 1, row);
+        grid.add(lblFullNameHint, 2, row);
+        row++;
+        grid.add(lblFullNameValidation, 1, row);
+        GridPane.setColumnSpan(lblFullNameValidation, 2);
+        row++;
+        
+        // ===== USERNAME =====
+        TextField txtUsername = new TextField();
+        txtUsername.setPromptText("officer_username");
+        
+        Label lblUsernameHint = new Label("Lowercase letters, numbers, underscores");
+        lblUsernameHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblUsernameValidation = new Label("Required");
+        lblUsernameValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtUsername.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                String lowerVal = newVal.toLowerCase();
+                if (!lowerVal.equals(newVal)) {
+                    txtUsername.setText(lowerVal);
+                }
+            }
+            boolean valid = newVal != null && newVal.matches("^[a-z0-9_]{3,50}$") && !newVal.equals("admin");
+            if (valid) {
+                lblUsernameValidation.setText("Valid ✓");
+                lblUsernameValidation.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            } else {
+                lblUsernameValidation.setText("3-50 chars, lowercase, not 'admin'");
+                lblUsernameValidation.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            }
+        });
+        
+        grid.add(new Label("Username*:"), 0, row);
+        grid.add(txtUsername, 1, row);
+        grid.add(lblUsernameHint, 2, row);
+        row++;
+        grid.add(lblUsernameValidation, 1, row);
+        GridPane.setColumnSpan(lblUsernameValidation, 2);
+        row++;
+        
+        // ===== PASSWORD =====
+        PasswordField txtPassword = new PasswordField();
+        txtPassword.setPromptText("Min 8 chars, uppercase, lowercase, number");
+        
+        Label lblPasswordHint = new Label("Min 8 chars, must include uppercase, lowercase, number");
+        lblPasswordHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblPasswordValidation = new Label("Required");
+        lblPasswordValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtPassword.textProperty().addListener((obs, oldVal, newVal) -> {
+            boolean valid = newVal != null && newVal.length() >= 8 &&
+                          newVal.matches(".*[A-Z].*") &&
+                          newVal.matches(".*[a-z].*") &&
+                          newVal.matches(".*\\d.*");
+            if (valid) {
+                lblPasswordValidation.setText("Strong ✓");
+                lblPasswordValidation.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            } else {
+                lblPasswordValidation.setText("Min 8 chars, A-Z, a-z, 0-9");
+                lblPasswordValidation.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            }
+        });
+        
+        grid.add(new Label("Password*:"), 0, row);
+        grid.add(txtPassword, 1, row);
+        grid.add(lblPasswordHint, 2, row);
+        row++;
+        grid.add(lblPasswordValidation, 1, row);
+        GridPane.setColumnSpan(lblPasswordValidation, 2);
+        row++;
+        
+        // ===== EMAIL =====
+        TextField txtEmail = new TextField();
+        txtEmail.setPromptText("officer@dbu.edu.et");
+        
+        Label lblEmailHint = new Label("Must be @dbu.edu.et domain");
+        lblEmailHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblEmailValidation = new Label("Required");
+        lblEmailValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtEmail.textProperty().addListener((obs, oldVal, newVal) -> {
+            boolean valid = newVal != null && 
+                          newVal.matches("^[A-Za-z0-9+_.-]+@dbu\\.edu\\.et$");
+            if (valid) {
+                lblEmailValidation.setText("Valid ✓");
+                lblEmailValidation.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            } else {
+                lblEmailValidation.setText("Must end with @dbu.edu.et");
+                lblEmailValidation.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            }
+        });
+        
+        grid.add(new Label("Email*:"), 0, row);
+        grid.add(txtEmail, 1, row);
+        grid.add(lblEmailHint, 2, row);
+        row++;
+        grid.add(lblEmailValidation, 1, row);
+        GridPane.setColumnSpan(lblEmailValidation, 2);
+        row++;
+        
+        // ===== PHONE =====
+        HBox phoneBox = new HBox(5);
+        ComboBox<String> cmbPhonePrefix = new ComboBox<>(FXCollections.observableArrayList("09", "07"));
+        cmbPhonePrefix.setPromptText("Prefix");
+        cmbPhonePrefix.setPrefWidth(80);
+        
+        TextField txtPhoneSuffix = new TextField();
+        txtPhoneSuffix.setPromptText("12345678");
+        txtPhoneSuffix.setPrefWidth(150);
+        
+        Label lblPhoneHint = new Label("09 or 07 + 8 digits");
+        lblPhoneHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
+        
+        Label lblPhoneValidation = new Label("Required");
+        lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal.matches("\\d*")) {
+                txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
+            }
+            if (txtPhoneSuffix.getText().length() > 8) {
+                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
+            }
+            
+            ValidationResult result = ValidationHelper.validatePhoneNumber(
+                cmbPhonePrefix.getValue(), newVal);
+            updateValidationLabel(lblPhoneValidation, result);
+        });
+        
+        cmbPhonePrefix.valueProperty().addListener((obs, oldVal, newVal) -> {
+            ValidationResult result = ValidationHelper.validatePhoneNumber(
+                newVal, txtPhoneSuffix.getText());
+            updateValidationLabel(lblPhoneValidation, result);
+        });
+        
+        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
+        
+        grid.add(new Label("Phone*:"), 0, row);
+        grid.add(phoneBox, 1, row);
+        grid.add(lblPhoneHint, 2, row);
+        row++;
+        grid.add(lblPhoneValidation, 1, row);
+        GridPane.setColumnSpan(lblPhoneValidation, 2);
+        row++;
+        
+        // ===== ROLE =====
+        ComboBox<String> cmbRole = new ComboBox<>();
+        cmbRole.setItems(FXCollections.observableArrayList(
+            "LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD"
+        ));
+        cmbRole.setPromptText("Select Role");
+        
+        Label lblRoleValidation = new Label("Required");
+        lblRoleValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        cmbRole.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                lblRoleValidation.setText("Valid ✓");
+                lblRoleValidation.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            } else {
+                lblRoleValidation.setText("Select a role");
+                lblRoleValidation.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            }
+        });
+        
+        grid.add(new Label("Role*:"), 0, row);
+        grid.add(cmbRole, 1, row);
+        row++;
+        grid.add(lblRoleValidation, 1, row);
+        GridPane.setColumnSpan(lblRoleValidation, 2);
+        row++;
+        
+        // ===== DEPARTMENT =====
+        ComboBox<String> cmbDepartment = new ComboBox<>();
+        cmbDepartment.setItems(FXCollections.observableArrayList(
+            "Library", "Cafeteria", "Dormitory", "Registrar Office",
+            "Computer Science", "Software Engineering", "Electrical Engineering",
+            "Mechanical Engineering", "Civil Engineering", "Business Administration"
+        ));
+        cmbDepartment.setPromptText("Select Department");
+        
+        Label lblDeptValidation = new Label("Required");
+        lblDeptValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
+        
+        cmbDepartment.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                lblDeptValidation.setText("Valid ✓");
+                lblDeptValidation.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            } else {
+                lblDeptValidation.setText("Select a department");
+                lblDeptValidation.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            }
+        });
+        
+        grid.add(new Label("Department*:"), 0, row);
+        grid.add(cmbDepartment, 1, row);
+        row++;
+        grid.add(lblDeptValidation, 1, row);
+        GridPane.setColumnSpan(lblDeptValidation, 2);
+        
+        grid.setUserData(new Object[]{
+            txtFullName, txtUsername, txtPassword, txtEmail,
+            cmbPhonePrefix, txtPhoneSuffix, cmbRole, cmbDepartment,
+            lblFullNameValidation, lblUsernameValidation, lblPasswordValidation,
+            lblEmailValidation, lblPhoneValidation, lblRoleValidation, lblDeptValidation
+        });
+        
+        return grid;
+    }
+    
+    private void setupOfficerValidationListeners(GridPane grid, SimpleBooleanProperty allFieldsValid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        Label lblFullNameValidation = (Label) components[8];
+        Label lblUsernameValidation = (Label) components[9];
+        Label lblPasswordValidation = (Label) components[10];
+        Label lblEmailValidation = (Label) components[11];
+        Label lblPhoneValidation = (Label) components[12];
+        Label lblRoleValidation = (Label) components[13];
+        Label lblDeptValidation = (Label) components[14];
+        
+        Runnable validationChecker = () -> {
+            boolean allValid = 
+                lblFullNameValidation.getText().equals("Valid ✓") &&
+                lblUsernameValidation.getText().equals("Valid ✓") &&
+                lblPasswordValidation.getText().equals("Strong ✓") &&
+                lblEmailValidation.getText().equals("Valid ✓") &&
+                lblPhoneValidation.getText().equals("Valid ✓") &&
+                lblRoleValidation.getText().equals("Valid ✓") &&
+                lblDeptValidation.getText().equals("Valid ✓");
+            
+            allFieldsValid.set(allValid);
+        };
+        
+        lblFullNameValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblUsernameValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblPasswordValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblEmailValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblPhoneValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblRoleValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+        lblDeptValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
+    }
+    
+    private boolean validateOfficerFields(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        Label[] validationLabels = new Label[]{
+            (Label) components[8],   // Full Name
+            (Label) components[9],   // Username
+            (Label) components[10],  // Password
+            (Label) components[11],  // Email
+            (Label) components[12],  // Phone
+            (Label) components[13],  // Role
+            (Label) components[14]   // Department
+        };
+        
+        for (Label label : validationLabels) {
+            if (!label.getText().equals("Valid ✓") && !label.getText().equals("Strong ✓")) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private boolean registerOfficerFromForm(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        TextField txtFullName = (TextField) components[0];
+        TextField txtUsername = (TextField) components[1];
+        PasswordField txtPassword = (PasswordField) components[2];
+        TextField txtEmail = (TextField) components[3];
+        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) components[4];
+        TextField txtPhoneSuffix = (TextField) components[5];
+        ComboBox<String> cmbRole = (ComboBox<String>) components[6];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) components[7];
+        
+        String fullName = txtFullName.getText().trim();
+        String username = txtUsername.getText().trim().toLowerCase();
+        String password = txtPassword.getText();
+        String email = txtEmail.getText().trim();
+        String phonePrefix = cmbPhonePrefix.getValue();
+        String phoneSuffix = txtPhoneSuffix.getText().trim();
+        String role = cmbRole.getValue();
+        String department = cmbDepartment.getValue();
+        
+        // Final validation
+        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
+            email.isEmpty() || phonePrefix == null || phoneSuffix.isEmpty() ||
+            role == null || department == null) {
+            showAlert("Validation Error", "All fields are required!");
+            return false;
+        }
+        
+        if (!email.endsWith("@dbu.edu.et")) {
+            showAlert("Validation Error", "Officer email must end with @dbu.edu.et");
+            return false;
+        }
+        
+        if (password.length() < 8 || !password.matches(".*[A-Z].*") ||
+            !password.matches(".*[a-z].*") || !password.matches(".*\\d.*")) {
+            showAlert("Validation Error", "Password must be at least 8 characters with uppercase, lowercase, and number");
+            return false;
+        }
+        
+        String finalPhone = phonePrefix + phoneSuffix;
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String checkSql = "SELECT username, phone, email FROM users WHERE username = ? OR email = ? OR phone = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setString(1, username);
+            checkStmt.setString(2, email);
+            checkStmt.setString(3, finalPhone);
+            
+            ResultSet checkRs = checkStmt.executeQuery();
+            
+            List<String> existingFields = new ArrayList<>();
+            while (checkRs.next()) {
+                if (username.equals(checkRs.getString("username"))) {
+                    existingFields.add("Username '" + username + "'");
+                }
+                if (email.equals(checkRs.getString("email"))) {
+                    existingFields.add("Email '" + email + "'");
+                }
+                if (finalPhone.equals(checkRs.getString("phone"))) {
+                    existingFields.add("Phone number '" + finalPhone + "'");
+                }
+            }
+            
+            if (!existingFields.isEmpty()) {
+                showAlert("Duplicate Found", 
+                    "Cannot register officer. The following already exist:\n" +
+                    String.join("\n", existingFields));
+                return false;
+            }
+            
+            // Check if department already has a head
+            if ("DEPARTMENT_HEAD".equals(role)) {
+                String checkDeptHeadSql = """
+                    SELECT COUNT(*) as head_count 
+                    FROM users 
+                    WHERE role = 'DEPARTMENT_HEAD' AND department = ? AND status = 'ACTIVE'
+                """;
+                PreparedStatement checkDeptHeadStmt = conn.prepareStatement(checkDeptHeadSql);
+                checkDeptHeadStmt.setString(1, department);
+                ResultSet deptHeadRs = checkDeptHeadStmt.executeQuery();
+                
+                if (deptHeadRs.next() && deptHeadRs.getInt("head_count") > 0) {
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Department Head Already Exists");
+                    confirm.setHeaderText("Department Head for " + department);
+                    confirm.setContentText("There is already an active department head for " + department + 
+                                        ".\nDo you want to replace the existing department head?");
+                    
+                    Optional<ButtonType> result = confirm.showAndWait();
+                    if (!result.isPresent() || result.get() != ButtonType.OK) {
+                        return false;
+                    }
+                    
+                    // Deactivate existing department head
+                    String deactivateSql = """
+                        UPDATE users SET status = 'INACTIVE' 
+                        WHERE role = 'DEPARTMENT_HEAD' AND department = ? AND status = 'ACTIVE'
+                    """;
+                    PreparedStatement deactivateStmt = conn.prepareStatement(deactivateSql);
+                    deactivateStmt.setString(1, department);
+                    deactivateStmt.executeUpdate();
+                }
+            }
+
+            String insertSql = """
+                INSERT INTO users (username, password, full_name, role, email, phone, 
+                                  department, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', NOW())
+            """;
+
+            PreparedStatement stmt = conn.prepareStatement(insertSql);
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            stmt.setString(3, fullName);
+            stmt.setString(4, role);
+            stmt.setString(5, email);
+            stmt.setString(6, finalPhone);
+            stmt.setString(7, department);
+
+            int rows = stmt.executeUpdate();
+            
+            if (rows > 0) {
+                // Audit log
+                String auditSql = """
+                    INSERT INTO audit_logs (user_id, action, details, timestamp)
+                    VALUES (?, 'OFFICER_REGISTRATION', ?, NOW())
+                """;
+                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, currentUser.getId());
+                auditStmt.setString(2, "Registered officer: " + username + " - " + fullName + " as " + role);
+                auditStmt.executeUpdate();
+                
+                showAlert("Success", 
+                    "✅ Officer Registered Successfully!\n\n" +
+                    "Name: " + fullName + "\n" +
+                    "Username: " + username + "\n" +
+                    "Role: " + role + "\n" +
+                    "Department: " + department + "\n" +
+                    "Email: " + email + "\n" +
+                    "Phone: " + finalPhone + "\n\n" +
+                    "Default password has been set. Please change it on first login.");
+                
+                return true;
+            } else {
+                showAlert("Error", "Failed to register officer!");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            if (e.getSQLState().equals("23000")) {
+                showAlert("Error", "Officer already exists in the system!");
+            } else {
+                showAlert("Error", "Failed to register officer: " + e.getMessage());
+            }
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // ==================== OTHER EXISTING METHODS ====================
     
     private void allowStudentReapply(User student) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -947,7 +1959,6 @@ public class AdminDashboardController {
             conn.setAutoCommit(false);
             
             try {
-                // 1. Get the latest rejected request ID
                 String getLatestIdSql = """
                     SELECT MAX(id) as latest_id 
                     FROM clearance_requests 
@@ -962,7 +1973,6 @@ public class AdminDashboardController {
                     int latestRequestId = rs.getInt("latest_id");
                     
                     if (latestRequestId > 0) {
-                        // 2. Update the rejected request to allow reapplication
                         String updateRequestSql = """
                             UPDATE clearance_requests 
                             SET can_reapply = TRUE, 
@@ -975,7 +1985,6 @@ public class AdminDashboardController {
                         updateRequestStmt.setInt(1, latestRequestId);
                         int requestUpdated = updateRequestStmt.executeUpdate();
                         
-                        // 3. Clear all existing approvals for this request
                         String clearApprovalsSql = """
                             DELETE FROM clearance_approvals 
                             WHERE request_id = ?
@@ -985,7 +1994,6 @@ public class AdminDashboardController {
                         clearApprovalsStmt.setInt(1, latestRequestId);
                         clearApprovalsStmt.executeUpdate();
                         
-                        // 4. Create new pending approvals based on workflow
                         String workflowSql = """
                             SELECT role FROM workflow_config ORDER BY sequence_order
                             """;
@@ -1008,7 +2016,6 @@ public class AdminDashboardController {
                         
                         insertApprovalStmt.executeBatch();
                         
-                        // 5. Update student's dormitory clearance status if needed
                         String updateDormSql = """
                             UPDATE student_dormitory_credentials 
                             SET clearance_status = 'PENDING'
@@ -1022,14 +2029,11 @@ public class AdminDashboardController {
                         conn.commit();
                         
                         if (requestUpdated > 0) {
-                            // Update the student's status in the UI immediately
                             student.setCanReapply(true);
                             student.setClearanceStatus("🔄 In Progress");
                             
-                            // Refresh the table data
                             refreshStudentTableRows();
                             
-                            // Show success message
                             showAlert("Success", 
                                 student.getFullName() + " can now reapply for clearance!\n\n" +
                                 "Status has been updated to: 🔄 IN PROGRESS\n" +
@@ -1059,960 +2063,13 @@ public class AdminDashboardController {
     }
 
     private void refreshStudentTableRows() {
-        // Refresh the tables to reflect changes
         tableAllStudents.refresh();
         tableRejectedStudents.refresh();
-        
-        // Also reload data to update categorization
         loadAllStudents();
     }
     
-    // ==================== VIEW STUDENT DETAILS ====================
+    // ==================== USER MANAGEMENT ====================
     
-    private void viewStudentDetails(User student) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Student Details");
-        dialog.setHeaderText("Student Information: " + student.getFullName());
-        dialog.getDialogPane().setPrefSize(700, 600);
-        
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            StringBuilder details = new StringBuilder();
-            
-            // ========== BASIC STUDENT INFORMATION ==========
-            details.append("=".repeat(60)).append("\n");
-            details.append("STUDENT INFORMATION\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            details.append(String.format("%-20s: %s\n", "Name", student.getFullName()));
-            details.append(String.format("%-20s: %s\n", "Student ID", student.getUsername()));
-            details.append(String.format("%-20s: %s\n", "System ID", student.getId()));
-            details.append(String.format("%-20s: %s\n", "Department", student.getDepartment()));
-            details.append(String.format("%-20s: %s\n", "Year Level", student.getYearLevel()));
-            details.append(String.format("%-20s: %s\n", "Email", student.getEmail()));
-            details.append(String.format("%-20s: %s\n", "Phone", student.getPhone()));
-            details.append(String.format("%-20s: %s\n", "Account Status", student.getStatus()));
-            details.append(String.format("%-20s: %s\n", "Clearance Status", student.getClearanceStatus()));
-            details.append(String.format("%-20s: %s\n", "Can Reapply", student.isCanReapply() ? "Yes" : "No"));
-            
-            // ========== DORMITORY INFORMATION ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("DORMITORY INFORMATION\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String dormSql = """
-                SELECT block_number, room_number, key_returned, key_return_date,
-                       damage_description, damage_amount, damage_paid, clearance_status,
-                       remarks, last_updated
-                FROM student_dormitory_credentials 
-                WHERE student_id = ?
-                """;
-            
-            PreparedStatement dormPs = conn.prepareStatement(dormSql);
-            dormPs.setInt(1, student.getId());
-            ResultSet dormRs = dormPs.executeQuery();
-            
-            if (dormRs.next()) {
-                details.append(String.format("%-20s: Block %s - Room %s\n", "Location", 
-                    dormRs.getString("block_number"), dormRs.getString("room_number")));
-                details.append(String.format("%-20s: %s\n", "Key Returned", 
-                    dormRs.getBoolean("key_returned") ? "✅ Yes" : "❌ No"));
-                
-                if (dormRs.getDate("key_return_date") != null) {
-                    details.append(String.format("%-20s: %s\n", "Key Return Date", 
-                        dormRs.getDate("key_return_date")));
-                }
-                
-                details.append(String.format("%-20s: %s\n", "Damage Paid", 
-                    dormRs.getBoolean("damage_paid") ? "✅ Yes" : "❌ No"));
-                
-                double damageAmount = dormRs.getDouble("damage_amount");
-                if (damageAmount > 0) {
-                    details.append(String.format("%-20s: $%.2f\n", "Damage Amount", damageAmount));
-                }
-                
-                String damageDesc = dormRs.getString("damage_description");
-                if (damageDesc != null && !damageDesc.isEmpty()) {
-                    details.append(String.format("%-20s: %s\n", "Damage Description", damageDesc));
-                }
-                
-                details.append(String.format("%-20s: %s\n", "Dormitory Status", 
-                    dormRs.getString("clearance_status")));
-                
-                String remarks = dormRs.getString("remarks");
-                if (remarks != null && !remarks.isEmpty()) {
-                    details.append(String.format("%-20s: %s\n", "Remarks", remarks));
-                }
-                
-                if (dormRs.getTimestamp("last_updated") != null) {
-                    details.append(String.format("%-20s: %s\n", "Last Updated", 
-                        dormRs.getTimestamp("last_updated")));
-                }
-            } else {
-                details.append("No dormitory information found.\n");
-                details.append("(Use Edit Dormitory Info to add block and room numbers)\n");
-            }
-            
-            // ========== COURSE INFORMATION ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("COURSE INFORMATION (Recent)\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String courseSql = """
-                SELECT course_code, course_name, grade, credits, semester, academic_year
-                FROM student_courses 
-                WHERE student_id = ?
-                ORDER BY academic_year DESC, semester DESC
-                LIMIT 10
-                """;
-            
-            PreparedStatement coursePs = conn.prepareStatement(courseSql);
-            coursePs.setInt(1, student.getId());
-            ResultSet courseRs = coursePs.executeQuery();
-            
-            int courseCount = 0;
-            double totalCredits = 0;
-            double totalPoints = 0;
-            
-            while (courseRs.next()) {
-                courseCount++;
-                if (courseCount == 1) {
-                    details.append(String.format("%-15s %-40s %-8s %-8s %-10s %-10s\n", 
-                        "Code", "Course Name", "Grade", "Credits", "Semester", "Year"));
-                    details.append("-".repeat(91)).append("\n");
-                }
-                
-                String grade = courseRs.getString("grade");
-                int credits = courseRs.getInt("credits");
-                totalCredits += credits;
-                
-                // Convert grade to points (simplified)
-                double gradePoints = 0;
-                if (grade != null) {
-                    switch (grade.toUpperCase()) {
-                        case "A": gradePoints = 4.0; break;
-                        case "A-": gradePoints = 3.7; break;
-                        case "B+": gradePoints = 3.3; break;
-                        case "B": gradePoints = 3.0; break;
-                        case "B-": gradePoints = 2.7; break;
-                        case "C+": gradePoints = 2.3; break;
-                        case "C": gradePoints = 2.0; break;
-                        case "C-": gradePoints = 1.7; break;
-                        case "D": gradePoints = 1.0; break;
-                        default: gradePoints = 0;
-                    }
-                }
-                totalPoints += gradePoints * credits;
-                
-                details.append(String.format("%-15s %-40s %-8s %-8d %-10s %-10s\n", 
-                    courseRs.getString("course_code"),
-                    truncateString(courseRs.getString("course_name"), 40),
-                    grade,
-                    credits,
-                    courseRs.getString("semester"),
-                    courseRs.getString("academic_year")));
-            }
-            
-            if (courseCount > 0 && totalCredits > 0) {
-                double cgpa = totalPoints / totalCredits;
-                details.append("\n");
-                details.append(String.format("Recent CGPA (from shown courses): %.2f\n", cgpa));
-                details.append(String.format("Total Credits (shown): %.0f\n", totalCredits));
-            }
-            
-            if (courseCount == 0) {
-                details.append("No course information found.\n");
-            } else if (courseCount == 10) {
-                details.append("\n(Showing 10 most recent courses)\n");
-            }
-            
-            // ========== CLEARANCE HISTORY ==========
-            details.append("\n").append("=".repeat(60)).append("\n");
-            details.append("CLEARANCE HISTORY\n");
-            details.append("=".repeat(60)).append("\n\n");
-            
-            String historySql = """
-                SELECT 
-                    cr.id,
-                    cr.request_date,
-                    cr.status,
-                    cr.completion_date,
-                    cr.can_reapply,
-                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status) ORDER BY ca.officer_role) as approvals
-                FROM clearance_requests cr
-                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
-                WHERE cr.student_id = ?
-                GROUP BY cr.id
-                ORDER BY cr.request_date DESC
-                """;
-            
-            PreparedStatement historyPs = conn.prepareStatement(historySql);
-            historyPs.setInt(1, student.getId());
-            ResultSet historyRs = historyPs.executeQuery();
-            
-            int requestCount = 0;
-            
-            while (historyRs.next()) {
-                requestCount++;
-                details.append(String.format("Request #%d:\n", requestCount));
-                details.append(String.format("  Request ID: %d\n", historyRs.getInt("id")));
-                details.append(String.format("  Date: %s\n", historyRs.getTimestamp("request_date")));
-                details.append(String.format("  Status: %s\n", historyRs.getString("status")));
-                
-                if (historyRs.getTimestamp("completion_date") != null) {
-                    details.append(String.format("  Completed: %s\n", historyRs.getTimestamp("completion_date")));
-                }
-                
-                details.append(String.format("  Can Reapply: %s\n", 
-                    historyRs.getBoolean("can_reapply") ? "Yes" : "No"));
-                
-                String approvals = historyRs.getString("approvals");
-                if (approvals != null) {
-                    details.append("  Department Approvals:\n");
-                    String[] approvalList = approvals.split(",");
-                    for (String approval : approvalList) {
-                        String[] parts = approval.trim().split(":");
-                        if (parts.length == 2) {
-                            String dept = parts[0].trim();
-                            String status = parts[1].trim();
-                            
-                            String statusIcon = "❌";
-                            if (status.equals("APPROVED")) statusIcon = "✅";
-                            else if (status.equals("PENDING")) statusIcon = "⏳";
-                            
-                            details.append(String.format("    %s %s: %s\n", statusIcon, dept, status));
-                        }
-                    }
-                }
-                details.append("\n");
-            }
-            
-            if (requestCount == 0) {
-                details.append("No clearance requests found.\n");
-            } else {
-                details.append(String.format("Total Requests: %d\n", requestCount));
-            }
-            
-            // ========== CREATE TEXT AREA WITH SCROLLING ==========
-            TextArea textArea = new TextArea(details.toString());
-            textArea.setEditable(false);
-            textArea.setWrapText(true);
-            textArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 12px;");
-            
-            ScrollPane scrollPane = new ScrollPane(textArea);
-            scrollPane.setFitToWidth(true);
-            scrollPane.setFitToHeight(true);
-            scrollPane.setPrefSize(680, 550);
-            
-            // Add buttons for actions
-            ButtonType editDormButton = new ButtonType("Edit Dormitory Info");
-            ButtonType viewFullReport = new ButtonType("Full Report");
-            dialog.getDialogPane().getButtonTypes().addAll(editDormButton, viewFullReport, ButtonType.CLOSE);
-            
-            dialog.getDialogPane().setContent(scrollPane);
-            
-            dialog.showAndWait().ifPresent(buttonType -> {
-                if (buttonType == editDormButton) {
-                    editStudentDormitoryInfo(student);
-                } else if (buttonType == viewFullReport) {
-                    generateStudentFullReport(student);
-                }
-            });
-            
-        } catch (Exception e) {
-            showAlert("Error", "Failed to load student details: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // Helper method to truncate long strings
-    private String truncateString(String str, int maxLength) {
-        if (str == null) return "";
-        if (str.length() <= maxLength) return str;
-        return str.substring(0, maxLength - 3) + "...";
-    }
-
-    // Method to generate a full PDF report (optional)
-    private void generateStudentFullReport(User student) {
-        showAlert("Info", "Full report generation would be implemented here.\n\n" +
-                         "Student: " + student.getFullName() + "\n" +
-                         "ID: " + student.getUsername() + "\n" +
-                         "This feature would generate a PDF with all student information.");
-    }
-
-    // Method to edit dormitory info from details view
-    private void editStudentDormitoryInfo(User student) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Edit Dormitory Information");
-        dialog.setHeaderText("Update Dormitory Details for " + student.getFullName());
-        
-        ButtonType saveButton = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
-        
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
-        
-        TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("Block Letter (A, B, C...)");
-        
-        TextField txtRoomNumber = new TextField();
-        txtRoomNumber.setPromptText("Room Number (101, 205...)");
-        
-        CheckBox chkKeyReturned = new CheckBox("Key Returned");
-        DatePicker dpKeyReturnDate = new DatePicker();
-        dpKeyReturnDate.setPromptText("Key return date");
-        
-        TextArea txtDamageDescription = new TextArea();
-        txtDamageDescription.setPromptText("Damage description");
-        txtDamageDescription.setPrefRowCount(3);
-        
-        TextField txtDamageAmount = new TextField();
-        txtDamageAmount.setPromptText("Damage amount ($)");
-        
-        CheckBox chkDamagePaid = new CheckBox("Damage Paid");
-        
-        // Load existing data
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = """
-                SELECT block_number, room_number, key_returned, key_return_date,
-                       damage_description, damage_amount, damage_paid
-                FROM student_dormitory_credentials 
-                WHERE student_id = ?
-                """;
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, student.getId());
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                txtBlockNumber.setText(rs.getString("block_number"));
-                txtRoomNumber.setText(rs.getString("room_number"));
-                chkKeyReturned.setSelected(rs.getBoolean("key_returned"));
-                
-                if (rs.getDate("key_return_date") != null) {
-                    dpKeyReturnDate.setValue(rs.getDate("key_return_date").toLocalDate());
-                }
-                
-                txtDamageDescription.setText(rs.getString("damage_description"));
-                txtDamageAmount.setText(String.valueOf(rs.getDouble("damage_amount")));
-                chkDamagePaid.setSelected(rs.getBoolean("damage_paid"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
-        // Enable/disable date picker based on checkbox
-        chkKeyReturned.setOnAction(e -> {
-            dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
-            if (!chkKeyReturned.isSelected()) {
-                dpKeyReturnDate.setValue(null);
-            }
-        });
-        dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
-        
-        grid.add(new Label("Block Number*:"), 0, 0);
-        grid.add(txtBlockNumber, 1, 0);
-        grid.add(new Label("Room Number*:"), 0, 1);
-        grid.add(txtRoomNumber, 1, 1);
-        grid.add(new Label("Key Status:"), 0, 2);
-        grid.add(chkKeyReturned, 1, 2);
-        grid.add(new Label("Key Return Date:"), 0, 3);
-        grid.add(dpKeyReturnDate, 1, 3);
-        grid.add(new Label("Damage Description:"), 0, 4);
-        grid.add(txtDamageDescription, 1, 4);
-        grid.add(new Label("Damage Amount:"), 0, 5);
-        grid.add(txtDamageAmount, 1, 5);
-        grid.add(new Label("Damage Status:"), 0, 6);
-        grid.add(chkDamagePaid, 1, 6);
-        
-        dialog.getDialogPane().setContent(grid);
-        
-        dialog.setResultConverter(buttonType -> {
-            if (buttonType == saveButton) {
-                String blockNum = txtBlockNumber.getText().trim();
-                String roomNum = txtRoomNumber.getText().trim();
-                
-                if (blockNum.isEmpty() || roomNum.isEmpty()) {
-                    showAlert("Error", "Both block and room numbers are required!");
-                    return null;
-                }
-                
-                try {
-                    double damageAmount = 0;
-                    if (!txtDamageAmount.getText().trim().isEmpty()) {
-                        damageAmount = Double.parseDouble(txtDamageAmount.getText().trim());
-                    }
-                    
-                    if (updateDormitoryInfoFull(student.getId(), blockNum, roomNum,
-                            chkKeyReturned.isSelected(), dpKeyReturnDate.getValue(),
-                            txtDamageDescription.getText().trim(), damageAmount,
-                            chkDamagePaid.isSelected())) {
-                        
-                        showAlert("Success", "Dormitory information updated successfully!");
-                        return ButtonType.OK;
-                    }
-                } catch (NumberFormatException e) {
-                    showAlert("Error", "Please enter a valid damage amount!");
-                    return null;
-                }
-            }
-            return null;
-        });
-        
-        dialog.showAndWait().ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                // Refresh student details view if open
-                viewStudentDetails(student);
-            }
-        });
-    }
-
-    private boolean updateDormitoryInfoFull(int studentId, String blockNumber, String roomNumber,
-                                           boolean keyReturned, LocalDate keyReturnDate,
-                                           String damageDescription, double damageAmount,
-                                           boolean damagePaid) {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if record exists
-            String checkSql = "SELECT COUNT(*) FROM student_dormitory_credentials WHERE student_id = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-            checkStmt.setInt(1, studentId);
-            ResultSet rs = checkStmt.executeQuery();
-            rs.next();
-            
-            String sql;
-            PreparedStatement stmt;
-            
-            if (rs.getInt(1) > 0) {
-                // Update existing record
-                sql = """
-                    UPDATE student_dormitory_credentials 
-                    SET block_number = ?, room_number = ?, 
-                        key_returned = ?, key_return_date = ?,
-                        damage_description = ?, damage_amount = ?, damage_paid = ?,
-                        last_updated = NOW()
-                    WHERE student_id = ?
-                    """;
-                stmt = conn.prepareStatement(sql);
-                stmt.setString(1, blockNumber);
-                stmt.setString(2, roomNumber);
-                stmt.setBoolean(3, keyReturned);
-                stmt.setDate(4, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
-                stmt.setString(5, damageDescription.isEmpty() ? null : damageDescription);
-                stmt.setDouble(6, damageAmount);
-                stmt.setBoolean(7, damagePaid);
-                stmt.setInt(8, studentId);
-            } else {
-                // Insert new record
-                sql = """
-                    INSERT INTO student_dormitory_credentials 
-                    (student_id, block_number, room_number, 
-                     key_returned, key_return_date,
-                     damage_description, damage_amount, damage_paid,
-                     clearance_status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
-                    """;
-                stmt = conn.prepareStatement(sql);
-                stmt.setInt(1, studentId);
-                stmt.setString(2, blockNumber);
-                stmt.setString(3, roomNumber);
-                stmt.setBoolean(4, keyReturned);
-                stmt.setDate(5, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
-                stmt.setString(6, damageDescription.isEmpty() ? null : damageDescription);
-                stmt.setDouble(7, damageAmount);
-                stmt.setBoolean(8, damagePaid);
-            }
-            
-            boolean success = stmt.executeUpdate() > 0;
-            
-            // Update clearance status based on conditions
-            if (success) {
-                String statusUpdateSql = """
-                    UPDATE student_dormitory_credentials 
-                    SET clearance_status = CASE 
-                        WHEN key_returned = TRUE AND damage_paid = TRUE THEN 'APPROVED'
-                        ELSE 'PENDING'
-                    END
-                    WHERE student_id = ?
-                    """;
-                PreparedStatement statusStmt = conn.prepareStatement(statusUpdateSql);
-                statusStmt.setInt(1, studentId);
-                statusStmt.executeUpdate();
-            }
-            
-            return success;
-            
-        } catch (Exception e) {
-            showAlert("Error", "Failed to update dormitory info: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    // ==================== ORIGINAL METHODS ====================
-    
-    // STUDENT REGISTRATION
-    @FXML
-    private void openRegisterStudent() {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Register New Student");
-        dialog.setHeaderText("Enter Student Information");
-        DialogPane pane = new DialogPane();
-        dialog.setDialogPane(pane);
-        ButtonType registerButton = new ButtonType("Register", ButtonBar.ButtonData.OK_DONE);
-        pane.getButtonTypes().addAll(registerButton, ButtonType.CANCEL);
-
-        GridPane grid = createStudentForm();
-        pane.setContent(grid);
-        Button btnRegister = (Button) pane.lookupButton(registerButton);
-        btnRegister.addEventFilter(ActionEvent.ACTION, event -> {
-            boolean valid = registerStudentFromForm(grid);
-            if (!valid) {
-                event.consume();
-            }
-        });
-        Optional<ButtonType> result = dialog.showAndWait();
-
-        if (result.isPresent() && result.get() == registerButton) {
-            loadAllUsers();
-            showAlert("Success", "Student registered successfully!");
-        }
-    }
-
-    private GridPane createStudentForm() {
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
-
-        TextField txtStudentId = new TextField();
-        txtStudentId.setPromptText("DBU1601374");
-        txtStudentId.setText("DBU");
-
-        TextField txtUsername = new TextField();
-        txtUsername.setPromptText("dbu1601374");
-        txtUsername.setText("dbu");
-        txtUsername.setEditable(false);
-
-        txtStudentId.textProperty().addListener((obs, oldText, newText) -> {
-            if (!newText.startsWith("DBU")) {
-                newText = "DBU" + newText.replaceAll("(?i)DBU", "");
-            }
-            String digits = newText.substring(3).replaceAll("[^\\d]", "");
-            if (digits.length() > 7) digits = digits.substring(0, 7);
-            txtStudentId.setText("DBU" + digits);
-            txtStudentId.positionCaret(txtStudentId.getText().length());
-            txtUsername.setText("dbu" + digits);
-        });
-
-        TextField txtFullName = new TextField();
-        txtFullName.setPromptText("Full Name");
-
-        PasswordField txtPassword = new PasswordField();
-        txtPassword.setPromptText("Password");
-
-        TextField txtEmail = new TextField();
-        txtEmail.setPromptText("Email (optional)");
-
-        HBox phoneBox = new HBox(5);
-        ComboBox<String> cmbPhonePrefix = new ComboBox<>();
-        cmbPhonePrefix.getItems().addAll("09", "07");
-        cmbPhonePrefix.setPromptText("Prefix");
-        cmbPhonePrefix.setPrefWidth(80);
-
-        TextField txtPhoneSuffix = new TextField();
-        txtPhoneSuffix.setPromptText("12345678");
-        txtPhoneSuffix.setPrefWidth(150);
-
-        txtPhoneSuffix.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal.matches("\\d*")) txtPhoneSuffix.setText(newVal.replaceAll("[^\\d]", ""));
-            if (txtPhoneSuffix.getText().length() > 8)
-                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
-        });
-
-        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
-
-        ComboBox<String> cmbDepartment = new ComboBox<>();
-        cmbDepartment.getItems().addAll(
-            "Software Engineering", "Computer Science", "Electrical Engineering",
-            "Mechanical Engineering", "Civil Engineering", "Business Administration",
-            "Accounting", "Economics", "Mathematics", "Food Engineering", "Chemistry", "Biology"
-        );
-        cmbDepartment.setPromptText("Select Department");
-
-        ComboBox<String> cmbYear = new ComboBox<>();
-        cmbYear.getItems().addAll("1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year");
-        cmbYear.setPromptText("Select Year");
-        
-        // NEW: Add Block and Dorm Number fields
-        TextField txtBlockNumber = new TextField();
-        txtBlockNumber.setPromptText("e.g., A, B, C");
-        
-        TextField txtDormNumber = new TextField();
-        txtDormNumber.setPromptText("e.g., 101, 205, 301");
-
-        grid.add(new Label("Student ID*:"), 0, 0);
-        grid.add(txtStudentId, 1, 0);
-        grid.add(new Label("Username*:"), 0, 1);
-        grid.add(txtUsername, 1, 1);
-        grid.add(new Label("Full Name*:"), 0, 2);
-        grid.add(txtFullName, 1, 2);
-        grid.add(new Label("Password*:"), 0, 3);
-        grid.add(txtPassword, 1, 3);
-        grid.add(new Label("Email:"), 0, 4);
-        grid.add(txtEmail, 1, 4);
-        grid.add(new Label("Phone*:"), 0, 5);
-        grid.add(phoneBox, 1, 5);
-        grid.add(new Label("Department*:"), 0, 6);
-        grid.add(cmbDepartment, 1, 6);
-        grid.add(new Label("Year Level*:"), 0, 7);
-        grid.add(cmbYear, 1, 7);
-        // NEW: Add block and dorm number fields
-        grid.add(new Label("Block Number:"), 0, 8);
-        grid.add(txtBlockNumber, 1, 8);
-        grid.add(new Label("Dorm/Room Number:"), 0, 9);
-        grid.add(txtDormNumber, 1, 9);
-
-        grid.setUserData(new Object[]{
-            txtStudentId, txtUsername, txtFullName, txtPassword,
-            txtEmail, cmbPhonePrefix, txtPhoneSuffix, cmbDepartment, cmbYear,
-            txtBlockNumber, txtDormNumber
-        });
-
-        return grid;
-    }
-
-    private boolean registerStudentFromForm(GridPane grid) {
-        Object[] fields = (Object[]) grid.getUserData();
-        TextField txtStudentId = (TextField) fields[0];
-        TextField txtUsername = (TextField) fields[1];
-        TextField txtFullName = (TextField) fields[2];
-        PasswordField txtPassword = (PasswordField) fields[3];
-        TextField txtEmail = (TextField) fields[4];
-        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[5];
-        TextField txtPhoneSuffix = (TextField) fields[6];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
-        ComboBox<String> cmbYear = (ComboBox<String>) fields[8];
-        TextField txtBlockNumber = (TextField) fields[9];
-        TextField txtDormNumber = (TextField) fields[10];
-
-        String inputId = txtStudentId.getText().trim();
-        if (!inputId.startsWith("DBU") || inputId.length() != 10) {
-            showAlert("Error", "Student ID must be exactly 7 digits after DBU!");
-            return false;
-        }
-
-        String digits = inputId.substring(3);
-        String studentId = "DBU" + digits;
-        String username = "dbu" + digits;
-
-        String fullName = txtFullName.getText().trim();
-        String password = txtPassword.getText();
-        String email = txtEmail.getText().trim();
-        String department = cmbDepartment.getValue();
-        String year = cmbYear.getValue();
-        String blockNumber = txtBlockNumber.getText().trim();
-        String dormNumber = txtDormNumber.getText().trim();
-
-        String phonePrefix = cmbPhonePrefix.getValue();
-        String phoneSuffix = txtPhoneSuffix.getText().trim();
-
-        if (fullName.isEmpty() || password.isEmpty() ||
-            phonePrefix == null || phoneSuffix.isEmpty() || department == null || year == null) {
-            showAlert("Error", "Please fill all required fields marked with *!");
-            return false;
-        }
-
-        if (!phoneSuffix.matches("^\\d{8}$")) {
-            showAlert("Error", "Phone number suffix must be exactly 8 digits!");
-            return false;
-        }
-
-        if (password.length() < 6) {
-            showAlert("Error", "Password must be at least 6 characters long!");
-            return false;
-        }
-
-        if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            showAlert("Error", "Invalid email format!");
-            return false;
-        }
-
-        String finalPhone = phonePrefix + phoneSuffix;
-
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            // Start transaction
-            conn.setAutoCommit(false);
-            
-            try {
-                // 1. Check for duplicates
-                String checkDuplicate = "SELECT id FROM users WHERE username = ? OR phone = ?";
-                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
-                checkStmt.setString(1, username);
-                checkStmt.setString(2, finalPhone);
-                ResultSet checkRs = checkStmt.executeQuery();
-
-                if (checkRs.next()) {
-                    showAlert("Error", "Username or Phone number already exists!");
-                    conn.rollback();
-                    return false;
-                }
-
-                // 2. Insert user into users table
-                String userSql = """
-                    INSERT INTO users (username, password, full_name, role, email, phone, department, year_level, status)
-                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE')
-                """;
-
-                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
-                userStmt.setString(1, username);
-                userStmt.setString(2, password);
-                userStmt.setString(3, fullName);
-                userStmt.setString(4, email.isEmpty() ? null : email);
-                userStmt.setString(5, finalPhone);
-                userStmt.setString(6, department);
-                userStmt.setString(7, year);
-
-                int userRows = userStmt.executeUpdate();
-                
-                if (userRows <= 0) {
-                    conn.rollback();
-                    return false;
-                }
-                
-                // Get the generated student ID
-                ResultSet generatedKeys = userStmt.getGeneratedKeys();
-                int studentDbId = -1;
-                if (generatedKeys.next()) {
-                    studentDbId = generatedKeys.getInt(1);
-                }
-                
-                // 3. Insert dormitory credentials if block and dorm numbers are provided
-                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
-                    String dormSql = """
-                        INSERT INTO student_dormitory_credentials 
-                        (student_id, block_number, room_number, key_returned, damage_paid, clearance_status)
-                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING')
-                    """;
-                    
-                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
-                    dormStmt.setInt(1, studentDbId);
-                    dormStmt.setString(2, blockNumber);
-                    dormStmt.setString(3, dormNumber);
-                    
-                    dormStmt.executeUpdate();
-                }
-                
-                // Commit transaction
-                conn.commit();
-                return true;
-                
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-
-        } catch (SQLException e) {
-            showAlert("Error", "Registration failed: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    // OFFICER MANAGEMENT
-    @FXML
-    private void openManageOfficers() {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Manage Department Officers");
-        dialog.setHeaderText("Add New Officer");
-        DialogPane pane = dialog.getDialogPane();
-        ButtonType saveButton = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-        pane.getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
-        GridPane grid = createOfficerForm();
-        pane.setContent(grid);
-        Button btnSave = (Button) pane.lookupButton(saveButton);
-        btnSave.addEventFilter(ActionEvent.ACTION, event -> {
-            boolean valid = registerOfficerFromForm(grid);
-            if (!valid) {
-                event.consume();
-            }
-        });
-
-        Optional<ButtonType> result = dialog.showAndWait();
-
-        if (result.isPresent() && result.get() == saveButton) {
-            loadAllUsers();
-            showAlert("Success", "Officer registered successfully!");
-        }
-    }
-
-    private GridPane createOfficerForm() {
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
-
-        TextField txtFullName = new TextField();
-        txtFullName.setPromptText("Full Name");
-        
-        TextField txtUsername = new TextField();
-        txtUsername.setPromptText("Username");
-        
-        PasswordField txtPassword = new PasswordField();
-        txtPassword.setPromptText("Password");
-        
-        TextField txtEmail = new TextField();
-        txtEmail.setPromptText("Email");
-        
-        HBox phoneBox = new HBox(5);
-        ComboBox<String> cmbPhonePrefix = new ComboBox<>();
-        cmbPhonePrefix.getItems().addAll("09", "07");
-        cmbPhonePrefix.setPromptText("Prefix");
-        cmbPhonePrefix.setPrefWidth(80);
-
-        TextField txtPhoneSuffix = new TextField();
-        txtPhoneSuffix.setPromptText("12345678");
-        txtPhoneSuffix.setPrefWidth(150);
-        
-        txtPhoneSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.matches("\\d*")) {
-                txtPhoneSuffix.setText(newValue.replaceAll("[^\\d]", ""));
-            }
-            if (txtPhoneSuffix.getText().length() > 8) {
-                txtPhoneSuffix.setText(txtPhoneSuffix.getText().substring(0, 8));
-            }
-        });
-
-        phoneBox.getChildren().addAll(cmbPhonePrefix, txtPhoneSuffix);
-
-        ComboBox<String> cmbRole = new ComboBox<>();
-        ComboBox<String> cmbDepartment = new ComboBox<>();
-
-        cmbRole.getItems().addAll("LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD");
-        cmbRole.setPromptText("Select Role");
-        
-        cmbDepartment.getItems().addAll(
-            "Library", 
-            "Cafeteria", 
-            "Dormitory", 
-            "Registrar Office", 
-            "Computer Science",
-            "Software Engineering",
-            "Electrical Engineering",
-            "Mechanical Engineering",
-            "Civil Engineering",
-            "Business Administration"
-        );
-        cmbDepartment.setPromptText("Select Department");
-
-        grid.add(new Label("Full Name*:"), 0, 0);
-        grid.add(txtFullName, 1, 0);
-        grid.add(new Label("Username*:"), 0, 1);
-        grid.add(txtUsername, 1, 1);
-        grid.add(new Label("Password*:"), 0, 2);
-        grid.add(txtPassword, 1, 2);
-        grid.add(new Label("Email:"), 0, 3);
-        grid.add(txtEmail, 1, 3);
-        
-        grid.add(new Label("Phone*:"), 0, 4);
-        grid.add(phoneBox, 1, 4);
-        
-        grid.add(new Label("Role*:"), 0, 5);
-        grid.add(cmbRole, 1, 5);
-        grid.add(new Label("Department*:"), 0, 6);
-        grid.add(cmbDepartment, 1, 6);
-
-        grid.setUserData(new Object[]{
-            txtFullName, txtUsername, txtPassword, txtEmail, 
-            cmbPhonePrefix, txtPhoneSuffix, cmbRole, cmbDepartment
-        });
-
-        return grid;
-    }
-
-    private boolean registerOfficerFromForm(GridPane grid) {
-        Object[] fields = (Object[]) grid.getUserData();
-        TextField txtFullName = (TextField) fields[0];
-        TextField txtUsername = (TextField) fields[1];
-        PasswordField txtPassword = (PasswordField) fields[2];
-        TextField txtEmail = (TextField) fields[3];
-
-        ComboBox<String> cmbPhonePrefix = (ComboBox<String>) fields[4];
-        TextField txtPhoneSuffix = (TextField) fields[5];
-
-        ComboBox<String> cmbRole = (ComboBox<String>) fields[6];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) fields[7];
-
-        String fullName = txtFullName.getText().trim();
-        String username = txtUsername.getText().trim();
-        String password = txtPassword.getText();
-        String email = txtEmail.getText().trim();
-        String role = cmbRole.getValue();
-        String department = cmbDepartment.getValue();
-
-        String phonePrefix = cmbPhonePrefix.getValue();
-        String phoneSuffix = txtPhoneSuffix.getText().trim();
-
-        if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
-            role == null || department == null || phonePrefix == null || phoneSuffix.isEmpty()) {
-            showAlert("Error", "Please fill all required fields!");
-            return false;
-        }
-
-        if (!phoneSuffix.matches("^\\d{8}$")) {
-            showAlert("Error", "Phone number suffix must be exactly 8 digits!");
-            return false;
-        }
-
-        if (password.length() < 6) {
-            showAlert("Error", "Password must be at least 6 characters long!");
-            return false;
-        }
-
-        String finalPhone = phonePrefix + phoneSuffix;
-
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String checkSql = "SELECT username, phone FROM users WHERE username = ? OR phone = ?";
-            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-            checkStmt.setString(1, username);
-            checkStmt.setString(2, finalPhone);
-
-            ResultSet checkRs = checkStmt.executeQuery();
-
-            if (checkRs.next()) {
-                if (username.equals(checkRs.getString("username"))) {
-                    showAlert("Error", "Username '" + username + "' already exists!");
-                } else {
-                    showAlert("Error", "Phone number '" + finalPhone + "' already exists!");
-                }
-                return false;
-            }
-
-            String insertSql = """
-                INSERT INTO users (username, password, full_name, role, email, phone, department, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
-            """;
-
-            PreparedStatement stmt = conn.prepareStatement(insertSql);
-            stmt.setString(1, username);
-            stmt.setString(2, password);
-            stmt.setString(3, fullName);
-            stmt.setString(4, role);
-            stmt.setString(5, email.isEmpty() ? null : email);
-            stmt.setString(6, finalPhone);
-            stmt.setString(7, department);
-
-            int rows = stmt.executeUpdate();
-            return rows > 0;
-
-        } catch (SQLException e) {
-            showAlert("Error", "Failed to register officer: " + e.getMessage());
-            return false;
-        }
-    }
-    
-    // USER MANAGEMENT
     @FXML
     private void resetUserPassword() {
         User selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
@@ -2099,7 +2156,476 @@ public class AdminDashboardController {
         }
     }
     
-    // WORKFLOW MANAGEMENT
+    // ==================== VIEW STUDENT DETAILS ====================
+    
+    private void viewStudentDetails(User student) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Student Details");
+        dialog.setHeaderText("Student Information: " + student.getFullName());
+        dialog.getDialogPane().setPrefSize(700, 600);
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            StringBuilder details = new StringBuilder();
+            
+            details.append("=".repeat(60)).append("\n");
+            details.append("STUDENT INFORMATION\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            details.append(String.format("%-20s: %s\n", "Name", student.getFullName()));
+            details.append(String.format("%-20s: %s\n", "Student ID", student.getUsername()));
+            details.append(String.format("%-20s: %s\n", "System ID", student.getId()));
+            details.append(String.format("%-20s: %s\n", "Department", student.getDepartment()));
+            details.append(String.format("%-20s: %s\n", "Year Level", student.getYearLevel()));
+            details.append(String.format("%-20s: %s\n", "Email", student.getEmail()));
+            details.append(String.format("%-20s: %s\n", "Phone", student.getPhone()));
+            details.append(String.format("%-20s: %s\n", "Account Status", student.getStatus()));
+            details.append(String.format("%-20s: %s\n", "Clearance Status", student.getClearanceStatus()));
+            details.append(String.format("%-20s: %s\n", "Can Reapply", student.isCanReapply() ? "Yes" : "No"));
+            
+            // DORMITORY INFORMATION
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("DORMITORY INFORMATION\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String dormSql = """
+                SELECT block_number, room_number, key_returned, key_return_date,
+                       damage_description, damage_amount, damage_paid, clearance_status,
+                       remarks, last_updated
+                FROM student_dormitory_credentials 
+                WHERE student_id = ?
+                """;
+            
+            PreparedStatement dormPs = conn.prepareStatement(dormSql);
+            dormPs.setInt(1, student.getId());
+            ResultSet dormRs = dormPs.executeQuery();
+            
+            if (dormRs.next()) {
+                details.append(String.format("%-20s: Block %s - Room %s\n", "Location", 
+                    dormRs.getString("block_number"), dormRs.getString("room_number")));
+                details.append(String.format("%-20s: %s\n", "Key Returned", 
+                    dormRs.getBoolean("key_returned") ? "✅ Yes" : "❌ No"));
+                
+                if (dormRs.getDate("key_return_date") != null) {
+                    details.append(String.format("%-20s: %s\n", "Key Return Date", 
+                        dormRs.getDate("key_return_date")));
+                }
+                
+                details.append(String.format("%-20s: %s\n", "Damage Paid", 
+                    dormRs.getBoolean("damage_paid") ? "✅ Yes" : "❌ No"));
+                
+                double damageAmount = dormRs.getDouble("damage_amount");
+                if (damageAmount > 0) {
+                    details.append(String.format("%-20s: $%.2f\n", "Damage Amount", damageAmount));
+                }
+                
+                String damageDesc = dormRs.getString("damage_description");
+                if (damageDesc != null && !damageDesc.isEmpty()) {
+                    details.append(String.format("%-20s: %s\n", "Damage Description", damageDesc));
+                }
+                
+                details.append(String.format("%-20s: %s\n", "Dormitory Status", 
+                    dormRs.getString("clearance_status")));
+                
+                String remarks = dormRs.getString("remarks");
+                if (remarks != null && !remarks.isEmpty()) {
+                    details.append(String.format("%-20s: %s\n", "Remarks", remarks));
+                }
+                
+                if (dormRs.getTimestamp("last_updated") != null) {
+                    details.append(String.format("%-20s: %s\n", "Last Updated", 
+                        dormRs.getTimestamp("last_updated")));
+                }
+            } else {
+                details.append("No dormitory information found.\n");
+                details.append("(Use Edit Dormitory Info to add block and room numbers)\n");
+            }
+            
+            // COURSE INFORMATION
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("COURSE INFORMATION (Recent)\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String courseSql = """
+                SELECT course_code, course_name, grade, credits, semester, academic_year
+                FROM student_courses 
+                WHERE student_id = ?
+                ORDER BY academic_year DESC, semester DESC
+                LIMIT 10
+                """;
+            
+            PreparedStatement coursePs = conn.prepareStatement(courseSql);
+            coursePs.setInt(1, student.getId());
+            ResultSet courseRs = coursePs.executeQuery();
+            
+            int courseCount = 0;
+            double totalCredits = 0;
+            double totalPoints = 0;
+            
+            while (courseRs.next()) {
+                courseCount++;
+                if (courseCount == 1) {
+                    details.append(String.format("%-15s %-40s %-8s %-8s %-10s %-10s\n", 
+                        "Code", "Course Name", "Grade", "Credits", "Semester", "Year"));
+                    details.append("-".repeat(91)).append("\n");
+                }
+                
+                String grade = courseRs.getString("grade");
+                int credits = courseRs.getInt("credits");
+                totalCredits += credits;
+                
+                double gradePoints = 0;
+                if (grade != null) {
+                    switch (grade.toUpperCase()) {
+                        case "A": gradePoints = 4.0; break;
+                        case "A-": gradePoints = 3.7; break;
+                        case "B+": gradePoints = 3.3; break;
+                        case "B": gradePoints = 3.0; break;
+                        case "B-": gradePoints = 2.7; break;
+                        case "C+": gradePoints = 2.3; break;
+                        case "C": gradePoints = 2.0; break;
+                        case "C-": gradePoints = 1.7; break;
+                        case "D": gradePoints = 1.0; break;
+                        default: gradePoints = 0;
+                    }
+                }
+                totalPoints += gradePoints * credits;
+                
+                details.append(String.format("%-15s %-40s %-8s %-8d %-10s %-10s\n", 
+                    courseRs.getString("course_code"),
+                    truncateString(courseRs.getString("course_name"), 40),
+                    grade,
+                    credits,
+                    courseRs.getString("semester"),
+                    courseRs.getString("academic_year")));
+            }
+            
+            if (courseCount > 0 && totalCredits > 0) {
+                double cgpa = totalPoints / totalCredits;
+                details.append("\n");
+                details.append(String.format("Recent CGPA (from shown courses): %.2f\n", cgpa));
+                details.append(String.format("Total Credits (shown): %.0f\n", totalCredits));
+            }
+            
+            if (courseCount == 0) {
+                details.append("No course information found.\n");
+            } else if (courseCount == 10) {
+                details.append("\n(Showing 10 most recent courses)\n");
+            }
+            
+            // CLEARANCE HISTORY
+            details.append("\n").append("=".repeat(60)).append("\n");
+            details.append("CLEARANCE HISTORY\n");
+            details.append("=".repeat(60)).append("\n\n");
+            
+            String historySql = """
+                SELECT 
+                    cr.id,
+                    cr.request_date,
+                    cr.status,
+                    cr.completion_date,
+                    cr.can_reapply,
+                    GROUP_CONCAT(CONCAT(ca.officer_role, ': ', ca.status) ORDER BY ca.officer_role) as approvals
+                FROM clearance_requests cr
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id
+                WHERE cr.student_id = ?
+                GROUP BY cr.id
+                ORDER BY cr.request_date DESC
+                """;
+            
+            PreparedStatement historyPs = conn.prepareStatement(historySql);
+            historyPs.setInt(1, student.getId());
+            ResultSet historyRs = historyPs.executeQuery();
+            
+            int requestCount = 0;
+            
+            while (historyRs.next()) {
+                requestCount++;
+                details.append(String.format("Request #%d:\n", requestCount));
+                details.append(String.format("  Request ID: %d\n", historyRs.getInt("id")));
+                details.append(String.format("  Date: %s\n", historyRs.getTimestamp("request_date")));
+                details.append(String.format("  Status: %s\n", historyRs.getString("status")));
+                
+                if (historyRs.getTimestamp("completion_date") != null) {
+                    details.append(String.format("  Completed: %s\n", historyRs.getTimestamp("completion_date")));
+                }
+                
+                details.append(String.format("  Can Reapply: %s\n", 
+                    historyRs.getBoolean("can_reapply") ? "Yes" : "No"));
+                
+                String approvals = historyRs.getString("approvals");
+                if (approvals != null) {
+                    details.append("  Department Approvals:\n");
+                    String[] approvalList = approvals.split(",");
+                    for (String approval : approvalList) {
+                        String[] parts = approval.trim().split(":");
+                        if (parts.length == 2) {
+                            String dept = parts[0].trim();
+                            String status = parts[1].trim();
+                            
+                            String statusIcon = "❌";
+                            if (status.equals("APPROVED")) statusIcon = "✅";
+                            else if (status.equals("PENDING")) statusIcon = "⏳";
+                            
+                            details.append(String.format("    %s %s: %s\n", statusIcon, dept, status));
+                        }
+                    }
+                }
+                details.append("\n");
+            }
+            
+            if (requestCount == 0) {
+                details.append("No clearance requests found.\n");
+            } else {
+                details.append(String.format("Total Requests: %d\n", requestCount));
+            }
+            
+            TextArea textArea = new TextArea(details.toString());
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setStyle("-fx-font-family: 'Monospaced'; -fx-font-size: 12px;");
+            
+            ScrollPane scrollPane = new ScrollPane(textArea);
+            scrollPane.setFitToWidth(true);
+            scrollPane.setFitToHeight(true);
+            scrollPane.setPrefSize(680, 550);
+            
+            ButtonType editDormButton = new ButtonType("Edit Dormitory Info");
+            ButtonType viewFullReport = new ButtonType("Full Report");
+            dialog.getDialogPane().getButtonTypes().addAll(editDormButton, viewFullReport, ButtonType.CLOSE);
+            
+            dialog.getDialogPane().setContent(scrollPane);
+            
+            dialog.showAndWait().ifPresent(buttonType -> {
+                if (buttonType == editDormButton) {
+                    editStudentDormitoryInfo(student);
+                } else if (buttonType == viewFullReport) {
+                    generateStudentFullReport(student);
+                }
+            });
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load student details: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private String truncateString(String str, int maxLength) {
+        if (str == null) return "";
+        if (str.length() <= maxLength) return str;
+        return str.substring(0, maxLength - 3) + "...";
+    }
+
+    private void generateStudentFullReport(User student) {
+        showAlert("Info", "Full report generation would be implemented here.\n\n" +
+                         "Student: " + student.getFullName() + "\n" +
+                         "ID: " + student.getUsername() + "\n" +
+                         "This feature would generate a PDF with all student information.");
+    }
+
+    private void editStudentDormitoryInfo(User student) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Edit Dormitory Information");
+        dialog.setHeaderText("Update Dormitory Details for " + student.getFullName());
+        
+        ButtonType saveButton = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButton, ButtonType.CANCEL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+        
+        TextField txtBlockNumber = new TextField();
+        txtBlockNumber.setPromptText("Block number (1-10)");
+        
+        TextField txtRoomNumber = new TextField();
+        txtRoomNumber.setPromptText("Room number (100-4999)");
+        
+        CheckBox chkKeyReturned = new CheckBox("Key Returned");
+        DatePicker dpKeyReturnDate = new DatePicker();
+        dpKeyReturnDate.setPromptText("Key return date");
+        
+        TextArea txtDamageDescription = new TextArea();
+        txtDamageDescription.setPromptText("Damage description");
+        txtDamageDescription.setPrefRowCount(3);
+        
+        TextField txtDamageAmount = new TextField();
+        txtDamageAmount.setPromptText("Damage amount ($)");
+        
+        CheckBox chkDamagePaid = new CheckBox("Damage Paid");
+        
+        // Load existing data
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT block_number, room_number, key_returned, key_return_date,
+                       damage_description, damage_amount, damage_paid
+                FROM student_dormitory_credentials 
+                WHERE student_id = ?
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, student.getId());
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                txtBlockNumber.setText(rs.getString("block_number"));
+                txtRoomNumber.setText(rs.getString("room_number"));
+                chkKeyReturned.setSelected(rs.getBoolean("key_returned"));
+                
+                if (rs.getDate("key_return_date") != null) {
+                    dpKeyReturnDate.setValue(rs.getDate("key_return_date").toLocalDate());
+                }
+                
+                txtDamageDescription.setText(rs.getString("damage_description"));
+                txtDamageAmount.setText(String.valueOf(rs.getDouble("damage_amount")));
+                chkDamagePaid.setSelected(rs.getBoolean("damage_paid"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        
+        chkKeyReturned.setOnAction(e -> {
+            dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
+            if (!chkKeyReturned.isSelected()) {
+                dpKeyReturnDate.setValue(null);
+            }
+        });
+        dpKeyReturnDate.setDisable(!chkKeyReturned.isSelected());
+        
+        grid.add(new Label("Block Number*:"), 0, 0);
+        grid.add(txtBlockNumber, 1, 0);
+        grid.add(new Label("Room Number*:"), 0, 1);
+        grid.add(txtRoomNumber, 1, 1);
+        grid.add(new Label("Key Status:"), 0, 2);
+        grid.add(chkKeyReturned, 1, 2);
+        grid.add(new Label("Key Return Date:"), 0, 3);
+        grid.add(dpKeyReturnDate, 1, 3);
+        grid.add(new Label("Damage Description:"), 0, 4);
+        grid.add(txtDamageDescription, 1, 4);
+        grid.add(new Label("Damage Amount:"), 0, 5);
+        grid.add(txtDamageAmount, 1, 5);
+        grid.add(new Label("Damage Status:"), 0, 6);
+        grid.add(chkDamagePaid, 1, 6);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType == saveButton) {
+                String blockNum = txtBlockNumber.getText().trim();
+                String roomNum = txtRoomNumber.getText().trim();
+                
+                if (blockNum.isEmpty() || roomNum.isEmpty()) {
+                    showAlert("Error", "Both block and room numbers are required!");
+                    return null;
+                }
+                
+                try {
+                    double damageAmount = 0;
+                    if (!txtDamageAmount.getText().trim().isEmpty()) {
+                        damageAmount = Double.parseDouble(txtDamageAmount.getText().trim());
+                    }
+                    
+                    if (updateDormitoryInfoFull(student.getId(), blockNum, roomNum,
+                            chkKeyReturned.isSelected(), dpKeyReturnDate.getValue(),
+                            txtDamageDescription.getText().trim(), damageAmount,
+                            chkDamagePaid.isSelected())) {
+                        
+                        showAlert("Success", "Dormitory information updated successfully!");
+                        return ButtonType.OK;
+                    }
+                } catch (NumberFormatException e) {
+                    showAlert("Error", "Please enter a valid damage amount!");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                viewStudentDetails(student);
+            }
+        });
+    }
+
+    private boolean updateDormitoryInfoFull(int studentId, String blockNumber, String roomNumber,
+                                           boolean keyReturned, LocalDate keyReturnDate,
+                                           String damageDescription, double damageAmount,
+                                           boolean damagePaid) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String checkSql = "SELECT COUNT(*) FROM student_dormitory_credentials WHERE student_id = ?";
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, studentId);
+            ResultSet rs = checkStmt.executeQuery();
+            rs.next();
+            
+            String sql;
+            PreparedStatement stmt;
+            
+            if (rs.getInt(1) > 0) {
+                sql = """
+                    UPDATE student_dormitory_credentials 
+                    SET block_number = ?, room_number = ?, 
+                        key_returned = ?, key_return_date = ?,
+                        damage_description = ?, damage_amount = ?, damage_paid = ?,
+                        last_updated = NOW()
+                    WHERE student_id = ?
+                    """;
+                stmt = conn.prepareStatement(sql);
+                stmt.setString(1, blockNumber);
+                stmt.setString(2, roomNumber);
+                stmt.setBoolean(3, keyReturned);
+                stmt.setDate(4, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
+                stmt.setString(5, damageDescription.isEmpty() ? null : damageDescription);
+                stmt.setDouble(6, damageAmount);
+                stmt.setBoolean(7, damagePaid);
+                stmt.setInt(8, studentId);
+            } else {
+                sql = """
+                    INSERT INTO student_dormitory_credentials 
+                    (student_id, block_number, room_number, 
+                     key_returned, key_return_date,
+                     damage_description, damage_amount, damage_paid,
+                     clearance_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                    """;
+                stmt = conn.prepareStatement(sql);
+                stmt.setInt(1, studentId);
+                stmt.setString(2, blockNumber);
+                stmt.setString(3, roomNumber);
+                stmt.setBoolean(4, keyReturned);
+                stmt.setDate(5, keyReturnDate != null ? Date.valueOf(keyReturnDate) : null);
+                stmt.setString(6, damageDescription.isEmpty() ? null : damageDescription);
+                stmt.setDouble(7, damageAmount);
+                stmt.setBoolean(8, damagePaid);
+            }
+            
+            boolean success = stmt.executeUpdate() > 0;
+            
+            if (success) {
+                String statusUpdateSql = """
+                    UPDATE student_dormitory_credentials 
+                    SET clearance_status = CASE 
+                        WHEN key_returned = TRUE AND damage_paid = TRUE THEN 'APPROVED'
+                        ELSE 'PENDING'
+                    END
+                    WHERE student_id = ?
+                    """;
+                PreparedStatement statusStmt = conn.prepareStatement(statusUpdateSql);
+                statusStmt.setInt(1, studentId);
+                statusStmt.executeUpdate();
+            }
+            
+            return success;
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to update dormitory info: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // ==================== WORKFLOW MANAGEMENT ====================
+    
     @FXML
     private void openWorkflowManagement() {
         Dialog<String> dialog = new Dialog<>();
@@ -2235,7 +2761,8 @@ public class AdminDashboardController {
         }
     }
     
-    // ACADEMIC SESSION MANAGEMENT
+    // ==================== ACADEMIC SESSION MANAGEMENT ====================
+    
     @FXML
     private void openSessionManagement() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -2317,7 +2844,8 @@ public class AdminDashboardController {
         return false;
     }
     
-    // CERTIFICATE GENERATION
+    // ==================== CERTIFICATE GENERATION ====================
+    
     @FXML
     private void generateClearanceCertificates() {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -2428,7 +2956,8 @@ public class AdminDashboardController {
         }
     }
     
-    // CERTIFICATE VERIFICATION
+    // ==================== CERTIFICATE VERIFICATION ====================
+    
     @FXML
     private void openCertificateVerification() {
         TextInputDialog dialog = new TextInputDialog();
@@ -2508,7 +3037,8 @@ public class AdminDashboardController {
         }
     }
     
-    // SEMESTER ROLLOVER
+    // ==================== SEMESTER ROLLOVER ====================
+    
     @FXML
     private void processSemesterRollover() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -2538,7 +3068,6 @@ public class AdminDashboardController {
                 report.append("🎉 SEMESTER ROLLOVER REPORT\n");
                 report.append("==========================\n\n");
                 
-                // 1. Archive completed requests
                 String archiveSql = "INSERT INTO clearance_requests_archive " +
                                   "SELECT NULL, id, student_id, request_date, status, completion_date, NOW() " +
                                   "FROM clearance_requests WHERE status = 'FULLY_CLEARED'";
@@ -2546,7 +3075,6 @@ public class AdminDashboardController {
                 int archived = archiveStmt.executeUpdate();
                 report.append("✓ Archived " + archived + " cleared requests\n");
                 
-                // 2. Archive rejected requests
                 String archiveRejectedSql = "INSERT INTO clearance_requests_archive " +
                                          "SELECT NULL, id, student_id, request_date, status, completion_date, NOW() " +
                                          "FROM clearance_requests WHERE status = 'REJECTED'";
@@ -2554,14 +3082,12 @@ public class AdminDashboardController {
                 int archivedRejected = archiveRejectedStmt.executeUpdate();
                 report.append("✓ Archived " + archivedRejected + " rejected requests\n");
 
-                // 3. Reset pending/in-progress requests to EXPIRED
                 String resetSql = "UPDATE clearance_requests SET status = 'EXPIRED' " +
                                 "WHERE status IN ('PENDING', 'IN_PROGRESS')";
                 PreparedStatement resetStmt = conn.prepareStatement(resetSql);
                 int expired = resetStmt.executeUpdate();
                 report.append("✓ Expired " + expired + " pending requests\n");
 
-                // 4. Update student year levels
                 String yearSql = "UPDATE users SET year_level = " +
                                "CASE " +
                                "WHEN year_level = '1st Year' THEN '2nd Year' " +
@@ -2576,7 +3102,6 @@ public class AdminDashboardController {
                 int updated = yearStmt.executeUpdate();
                 report.append("✓ Updated " + updated + " student year levels\n");
 
-                // 5. Create new session
                 LocalDate today = LocalDate.now();
                 String sessionName;
                 if (today.getMonthValue() <= 6) {
@@ -2585,12 +3110,10 @@ public class AdminDashboardController {
                     sessionName = "Fall Semester " + today.getYear();
                 }
                 
-                // Deactivate old sessions
                 String deactivateSql = "UPDATE academic_sessions SET is_active = false WHERE is_active = true";
                 PreparedStatement deactivateStmt = conn.prepareStatement(deactivateSql);
                 deactivateStmt.executeUpdate();
 
-                // Create new session
                 String sessionSql = "INSERT INTO academic_sessions (session_name, start_date, end_date, is_active) " +
                                   "VALUES (?, ?, ?, true)";
                 PreparedStatement sessionStmt = conn.prepareStatement(sessionSql);
@@ -2620,7 +3143,7 @@ public class AdminDashboardController {
         }
     }
     
-    // ==================== UTILITY METHODS ====================
+    // ==================== LOGOUT ====================
     
     @FXML
     private void handleLogout() {
@@ -2637,7 +3160,6 @@ public class AdminDashboardController {
 
                 System.out.println("[DEBUG] User confirmed logout.");
 
-                // Correct, consistent FXML path
                 String fxmlPath = "/com/university/clearance/resources/views/Login.fxml";
                 System.out.println("[DEBUG] Trying FXML: " + fxmlPath);
 
@@ -2652,7 +3174,6 @@ public class AdminDashboardController {
                 Parent root = loader.load();
                 System.out.println("[DEBUG] Login FXML loaded successfully.");
 
-                // Preserve current window size
                 Stage stage = (Stage) lblWelcome.getScene().getWindow();
                 Scene currentScene = lblWelcome.getScene();
 

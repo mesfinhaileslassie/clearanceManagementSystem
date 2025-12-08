@@ -66,11 +66,14 @@
                 </tooltip>
             </Button>
             
-            <Button fx:id="btnGenerateCertificate" onAction="#generateCertificate" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Download Certificate">
-                <tooltip>
-                    <Tooltip text="This button is inactive until all departments approve your request" />
-                </tooltip>
-            </Button>
+            
+            <!-- Download Certificate Button in sidebar -->
+<Button fx:id="btnGenerateCertificate" onAction="#generateCertificate" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Download Certificate">
+    <tooltip>
+        <Tooltip text="Generate clearance certificate" />
+    </tooltip>
+</Button>
+            
             
             <Button onAction="#refreshStatus" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Refresh Status">
                 <tooltip>
@@ -96,22 +99,22 @@
                 <ScrollPane fitToWidth="true">
                     <VBox spacing="15" style="-fx-padding: 20;">
                         <!-- Clearance Status Banner -->
-                        <VBox style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e9ecef; -fx-border-radius: 8;">
+                        <VBox style="-fx-background-color: #8cb1ewhited; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e9ecef; -fx-border-radius: 8;">
                             <Label fx:id="lblClearanceStatus" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Status: Loading..." />
                             
                             <!-- Progress Bar Section -->
-                            <VBox spacing="10" style="-fx-padding: 15 0 0 0;">
+                            <VBox prefHeight="138.0" prefWidth="846.0" spacing="10" style="-fx-padding: 15 0 0 0; -fx-background-color: white;">
                                 <HBox alignment="CENTER_LEFT" spacing="10">
                                     <Label fx:id="lblProgressPercentage" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #3498db;" text="0%" />
                                     <Label style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;" text="complete" />
                                 </HBox>
-                                <ProgressBar fx:id="progressBar" prefHeight="19.0" prefWidth="148.0" progress="0.0" style="-fx-accent: #3498db; -fx-pref-height: 12; -fx-background-radius: 6;" />
+                                <ProgressBar fx:id="progressBar" prefHeight="19.0" prefWidth="148.0" progress="0.0" style="-fx-accent: #56d65e; -fx-pref-height: 18; -fx-background-radius: 9; -fx-pref-width: 250;" />
                                 <Label fx:id="lblProgressText" style="-fx-font-size: 12px; -fx-text-fill: #7f8c8d;" text="No approvals yet" />
                             </VBox>
                         </VBox>
                         
                         <!-- Statistics Cards -->
-                        <HBox spacing="15">
+                        <HBox prefHeight="83.0" prefWidth="748.0" spacing="15" style="-fx-background-color: white;">
                             <VBox prefWidth="180" style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;">
                                 <Label style="-fx-text-fill: white;" text="Total Departments" />
                                 <Label fx:id="lblTotalApprovals" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="5" />

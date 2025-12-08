@@ -88,8 +88,11 @@ public class StudentDashboardController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         setupTableColumns();
         
+        // Initialize download button as enabled
         if (btnGenerateCertificate != null) {
-            btnGenerateCertificate.setDisable(true);
+            btnGenerateCertificate.setDisable(false); // Always enabled
+            btnGenerateCertificate.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+            btnGenerateCertificate.setTooltip(new Tooltip("Generate clearance certificate"));
         }
         
         if (statusBanner != null) {
@@ -133,6 +136,14 @@ public class StudentDashboardController implements Initializable {
         loadClearanceStatus();
         loadProfileInformation();
         autoRefreshEnabled = true;
+        
+        // Initialize download button
+        Platform.runLater(() -> {
+            if (btnGenerateCertificate != null) {
+                btnGenerateCertificate.setDisable(false);
+                btnGenerateCertificate.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+            }
+        });
     }
     
     private void updateUserDisplay() {
@@ -211,8 +222,12 @@ public class StudentDashboardController implements Initializable {
             return;
         }
 
+        // Check if there's an active request
         if (hasActiveRequest()) {
-            showAlert("Active Request", "You already have an active clearance request. Please wait for approvals or address rejections.");
+            showAlert("Active Request", 
+                "You have already submitted a clearance request.\n" +
+                "Please wait until your clearance is fully approved.\n\n" +
+                "You can track the progress in the Dashboard tab.");
             return;
         }
 
@@ -233,11 +248,24 @@ public class StudentDashboardController implements Initializable {
         if (currentUser == null) return false;
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT id FROM clearance_requests WHERE student_id = ? AND status NOT IN ('FULLY_CLEARED', 'REJECTED', 'EXPIRED')";
+            String sql = """
+                SELECT id, status 
+                FROM clearance_requests 
+                WHERE student_id = ? 
+                AND status NOT IN ('FULLY_CLEARED', 'REJECTED', 'EXPIRED') 
+                ORDER BY request_date DESC 
+                LIMIT 1
+                """;
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setInt(1, currentUser.getId());
             ResultSet rs = ps.executeQuery();
-            return rs.next();
+            
+            if (rs.next()) {
+                String status = rs.getString("status");
+                System.out.println("DEBUG: Found active request with status: " + status);
+                return true;
+            }
+            return false;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -307,19 +335,77 @@ public class StudentDashboardController implements Initializable {
     @FXML
     private void generateCertificate() {
         if (currentUser == null) {
-            showAlert("Session", "Please log in again.");
+            showAlert("Session Expired", "Please log in again to generate a certificate.");
             return;
         }
+        
+        // Check if there's any request at all
+        if (currentRequestId == -1) {
+            showAlert("No Clearance Request", 
+                "You don't have any clearance request to generate a certificate for.\n\n" +
+                "Please submit a clearance request first from the 'Submit Request' button.");
+            return;
+        }
+        
+        // Check clearance status
+        String clearanceStatus = getClearanceStatus();
         
         if (!isClearanceFullyApproved()) {
-            showAlert("Not Ready", "Your clearance is not fully approved yet. Please refresh the status.");
+            if (clearanceStatus.equals("NO_REQUEST")) {
+                showAlert("No Clearance Request", 
+                    "You haven't submitted any clearance request yet.\n\n" +
+                    "Please submit a clearance request first to start the process.");
+            } else if (clearanceStatus.equals("REJECTED")) {
+                showAlert("Clearance Rejected", 
+                    "Your clearance request was rejected.\n\n" +
+                    "You need to reapply for clearance. Click the 'Reapply Clearance' button.");
+            } else if (clearanceStatus.equals("IN_PROGRESS")) {
+                showAlert("Clearance In Progress", 
+                    "Your clearance is still being processed by departments.\n\n" +
+                    "Current status: IN PROGRESS\n" +
+                    "Please wait until all departments approve your request.\n" +
+                    "You can track progress in the table above.");
+            } else if (clearanceStatus.equals("PENDING")) {
+                showAlert("Clearance Pending", 
+                    "Your clearance request is pending.\n\n" +
+                    "Please wait for departments to review your request.\n" +
+                    "You can track progress in the table above.");
+            } else {
+                showAlert("Clearance Not Ready", 
+                    "Your clearance is not fully approved yet.\n\n" +
+                    "Current status: " + clearanceStatus + "\n" +
+                    "Please wait until all departments approve your request.");
+            }
             return;
         }
         
+        // If fully approved, show format options
+        showCertificateFormatOptions();
+    }
+
+    private String getClearanceStatus() {
+        if (currentRequestId == -1) return "NO_REQUEST";
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = "SELECT status FROM clearance_requests WHERE id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, currentRequestId);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getString("status");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "UNKNOWN";
+    }
+
+    private void showCertificateFormatOptions() {
         ChoiceDialog<String> dialog = new ChoiceDialog<>("PDF", "PDF", "HTML", "TEXT");
         dialog.setTitle("Choose Certificate Format");
-        dialog.setHeaderText("Select Certificate Format");
-        dialog.setContentText("Choose your preferred format:");
+        dialog.setHeaderText("Certificate Generation");
+        dialog.setContentText("Your clearance is fully approved!\nSelect your preferred certificate format:");
         
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(format -> {
@@ -327,35 +413,54 @@ public class StudentDashboardController implements Initializable {
                 showMessage("Generating " + format + " certificate...", "info");
                 
                 String filePath = null;
+                boolean success = false;
                 
                 switch (format) {
                     case "PDF":
                         PDFCertificateService pdfService = new PDFCertificateService();
                         filePath = pdfService.generatePDFCertificate(currentUser.getId(), currentRequestId);
+                        success = filePath != null && new File(filePath).exists();
                         break;
                     case "HTML":
                         SimpleCertificateService htmlService = new SimpleCertificateService();
                         filePath = htmlService.generateHTMLCertificate(currentUser.getId(), currentRequestId);
+                        success = filePath != null && new File(filePath).exists();
                         break;
                     case "TEXT":
                         SimpleCertificateService textService = new SimpleCertificateService();
                         filePath = textService.generateClearanceCertificate(currentUser.getId(), currentRequestId);
+                        success = filePath != null && new File(filePath).exists();
                         break;
                 }
                 
-                if (filePath != null && new File(filePath).exists()) {
-                    Alert success = new Alert(Alert.AlertType.INFORMATION);
-                    success.setTitle("Certificate Ready");
-                    success.setHeaderText(format + " Certificate Generated!");
-                    success.setContentText("Certificate saved to:\n" + filePath);
-                    success.showAndWait();
+                if (success) {
+                    Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                    successAlert.setTitle("Certificate Generated");
+                    successAlert.setHeaderText("✅ Certificate Successfully Generated!");
+                    successAlert.setContentText(format + " certificate has been saved to:\n\n" + 
+                                              filePath + "\n\n" +
+                                              "Your certificate is ready to download and use.");
+                    successAlert.showAndWait();
                 } else {
-                    showMessage("Failed to generate " + format + " certificate.", "error");
+                    Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                    errorAlert.setTitle("Generation Failed");
+                    errorAlert.setHeaderText("❌ Failed to Generate Certificate");
+                    errorAlert.setContentText("Could not generate " + format + " certificate.\n" +
+                                            "Please try again or contact support.");
+                    errorAlert.showAndWait();
                 }
                 
             } catch (Exception e) {
                 showMessage("Error generating certificate: " + e.getMessage(), "error");
                 e.printStackTrace();
+                
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Error");
+                errorAlert.setHeaderText("Certificate Generation Error");
+                errorAlert.setContentText("An error occurred while generating the certificate:\n" +
+                                        e.getMessage() + "\n\n" +
+                                        "Please try again or contact support.");
+                errorAlert.showAndWait();
             }
         });
     }
@@ -608,7 +713,7 @@ public class StudentDashboardController implements Initializable {
                 lblProgressText.setText(approved + "/" + total + " approved • " + rejected + " rejected");
                 progressBar.setStyle("-fx-accent: #e74c3c;");
             } else if (approved == total) {
-                lblProgressText.setText("All departments approved! Ready for certificate.");
+                lblProgressText.setText("✅ All departments approved! Ready to download certificate.");
                 progressBar.setStyle("-fx-accent: #27ae60;");
             } else {
                 lblProgressText.setText(approved + "/" + total + " approved • " + (total - approved) + " pending");
@@ -646,6 +751,7 @@ public class StudentDashboardController implements Initializable {
         });
     }
 
+    
     private void updateButtonStates(boolean canReapply, int approved, int pending, int rejected) {
         Platform.runLater(() -> {
             // Update reapply buttons
@@ -667,29 +773,29 @@ public class StudentDashboardController implements Initializable {
                 btnProfileReapply.setDisable(!showReapply);
             }
             
-            // Update submit buttons
-            boolean hasActive = pending > 0 || (approved > 0 && approved < 5 && rejected == 0);
-            boolean canSubmit = !hasActive && !showReapply;
-            System.out.println("DEBUG: canSubmit = " + canSubmit + " (hasActive=" + hasActive + ", showReapply=" + showReapply + ")");
+            // REMOVE: Submit button disable logic
+            // boolean hasActive = pending > 0 || (approved > 0 && approved < 5 && rejected == 0);
+            // boolean canSubmit = !hasActive && !showReapply;
             
+            // ALWAYS ENABLE submit buttons
             if (btnSubmitRequest != null) {
-                btnSubmitRequest.setDisable(!canSubmit);
-                btnSubmitRequest.setStyle(canSubmit ? 
-                    "-fx-background-color: #3498db; -fx-text-fill: white;" :
-                    "-fx-background-color: #95a5a6; -fx-text-fill: white;");
+                btnSubmitRequest.setDisable(false); // Always enabled
+                btnSubmitRequest.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
             }
             
             if (btnSubmitRequestInline != null) {
-                btnSubmitRequestInline.setVisible(canSubmit);
-                btnSubmitRequestInline.setDisable(!canSubmit);
+                btnSubmitRequestInline.setVisible(true);
+                btnSubmitRequestInline.setDisable(false);
             }
             
             if (btnProfileSubmitRequest != null) {
-                btnProfileSubmitRequest.setVisible(canSubmit);
-                btnProfileSubmitRequest.setDisable(!canSubmit);
+                btnProfileSubmitRequest.setVisible(true);
+                btnProfileSubmitRequest.setDisable(false);
             }
         });
     }
+    
+    
     
     private String formatStatus(String status) {
         switch (status) {

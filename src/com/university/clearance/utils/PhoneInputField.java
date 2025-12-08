@@ -11,6 +11,7 @@ public class PhoneInputField extends HBox {
     private final TextField phoneField;
     private String currentPrefix = "";
     private boolean isPrefixLocked = false;
+    private boolean isChangingProvider = false; // Flag to track provider changes
     
     public PhoneInputField() {
         super(5);
@@ -40,13 +41,42 @@ public class PhoneInputField extends HBox {
     private void setupEventHandlers() {
         // Provider selection handler
         providerComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                String newPrefix = "Ethio Telecom".equals(newVal) ? "09" : "07";
+            if (newVal != null && oldVal != null && !newVal.equals(oldVal)) {
+                isChangingProvider = true;
                 
-                // Clear previous digits and set new prefix
-                phoneField.setText(newPrefix);
-                currentPrefix = newPrefix;
-                isPrefixLocked = true;
+                String newPrefix = "Ethio Telecom".equals(newVal) ? "09" : "07";
+                String currentText = phoneField.getText();
+                
+                System.out.println("Provider changed from " + oldVal + " to " + newVal);
+                System.out.println("Current phone text: " + currentText);
+                System.out.println("New prefix should be: " + newPrefix);
+                
+                // If we already have a phone number, change only the prefix
+                if (currentText.length() >= 2) {
+                    // Extract the suffix (digits after the first 2)
+                    String suffix = "";
+                    if (currentText.length() > 2) {
+                        suffix = currentText.substring(2);
+                        // Keep only digits in suffix
+                        suffix = suffix.replaceAll("[^\\d]", "");
+                        // Limit to 8 digits
+                        if (suffix.length() > 8) {
+                            suffix = suffix.substring(0, 8);
+                        }
+                    }
+                    
+                    // Apply new prefix and suffix
+                    phoneField.setText(newPrefix + suffix);
+                    currentPrefix = newPrefix;
+                    isPrefixLocked = true;
+                    
+                    System.out.println("Updated phone to: " + (newPrefix + suffix));
+                } else {
+                    // If no phone number yet, just set the prefix
+                    phoneField.setText(newPrefix);
+                    currentPrefix = newPrefix;
+                    isPrefixLocked = true;
+                }
                 
                 // Position cursor after prefix
                 Platform.runLater(() -> {
@@ -56,6 +86,8 @@ public class PhoneInputField extends HBox {
                 
                 // Update tooltip
                 updateTooltip();
+                
+                isChangingProvider = false;
             }
         });
         
@@ -74,7 +106,7 @@ public class PhoneInputField extends HBox {
         
         // Phone field text change handler
         phoneField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
+            if (newVal != null && !isChangingProvider) {
                 // Get current cursor position before any changes
                 int caretPos = phoneField.getCaretPosition();
                 
@@ -86,12 +118,15 @@ public class PhoneInputField extends HBox {
                     return;
                 }
                 
-                // Check if prefix was modified
-                String prefix = newVal.substring(0, 2);
-                if (!prefix.equals(currentPrefix)) {
-                    restorePrefix();
-                    showPrefixWarning();
-                    return;
+                // Check if prefix was modified (and we're not changing providers)
+                if (!isChangingProvider) {
+                    String prefix = newVal.substring(0, 2);
+                    if (!prefix.equals(currentPrefix)) {
+                        // User manually changed prefix - restore it
+                        restorePrefix();
+                        showPrefixWarning();
+                        return;
+                    }
                 }
                 
                 // Only allow digits
@@ -123,11 +158,15 @@ public class PhoneInputField extends HBox {
                 
                 // Auto-detect provider based on prefix
                 if (newVal.startsWith("09")) {
-                    providerComboBox.setValue("Ethio Telecom");
-                    currentPrefix = "09";
+                    if (!"Ethio Telecom".equals(providerComboBox.getValue())) {
+                        providerComboBox.setValue("Ethio Telecom");
+                        currentPrefix = "09";
+                    }
                 } else if (newVal.startsWith("07")) {
-                    providerComboBox.setValue("Safaricom");
-                    currentPrefix = "07";
+                    if (!"Safaricom".equals(providerComboBox.getValue())) {
+                        providerComboBox.setValue("Safaricom");
+                        currentPrefix = "07";
+                    }
                 }
                 
                 // Update tooltip based on current state

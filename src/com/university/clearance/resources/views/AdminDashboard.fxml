@@ -1,21 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.university.clearance.controller.AdminDashboardController">
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
     
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
             <children>
-                <Label text="University Clearance System" textFill="WHITE" style="-fx-font-weight: bold; -fx-font-size: 22;">
+                <Label style="-fx-font-weight: bold; -fx-font-size: 22;" text="University Clearance System" textFill="WHITE">
                     <font>
                         <Font name="Arial Bold" size="22.0" />
                     </font>
                 </Label>
-                <Label fx:id="lblWelcome" textFill="WHITE" style="-fx-font-size: 16;">
+                <Label fx:id="lblWelcome" style="-fx-font-size: 16;" textFill="WHITE">
                     <font>
                         <Font name="Arial" size="16.0" />
                     </font>
@@ -36,98 +48,68 @@
             <children>
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="USER MANAGEMENT" />
                 
-                <Button onAction="#openRegisterStudent" 
-                        style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" 
-                        text="➕ Register Student" />
-                <Button onAction="#openManageOfficers" 
-                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" 
-                        text="👨‍💼 Register Officer" />
-                <Button onAction="#resetUserPassword" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="🔑 Reset Password" />
-                <Button onAction="#toggleUserStatus" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="🔄 Toggle Status" />
+                <Button onAction="#openRegisterStudent" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="➕ Register Student" />
+                <Button onAction="#openManageOfficers" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
+                <Button onAction="#resetUserPassword" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
+                <Button onAction="#toggleUserStatus" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="SYSTEM CONFIGURATION" />
                 
-                <Button onAction="#openWorkflowManagement" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="⚙️ Approval Workflow" />
-                <Button onAction="#openSessionManagement" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="📅 Academic Sessions" />
-                <Button onAction="#processSemesterRollover" 
-                        style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" 
-                        text="🔄 Semester Rollover" />
-                
-                <Separator style="-fx-padding: 10 0;" />
-                
-                <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="CERTIFICATES" />
-                
-                <Button onAction="#generateClearanceCertificates" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="📄 Generate Certificates" />
-                <Button onAction="#openCertificateVerification" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="✅ Verify Certificate" />
-                <Button onAction="#verifyCertificate" 
-                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10;" 
-                        text="🔍 Quick Verify" />
+                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="⚙️ Approval Workflow" />
+                <Button onAction="#openSessionManagement" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="📅 Academic Sessions" />
+                <Button onAction="#processSemesterRollover" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Semester Rollover" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="QUICK ACTIONS" />
                 
-                <Button onAction="#handleRefresh" 
-                        style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" 
-                        text="🔄 Refresh All" />
+                <Button onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
             </children>
         </VBox>
     </left>
     
     <center>
         <!-- Main TabPane with larger tabs -->
-        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" style="-fx-tab-min-height: 50; -fx-tab-min-width: 150;">
+        <TabPane fx:id="mainTabPane" style="-fx-tab-min-height: 50; -fx-tab-min-width: 150;" tabClosingPolicy="UNAVAILABLE">
             <tabs>
                 <!-- Dashboard Tab -->
-                <Tab text="🏠 Dashboard">
+                <Tab style="-fx-background-color: #3498db; -fx-text-fill: white;" text="🏠 Dashboard">
                     <content>
-                        <ScrollPane fitToWidth="true" fitToHeight="true">
+                        <ScrollPane fitToHeight="true" fitToWidth="true">
                             <VBox spacing="20" style="-fx-padding: 20;">
                                 <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Admin Dashboard Overview" />
                                 
-                                <HBox spacing="20">
-                                    <VBox style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                <HBox prefHeight="114.0" prefWidth="718.0" spacing="20">
+                                    <VBox prefHeight="114.0" prefWidth="155.0" style="-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="Total Students" />
                                         <Label fx:id="lblTotalStudentsCard" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
                                     
-                                    <VBox style="-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                    <VBox prefHeight="114.0" prefWidth="140.0" style="-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="Total Officers" />
                                         <Label fx:id="lblTotalOfficersCard" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
                                     
-                                    <VBox style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                    <VBox prefHeight="114.0" prefWidth="148.0" style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="Total Requests" />
                                         <Label fx:id="lblTotalRequestsCard" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
                                 </HBox>
                                 
                                 <HBox spacing="20">
-                                    <VBox style="-fx-background-color: #27ae60; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                    <VBox prefHeight="114.0" prefWidth="145.0" style="-fx-background-color: #27ae60; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="✅ Approved" />
                                         <Label fx:id="lblApprovedCount" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
                                     
-                                    <VBox style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                    <VBox prefHeight="114.0" prefWidth="140.0" style="-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="❌ Rejected" />
                                         <Label fx:id="lblRejectedCount" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
                                     
-                                    <VBox style="-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;" prefWidth="250">
+                                    <VBox prefHeight="114.0" prefWidth="135.0" style="-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;">
                                         <Label style="-fx-text-fill: white; -fx-font-size: 16px;" text="⏳ Pending" />
                                         <Label fx:id="lblPendingCount" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
                                     </VBox>
@@ -138,7 +120,7 @@
                 </Tab>
                 
                 <!-- All Users Tab -->
-                <Tab text="👥 All Users">
+                <Tab style="-fx-background-color: #3498db;" text="👥 All Users">
                     <content>
                         <VBox spacing="15">
                             <padding>
@@ -148,14 +130,10 @@
                             <HBox alignment="CENTER_LEFT" spacing="10">
                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All System Users" />
                                 <Region HBox.hgrow="ALWAYS" />
-                                <ComboBox fx:id="cmbSearchType" prefWidth="150" />
+                                <ComboBox fx:id="cmbSearchType" prefWidth="150" style="-fx-background-color: #8b8f8b;" />
                                 <TextField fx:id="txtSearchUsers" prefWidth="250" promptText="Search users..." />
-                                <Button fx:id="btnSearchUsers" onAction="#handleUserSearch" 
-                                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                        text="🔍 Search" />
-                                <Button fx:id="btnClearSearch" onAction="#handleClearSearch" 
-                                        style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                        text="❌ Clear" />
+                                <Button fx:id="btnSearchUsers" onAction="#handleUserSearch" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="🔍 Search" />
+                                <Button fx:id="btnClearSearch" onAction="#handleClearSearch" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" text="❌ Clear" />
                             </HBox>
                             
                             <Label fx:id="lblSearchStatus" style="-fx-text-fill: #3498db; -fx-font-size: 12px;" visible="false" />
@@ -174,12 +152,12 @@
                 </Tab>
                 
                 <!-- Students Tab -->
-                <Tab text="🎓 Students">
+                <Tab style="-fx-background-color: #3498db;" text="🎓 Students">
                     <content>
                         <!-- Nested TabPane for student categories -->
-                        <TabPane tabClosingPolicy="UNAVAILABLE" style="-fx-tab-min-height: 40; -fx-tab-min-width: 100;">
+                        <TabPane style="-fx-tab-min-height: 40; -fx-tab-min-width: 100;" tabClosingPolicy="UNAVAILABLE">
                             <tabs>
-                                <Tab text="📋 All Students">
+                                <Tab style="-fx-background-color: #3498db;" text="📋 All Students">
                                     <content>
                                         <VBox spacing="15">
                                             <padding>
@@ -203,7 +181,7 @@
                                     </content>
                                 </Tab>
                                 
-                                <Tab text="✅ Approved">
+                                <Tab style="-fx-background-color: #3498db;" text="✅ Approved">
                                     <content>
                                         <VBox spacing="15">
                                             <padding>
@@ -225,7 +203,7 @@
                                     </content>
                                 </Tab>
                                 
-                                <Tab text="❌ Rejected">
+                                <Tab style="-fx-background-color: #3498db;" text="❌ Rejected">
                                     <content>
                                         <VBox spacing="15">
                                             <padding>
@@ -248,7 +226,7 @@
                                     </content>
                                 </Tab>
                                 
-                                <Tab text="⏳ Pending">
+                                <Tab style="-fx-background-color: #3498db;" text="⏳ Pending">
                                     <content>
                                         <VBox spacing="15">
                                             <padding>
@@ -270,7 +248,7 @@
                                     </content>
                                 </Tab>
                                 
-                                <Tab text="🔄 In Progress">
+                                <Tab style="-fx-background-color: #3498db;" text="🔄 In Progress">
                                     <content>
                                         <VBox spacing="15">
                                             <padding>
@@ -297,7 +275,7 @@
                 </Tab>
                 
                 <!-- Officers Tab -->
-                <Tab text="👨‍💼 Officers">
+                <Tab style="-fx-background-color: #3498db;" text="👨‍💼 Officers">
                     <content>
                         <VBox spacing="15">
                             <padding>
@@ -321,7 +299,7 @@
                 </Tab>
                 
                 <!-- Clearance Requests Tab -->
-                <Tab text="📝 Clearance Requests">
+                <Tab style="-fx-background-color: #3498db;" text="📝 Clearance Requests">
                     <content>
                         <VBox spacing="15">
                             <padding>
@@ -331,15 +309,9 @@
                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All Clearance Requests" />
                                 <TextField fx:id="txtSearchRequests" prefWidth="300" promptText="Search requests..." />
                                 <Region HBox.hgrow="ALWAYS" />
-                                <Button fx:id="btnSearchRequests" onAction="#handleRequestsSearch" 
-                                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                        text="🔍 Search" />
-                                <Button fx:id="btnClearRequestsSearch" onAction="#handleClearRequestsSearch" 
-                                        style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                        text="❌ Clear" />
-                                <Button onAction="#handleRefresh" 
-                                        style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" 
-                                        text="🔄 Refresh" />
+                                <Button fx:id="btnSearchRequests" onAction="#handleRequestsSearch" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="🔍 Search" />
+                                <Button fx:id="btnClearRequestsSearch" onAction="#handleClearRequestsSearch" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" text="❌ Clear" />
+                                <Button onAction="#handleRefresh" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" text="🔄 Refresh" />
                             </HBox>
                             <TableView fx:id="tableRequests" prefHeight="500">
                                 <columns>
@@ -356,9 +328,9 @@
                 </Tab>
                 
                 <!-- Reports Tab -->
-                <Tab text="📊 Reports">
+                <Tab style="-fx-background-color: #3498db;" text="📊 Reports">
                     <content>
-                        <ScrollPane fitToWidth="true" fitToHeight="true">
+                        <ScrollPane fitToHeight="true" fitToWidth="true">
                             <VBox spacing="20" style="-fx-padding: 20;">
                                 <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="System Reports &amp; Analytics" />
                                 

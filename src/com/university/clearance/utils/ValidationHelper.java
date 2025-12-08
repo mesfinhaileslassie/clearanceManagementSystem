@@ -389,9 +389,9 @@ String cleanPhone = phone.replaceAll("[^\\d]", "");
         return new ValidationResult(false, "Must be exactly 10 digits");
     }
     
-    if ("Provider A".equals(provider) && !cleanPhone.startsWith("09")) {
+    if ("Ethioi Telecom".equals(provider) && !cleanPhone.startsWith("09")) {
         return new ValidationResult(false, "Provider A must start with 09");
-    } else if ("Provider B".equals(provider) && !cleanPhone.startsWith("07")) {
+    } else if ("Safaricom ".equals(provider) && !cleanPhone.startsWith("07")) {
         return new ValidationResult(false, "Provider B must start with 07");
     }
     

@@ -1511,12 +1511,12 @@ public class AdminDashboardController {
         // ===== PHONE =====
         PhoneInputField phoneInputField = new PhoneInputField();
         
-        Label lblPhoneHint = new Label("Select provider and enter 10 digits");
+        Label lblPhoneHint = new Label("Format: 09xxxxxxx (Ethio Telecom) or 07xxxxxxx (Safaricom)");
         lblPhoneHint.setStyle("-fx-font-size: 10px; -fx-text-fill: #666;");
-        
+
         Label lblPhoneValidation = new Label("Required");
         lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
-        
+
         // Validation listener for phone
         phoneInputField.getPhoneField().textProperty().addListener((obs, oldVal, newVal) -> {
             ValidationResult result = ValidationHelper.validatePhoneWithProvider(newVal, phoneInputField.getProvider());

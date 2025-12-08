@@ -16,7 +16,7 @@ public class PhoneInputField extends HBox {
         super(5);
         
         providerComboBox = new ComboBox<>();
-        providerComboBox.getItems().addAll("Provider A", "Provider B");
+        providerComboBox.getItems().addAll("Ethio Telecom", "Safaricom");
         providerComboBox.setPromptText("Select Provider");
         providerComboBox.setPrefWidth(150);
         
@@ -30,7 +30,7 @@ public class PhoneInputField extends HBox {
         setupEventHandlers();
         
         // Set initial provider and prefix
-        providerComboBox.setValue("Provider A");
+        providerComboBox.setValue("Ethio Telecom");
         phoneField.setText("09");
         currentPrefix = "09";
         isPrefixLocked = true;
@@ -41,7 +41,7 @@ public class PhoneInputField extends HBox {
         // Provider selection handler
         providerComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
-                String newPrefix = "Provider A".equals(newVal) ? "09" : "07";
+                String newPrefix = "Ethio Telecom".equals(newVal) ? "09" : "07";
                 
                 // Clear previous digits and set new prefix
                 phoneField.setText(newPrefix);
@@ -119,6 +119,15 @@ public class PhoneInputField extends HBox {
                         showLengthWarning();
                         return;
                     }
+                }
+                
+                // Auto-detect provider based on prefix
+                if (newVal.startsWith("09")) {
+                    providerComboBox.setValue("Ethio Telecom");
+                    currentPrefix = "09";
+                } else if (newVal.startsWith("07")) {
+                    providerComboBox.setValue("Safaricom");
+                    currentPrefix = "07";
                 }
                 
                 // Update tooltip based on current state
@@ -229,10 +238,10 @@ public class PhoneInputField extends HBox {
         if (phone != null && phone.length() >= 2) {
             String prefix = phone.substring(0, 2);
             if ("09".equals(prefix)) {
-                providerComboBox.setValue("Provider A");
+                providerComboBox.setValue("Ethio Telecom");
                 currentPrefix = "09";
             } else if ("07".equals(prefix)) {
-                providerComboBox.setValue("Provider B");
+                providerComboBox.setValue("Safaricom");
                 currentPrefix = "07";
             }
             phoneField.setText(phone);
@@ -261,12 +270,12 @@ public class PhoneInputField extends HBox {
             return new ValidationHelper.ValidationResult(false, "Must be 10 digits");
         }
         
-        if ("Provider A".equals(provider) && !phone.startsWith("09")) {
-            return new ValidationHelper.ValidationResult(false, "Provider A requires 09 prefix");
+        if ("Ethio Telecom".equals(provider) && !phone.startsWith("09")) {
+            return new ValidationHelper.ValidationResult(false, "Ethio Telecom requires 09 prefix");
         }
         
-        if ("Provider B".equals(provider) && !phone.startsWith("07")) {
-            return new ValidationHelper.ValidationResult(false, "Provider B requires 07 prefix");
+        if ("Safaricom".equals(provider) && !phone.startsWith("07")) {
+            return new ValidationHelper.ValidationResult(false, "Safaricom requires 07 prefix");
         }
         
         return new ValidationHelper.ValidationResult(true, "Valid ✓");

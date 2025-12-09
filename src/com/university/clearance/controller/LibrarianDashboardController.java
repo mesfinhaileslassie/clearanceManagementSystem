@@ -1,6 +1,7 @@
 package com.university.clearance.controller;
 
 import com.university.clearance.DatabaseConnection;
+import com.university.clearance.model.User;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -101,8 +102,7 @@ public class LibrarianDashboardController implements Initializable {
     private FilteredList<BorrowingRecord> filteredBorrowingHistory;
     
     private Connection connection;
-    private int currentUserId;
-    private String currentLibrarianName;
+    private User currentUser; // CHANGED: Use User object
     private ClearanceRequest selectedRequest;
     private int currentStudentId;
     
@@ -111,15 +111,6 @@ public class LibrarianDashboardController implements Initializable {
         try {
             // Get database connection
             connection = DatabaseConnection.getConnection();
-            
-            // Get current librarian info
-            currentUserId = getCurrentUserId();
-            currentLibrarianName = getCurrentUserName();
-            
-            // Set welcome label
-            if (lblWelcome != null) {
-                lblWelcome.setText("Welcome, " + currentLibrarianName);
-            }
             
             // Initialize observable lists
             clearanceRequests = FXCollections.observableArrayList();
@@ -138,25 +129,37 @@ public class LibrarianDashboardController implements Initializable {
             // Apply CSS for active tab indicator
             applyActiveTabStyling();
             
-            // Load initial data
-            Platform.runLater(() -> {
-                refreshAllData();
-                showToastNotification("Dashboard loaded successfully");
-            });
-            
             // Set up search filtering
             setupSearchFilter();
             
-            // Add keyboard shortcuts
-            Platform.runLater(() -> setupKeyboardShortcuts());
-            
             // Add tooltips
             Platform.runLater(() -> setupTooltips());
+            
+            // Show welcome message after user is set
+            Platform.runLater(() -> {
+                if (currentUser != null && lblWelcome != null) {
+                    lblWelcome.setText("Welcome, " + currentUser.getFullName());
+                }
+            });
             
         } catch (Exception e) {
             showErrorAlert("Initialization Error", "Cannot initialize dashboard: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    // ADD THIS METHOD: Set current user
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+        if (lblWelcome != null) {
+            lblWelcome.setText("Welcome, " + user.getFullName() + " (" + user.getRole() + ")");
+        }
+        
+        // Load data after user is set
+        Platform.runLater(() -> {
+            refreshAllData();
+            showToastNotification("Dashboard loaded successfully");
+        });
     }
     
     // Apply CSS styling for active tab
@@ -172,74 +175,47 @@ public class LibrarianDashboardController implements Initializable {
         });
     }
     
-    public void setCurrentUser(int userId, String userName) {
-        this.currentUserId = userId;
-        this.currentLibrarianName = userName;
-        if (lblWelcome != null) {
-            lblWelcome.setText("Welcome, " + currentLibrarianName);
-        }
-    }
-    
     private void setupKeyboardShortcuts() {
-        tableRequests.getScene().addEventHandler(KeyEvent.KEY_PRESSED, event -> {
-            if (event.isControlDown()) {
-                switch (event.getCode()) {
-                    case R:
-                        refreshRequests();
-                        event.consume();
-                        break;
-                    case F:
-                        if (mainTabPane.getSelectionModel().getSelectedIndex() == 1) {
-                            txtSearchStudent.requestFocus();
+        if (tableRequests != null && tableRequests.getScene() != null) {
+            tableRequests.getScene().addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+                if (event.isControlDown()) {
+                    switch (event.getCode()) {
+                        case R:
+                            refreshRequests();
                             event.consume();
-                        }
-                        break;
-                    case A:
-                        if (mainTabPane.getSelectionModel().getSelectedIndex() == 2 && 
-                            btnApproveFromDetails.isVisible() && !btnApproveFromDetails.isDisabled()) {
-                            approveFromDetails();
-                            event.consume();
-                        }
-                        break;
+                            break;
+                        case F:
+                            if (mainTabPane.getSelectionModel().getSelectedIndex() == 1) {
+                                txtSearchStudent.requestFocus();
+                                event.consume();
+                            }
+                            break;
+                        case A:
+                            if (mainTabPane.getSelectionModel().getSelectedIndex() == 2 && 
+                                btnApproveFromDetails != null && btnApproveFromDetails.isVisible() && !btnApproveFromDetails.isDisabled()) {
+                                approveFromDetails();
+                                event.consume();
+                            }
+                            break;
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     
     private void setupTooltips() {
-        btnApproveFromDetails.setTooltip(new Tooltip("Approve this student's library clearance (Ctrl+A)"));
-        btnRejectFromDetails.setTooltip(new Tooltip("Reject this student's library clearance"));
-        txtSearchStudent.setTooltip(new Tooltip("Search by student ID, name, or book title"));
-        cmbStatusFilter.setTooltip(new Tooltip("Filter borrowing records by status"));
-    }
-    
-    private int getCurrentUserId() {
-        try {
-            String query = "SELECT id FROM users WHERE username = 'librarian' AND role = 'LIBRARIAN'";
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("id");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (btnApproveFromDetails != null) {
+            btnApproveFromDetails.setTooltip(new Tooltip("Approve this student's library clearance (Ctrl+A)"));
         }
-        return 2;
-    }
-    
-    private String getCurrentUserName() {
-        try {
-            String query = "SELECT full_name FROM users WHERE id = ?";
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            pstmt.setInt(1, currentUserId);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("full_name");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (btnRejectFromDetails != null) {
+            btnRejectFromDetails.setTooltip(new Tooltip("Reject this student's library clearance"));
         }
-        return "Librarian";
+        if (txtSearchStudent != null) {
+            txtSearchStudent.setTooltip(new Tooltip("Search by student ID, name, or book title"));
+        }
+        if (cmbStatusFilter != null) {
+            cmbStatusFilter.setTooltip(new Tooltip("Filter borrowing records by status"));
+        }
     }
     
     private void configureClearanceTable() {
@@ -290,9 +266,9 @@ public class LibrarianDashboardController implements Initializable {
                     private final HBox buttonBox = new HBox(5, btnDetails, btnApprove, btnReject);
                     
                     {
-                        btnDetails.getStyleClass().add("details-button");
-                        btnApprove.getStyleClass().add("approve-button");
-                        btnReject.getStyleClass().add("reject-button");
+                        btnDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+                        btnApprove.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+                        btnReject.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
                         
                         btnDetails.setTooltip(new Tooltip("View detailed student information and borrowing records"));
                         btnApprove.setTooltip(new Tooltip("Approve library clearance for this student"));
@@ -374,7 +350,7 @@ public class LibrarianDashboardController implements Initializable {
                     setText(null);
                     setStyle("");
                 } else {
-                    setText(String.format("₦%.2f", fine));
+                    setText(String.format("ETB%.2f", fine));
                     if (fine > 0) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
                     } else {
@@ -430,7 +406,7 @@ public class LibrarianDashboardController implements Initializable {
                     setText(null);
                     setStyle("");
                 } else {
-                    setText(String.format("₦%.2f", fine));
+                    setText(String.format("ETB%.2f", fine));
                     if (fine > 0) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
                     } else {
@@ -473,16 +449,12 @@ public class LibrarianDashboardController implements Initializable {
                     u.full_name,
                     u.department,
                     DATE(cr.request_date) as request_date,
-                    ca.status as approval_status,
-                    lcs.total_borrowed,
-                    lcs.overdue_count,
-                    lcs.total_fine
+                    ca.status as approval_status
                 FROM clearance_requests cr
                 JOIN users u ON cr.student_id = u.id
-                JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.officer_role = 'LIBRARIAN'
-                JOIN librarian_clearance_status lcs ON u.id = lcs.student_id
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.officer_role = 'LIBRARIAN'
                 WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
-                  AND ca.status = 'PENDING'
+                  AND (ca.status IS NULL OR ca.status = 'PENDING')
                 ORDER BY cr.request_date DESC
                 """;
             
@@ -493,9 +465,12 @@ public class LibrarianDashboardController implements Initializable {
             
             while (rs.next()) {
                 String studentId = rs.getString("username");
-                int totalBorrowed = rs.getInt("total_borrowed");
-                int overdueCount = rs.getInt("overdue_count");
-                double totalFine = rs.getDouble("total_fine");
+                
+                // Get book borrowing info for this student
+                int[] bookStats = getBookStatsForStudent(rs.getInt("student_id"));
+                int totalBorrowed = bookStats[0];
+                int overdueCount = bookStats[1];
+                double totalFine = bookStats[2];
                 
                 String bookStatus = determineBookStatus(totalBorrowed, overdueCount, totalFine);
                 
@@ -504,7 +479,7 @@ public class LibrarianDashboardController implements Initializable {
                     studentId,
                     rs.getString("full_name"),
                     rs.getString("department"),
-                    rs.getDate("request_date").toLocalDate(),
+                    rs.getDate("request_date") != null ? rs.getDate("request_date").toLocalDate() : LocalDate.now(),
                     bookStatus,
                     totalBorrowed,
                     overdueCount,
@@ -526,16 +501,57 @@ public class LibrarianDashboardController implements Initializable {
                 }
             }
             
-            lblTotalRequests.setText(String.valueOf(clearanceRequests.size()));
-            lblClearCount.setText("Clear: " + clearCount);
-            lblWarningCount.setText("Warning: " + warningCount);
-            lblIssueCount.setText("Issue: " + issueCount);
-            lblPendingCount.setText("Pending: " + clearanceRequests.size());
+            if (lblTotalRequests != null) lblTotalRequests.setText(String.valueOf(clearanceRequests.size()));
+            if (lblClearCount != null) lblClearCount.setText("Clear: " + clearCount);
+            if (lblWarningCount != null) lblWarningCount.setText("Warning: " + warningCount);
+            if (lblIssueCount != null) lblIssueCount.setText("Issue: " + issueCount);
+            if (lblPendingCount != null) lblPendingCount.setText("Pending: " + clearanceRequests.size());
             
         } catch (SQLException e) {
             showErrorAlert("Database Error", "Failed to load clearance requests: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    // Helper method to get book stats for student
+    private int[] getBookStatsForStudent(int studentId) throws SQLException {
+        int totalBorrowed = 0;
+        int overdueCount = 0;
+        double totalFine = 0;
+        
+        // Check if book_borrowings table exists
+        try {
+            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
+            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
+            ResultSet checkRs = checkStmt.executeQuery();
+            
+            if (checkRs.next()) {
+                // Table exists, query it
+                String query = """
+                    SELECT 
+                        COUNT(*) as total_borrowed,
+                        SUM(CASE WHEN due_date < CURDATE() AND return_date IS NULL THEN 1 ELSE 0 END) as overdue_count,
+                        COALESCE(SUM(fine_amount), 0) as total_fine
+                    FROM book_borrowings 
+                    WHERE student_id = ?
+                    """;
+                
+                PreparedStatement pstmt = connection.prepareStatement(query);
+                pstmt.setInt(1, studentId);
+                ResultSet rs = pstmt.executeQuery();
+                
+                if (rs.next()) {
+                    totalBorrowed = rs.getInt("total_borrowed");
+                    overdueCount = rs.getInt("overdue_count");
+                    totalFine = rs.getDouble("total_fine");
+                }
+            }
+        } catch (Exception e) {
+            // Table doesn't exist or error, return zeros
+            System.out.println("Note: book_borrowings table not found or error: " + e.getMessage());
+        }
+        
+        return new int[] {totalBorrowed, overdueCount, (int) totalFine};
     }
     
     private String determineBookStatus(int totalBorrowed, int overdueCount, double totalFine) {
@@ -551,46 +567,55 @@ public class LibrarianDashboardController implements Initializable {
     private void loadBorrowingHistory() {
         borrowingHistory.clear();
         try {
-            String query = """
-                SELECT 
-                    bb.id,
-                    u.username as student_id,
-                    u.full_name,
-                    u.department,
-                    bb.book_title,
-                    DATE(bb.borrow_date) as borrow_date,
-                    DATE(bb.due_date) as due_date,
-                    DATE(bb.return_date) as return_date,
-                    bb.status,
-                    bb.fine_amount
-                FROM book_borrowings bb
-                JOIN users u ON bb.student_id = u.id
-                ORDER BY bb.borrow_date DESC
-                """;
+            // Check if book_borrowings table exists
+            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
+            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
+            ResultSet checkRs = checkStmt.executeQuery();
             
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            ResultSet rs = pstmt.executeQuery();
-            
-            while (rs.next()) {
-                BorrowingRecord record = new BorrowingRecord(
-                    rs.getInt("id"),
-                    rs.getString("student_id"),
-                    rs.getString("full_name"),
-                    rs.getString("department"),
-                    rs.getString("book_title"),
-                    rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
-                    rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
-                    rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
-                    rs.getString("status"),
-                    rs.getDouble("fine_amount")
-                );
+            if (checkRs.next()) {
+                String query = """
+                    SELECT 
+                        bb.id,
+                        u.username as student_id,
+                        u.full_name,
+                        u.department,
+                        bb.book_title,
+                        DATE(bb.borrow_date) as borrow_date,
+                        DATE(bb.due_date) as due_date,
+                        DATE(bb.return_date) as return_date,
+                        bb.status,
+                        bb.fine_amount
+                    FROM book_borrowings bb
+                    JOIN users u ON bb.student_id = u.id
+                    ORDER BY bb.borrow_date DESC
+                    LIMIT 50
+                    """;
                 
-                borrowingHistory.add(record);
+                PreparedStatement pstmt = connection.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery();
+                
+                while (rs.next()) {
+                    BorrowingRecord record = new BorrowingRecord(
+                        rs.getInt("id"),
+                        rs.getString("student_id"),
+                        rs.getString("full_name"),
+                        rs.getString("department"),
+                        rs.getString("book_title"),
+                        rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
+                        rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
+                        rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
+                        rs.getString("status"),
+                        rs.getDouble("fine_amount")
+                    );
+                    
+                    borrowingHistory.add(record);
+                }
+            } else {
+                System.out.println("Note: book_borrowings table doesn't exist yet");
             }
             
         } catch (SQLException e) {
-            showErrorAlert("Database Error", "Failed to load borrowing history: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Note: Could not load borrowing history: " + e.getMessage());
         }
     }
     
@@ -599,59 +624,65 @@ public class LibrarianDashboardController implements Initializable {
         currentStudentId = studentId;
         
         try {
-            String query = """
-                SELECT 
-                    bb.book_title,
-                    'Unknown' as author,
-                    DATE(bb.borrow_date) as borrow_date,
-                    DATE(bb.due_date) as due_date,
-                    DATE(bb.return_date) as return_date,
-                    bb.status,
-                    bb.fine_amount
-                FROM book_borrowings bb
-                WHERE bb.student_id = ?
-                ORDER BY bb.borrow_date DESC
-                """;
+            // Check if book_borrowings table exists
+            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
+            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
+            ResultSet checkRs = checkStmt.executeQuery();
             
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            pstmt.setInt(1, studentId);
-            ResultSet rs = pstmt.executeQuery();
-            
-            int totalBorrowed = 0, currentBorrowed = 0, overdue = 0;
-            double totalFines = 0;
-            
-            while (rs.next()) {
-                totalBorrowed++;
+            if (checkRs.next()) {
+                String query = """
+                    SELECT 
+                        bb.book_title,
+                        'Unknown' as author,
+                        DATE(bb.borrow_date) as borrow_date,
+                        DATE(bb.due_date) as due_date,
+                        DATE(bb.return_date) as return_date,
+                        bb.status,
+                        bb.fine_amount
+                    FROM book_borrowings bb
+                    WHERE bb.student_id = ?
+                    ORDER BY bb.borrow_date DESC
+                    """;
                 
-                BookDetail detail = new BookDetail(
-                    rs.getString("book_title"),
-                    rs.getString("author"),
-                    rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
-                    rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
-                    rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
-                    rs.getString("status"),
-                    rs.getDouble("fine_amount")
-                );
+                PreparedStatement pstmt = connection.prepareStatement(query);
+                pstmt.setInt(1, studentId);
+                ResultSet rs = pstmt.executeQuery();
                 
-                studentBookDetails.add(detail);
+                int totalBorrowed = 0, currentBorrowed = 0, overdue = 0;
+                double totalFines = 0;
                 
-                if ("BORROWED".equals(detail.getStatus()) || "OVERDUE".equals(detail.getStatus())) {
-                    currentBorrowed++;
+                while (rs.next()) {
+                    totalBorrowed++;
+                    
+                    BookDetail detail = new BookDetail(
+                        rs.getString("book_title"),
+                        rs.getString("author"),
+                        rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
+                        rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
+                        rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
+                        rs.getString("status"),
+                        rs.getDouble("fine_amount")
+                    );
+                    
+                    studentBookDetails.add(detail);
+                    
+                    if ("BORROWED".equals(detail.getStatus()) || "OVERDUE".equals(detail.getStatus())) {
+                        currentBorrowed++;
+                    }
+                    if ("OVERDUE".equals(detail.getStatus())) {
+                        overdue++;
+                    }
+                    totalFines += detail.getFine();
                 }
-                if ("OVERDUE".equals(detail.getStatus())) {
-                    overdue++;
-                }
-                totalFines += detail.getFine();
+                
+                if (lblDetailTotalBorrowed != null) lblDetailTotalBorrowed.setText(String.valueOf(totalBorrowed));
+                if (lblDetailCurrentBorrowed != null) lblDetailCurrentBorrowed.setText(String.valueOf(currentBorrowed));
+                if (lblDetailOverdue != null) lblDetailOverdue.setText(String.valueOf(overdue));
+                if (lblDetailTotalFines != null) lblDetailTotalFines.setText(String.format("ETB%.2f", totalFines));
             }
             
-            lblDetailTotalBorrowed.setText(String.valueOf(totalBorrowed));
-            lblDetailCurrentBorrowed.setText(String.valueOf(currentBorrowed));
-            lblDetailOverdue.setText(String.valueOf(overdue));
-            lblDetailTotalFines.setText(String.format("₦%.2f", totalFines));
-            
         } catch (SQLException e) {
-            showErrorAlert("Database Error", "Failed to load student book details: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Note: Could not load student book details: " + e.getMessage());
         }
     }
     
@@ -678,15 +709,17 @@ public class LibrarianDashboardController implements Initializable {
             
             if (rs.next()) {
                 currentStudentId = rs.getInt("id");
-                lblDetailStudentId.setText(rs.getString("username"));
-                lblDetailStudentName.setText(rs.getString("full_name"));
-                lblDetailDepartment.setText(rs.getString("department"));
-                lblDetailEmail.setText(rs.getString("email"));
-                lblDetailPhone.setText(rs.getString("phone"));
+                if (lblDetailStudentId != null) lblDetailStudentId.setText(rs.getString("username"));
+                if (lblDetailStudentName != null) lblDetailStudentName.setText(rs.getString("full_name"));
+                if (lblDetailDepartment != null) lblDetailDepartment.setText(rs.getString("department"));
+                if (lblDetailEmail != null) lblDetailEmail.setText(rs.getString("email"));
+                if (lblDetailPhone != null) lblDetailPhone.setText(rs.getString("phone"));
                 
                 String status = rs.getString("clearance_status");
-                lblDetailStatus.setText(status != null ? status : "Not Applied");
-                updateStatusLabelStyle(lblDetailStatus, status);
+                if (lblDetailStatus != null) {
+                    lblDetailStatus.setText(status != null ? status : "Not Applied");
+                    updateStatusLabelStyle(lblDetailStatus, status);
+                }
             }
             
         } catch (SQLException e) {
@@ -696,7 +729,7 @@ public class LibrarianDashboardController implements Initializable {
     }
     
     private void updateStatusLabelStyle(Label label, String status) {
-        if (status == null) return;
+        if (status == null || label == null) return;
         
         switch (status) {
             case "APPROVED":
@@ -722,19 +755,23 @@ public class LibrarianDashboardController implements Initializable {
         loadStudentInfo(request.getStudentId());
         loadStudentBookDetails(currentStudentId);
         
-        if ("PENDING".equals(selectedRequest.getApprovalStatus()) || 
-            "IN_PROGRESS".equals(selectedRequest.getApprovalStatus())) {
-            btnApproveFromDetails.setDisable(false);
-            btnRejectFromDetails.setDisable(false);
-        } else {
-            btnApproveFromDetails.setDisable(true);
-            btnRejectFromDetails.setDisable(true);
+        if (btnApproveFromDetails != null && btnRejectFromDetails != null) {
+            if ("PENDING".equals(selectedRequest.getApprovalStatus()) || 
+                "IN_PROGRESS".equals(selectedRequest.getApprovalStatus())) {
+                btnApproveFromDetails.setDisable(false);
+                btnRejectFromDetails.setDisable(false);
+            } else {
+                btnApproveFromDetails.setDisable(true);
+                btnRejectFromDetails.setDisable(true);
+            }
         }
         
-        if (!mainTabPane.getTabs().contains(tabStudentDetails)) {
+        if (mainTabPane != null && !mainTabPane.getTabs().contains(tabStudentDetails)) {
             mainTabPane.getTabs().add(tabStudentDetails);
         }
-        mainTabPane.getSelectionModel().select(tabStudentDetails);
+        if (mainTabPane != null) {
+            mainTabPane.getSelectionModel().select(tabStudentDetails);
+        }
         
         showToastNotification("Loaded details for " + request.getStudentName());
     }
@@ -759,7 +796,9 @@ public class LibrarianDashboardController implements Initializable {
     
     @FXML
     private void goBackToRequests() {
-        mainTabPane.getSelectionModel().select(0);
+        if (mainTabPane != null) {
+            mainTabPane.getSelectionModel().select(0);
+        }
     }
     
     @FXML
@@ -779,14 +818,13 @@ public class LibrarianDashboardController implements Initializable {
                 alert.setTitle("Warning - Outstanding Issues");
                 alert.setHeaderText("⚠ Student has outstanding library issues!");
                 alert.setContentText(String.format(
-                    "Student: %s (%s)\n\nIssues Found:\n• Overdue books: %d\n• Total fines: ₦%.2f\n\nThis student has overdue books or unpaid fines. Are you sure you want to approve?",
+                    "Student: %s (%s)\n\nIssues Found:\n• Overdue books: %d\n• Total fines: ETB%.2f\n\nThis student has overdue books or unpaid fines. Are you sure you want to approve?",
                     studentName, studentId, request.getOverdueCount(), request.getTotalFine()
                 ));
                 alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
                 
                 alert.showAndWait().ifPresent(response -> {
                     if (response == ButtonType.YES) {
-                        showProcessingAlert("Approving clearance...");
                         updateClearanceStatus(request.getRequestId(), "APPROVED", 
                             "Library clearance approved with outstanding issues");
                         showSuccessAlert("Clearance Approved", 
@@ -806,7 +844,6 @@ public class LibrarianDashboardController implements Initializable {
                 
                 alert.showAndWait().ifPresent(response -> {
                     if (response == ButtonType.YES) {
-                        showProcessingAlert("Approving clearance...");
                         updateClearanceStatus(request.getRequestId(), "APPROVED", 
                             "Library clearance approved - borrowed books present");
                         showSuccessAlert("Clearance Approved", 
@@ -824,7 +861,6 @@ public class LibrarianDashboardController implements Initializable {
                 
                 alert.showAndWait().ifPresent(response -> {
                     if (response == ButtonType.OK) {
-                        showProcessingAlert("Approving clearance...");
                         updateClearanceStatus(request.getRequestId(), "APPROVED", "Library clearance approved - clear status");
                         showSuccessAlert("Clearance Approved", 
                             String.format("Clearance for %s (%s) has been approved.", studentName, studentId));
@@ -846,7 +882,7 @@ public class LibrarianDashboardController implements Initializable {
             rejectionReasons.append("• ").append(request.getOverdueCount()).append(" overdue book(s)\n");
         }
         if (request.getTotalFine() > 0) {
-            rejectionReasons.append("• Unpaid fines: ₦").append(String.format("%.2f", request.getTotalFine())).append("\n");
+            rejectionReasons.append("• Unpaid fines: ETB").append(String.format("%.2f", request.getTotalFine())).append("\n");
         }
         if (request.getTotalBorrowed() > 0) {
             rejectionReasons.append("• ").append(request.getTotalBorrowed()).append(" book(s) still borrowed\n");
@@ -877,7 +913,7 @@ public class LibrarianDashboardController implements Initializable {
                 }
                 if (request.getTotalFine() > 0) {
                     if (!defaultReason.isEmpty()) defaultReason += ", ";
-                    defaultReason += "Unpaid fines: ₦" + String.format("%.2f", request.getTotalFine());
+                    defaultReason += "Unpaid fines: ETB" + String.format("%.2f", request.getTotalFine());
                 }
                 if (defaultReason.isEmpty()) {
                     defaultReason = "Library clearance not approved";
@@ -886,7 +922,6 @@ public class LibrarianDashboardController implements Initializable {
                 
                 dialog.showAndWait().ifPresent(reason -> {
                     if (!reason.trim().isEmpty()) {
-                        showProcessingAlert("Processing rejection...");
                         updateClearanceStatus(request.getRequestId(), "REJECTED", reason);
                         showInfoAlert("Clearance Rejected", 
                             String.format("Clearance for %s (%s) has been rejected.\nReason: %s", 
@@ -901,22 +936,52 @@ public class LibrarianDashboardController implements Initializable {
     
     private void updateClearanceStatus(int requestId, String status, String remarks) {
         try {
-            String query = """
-                UPDATE clearance_approvals 
-                SET status = ?, 
-                    officer_id = ?,
-                    remarks = ?, 
-                    approval_date = NOW() 
-                WHERE request_id = ? 
-                  AND officer_role = 'LIBRARIAN'
-                """;
+            if (currentUser == null) {
+                showErrorAlert("Error", "No librarian logged in!");
+                return;
+            }
             
-            PreparedStatement pstmt = connection.prepareStatement(query);
-            pstmt.setString(1, status);
-            pstmt.setInt(2, currentUserId);
-            pstmt.setString(3, remarks);
-            pstmt.setInt(4, requestId);
-            int rowsAffected = pstmt.executeUpdate();
+            // First, check if approval record exists
+            String checkQuery = "SELECT id FROM clearance_approvals WHERE request_id = ? AND officer_role = 'LIBRARIAN'";
+            PreparedStatement checkStmt = connection.prepareStatement(checkQuery);
+            checkStmt.setInt(1, requestId);
+            ResultSet rs = checkStmt.executeQuery();
+            
+            int rowsAffected = 0;
+            
+            if (rs.next()) {
+                // Update existing record
+                String updateQuery = """
+                    UPDATE clearance_approvals 
+                    SET status = ?, 
+                        officer_id = ?,
+                        remarks = ?, 
+                        approval_date = NOW() 
+                    WHERE request_id = ? 
+                      AND officer_role = 'LIBRARIAN'
+                    """;
+                
+                PreparedStatement updateStmt = connection.prepareStatement(updateQuery);
+                updateStmt.setString(1, status);
+                updateStmt.setInt(2, currentUser.getId());
+                updateStmt.setString(3, remarks);
+                updateStmt.setInt(4, requestId);
+                rowsAffected = updateStmt.executeUpdate();
+            } else {
+                // Insert new record
+                String insertQuery = """
+                    INSERT INTO clearance_approvals 
+                    (request_id, officer_role, officer_id, status, remarks, approval_date)
+                    VALUES (?, 'LIBRARIAN', ?, ?, ?, NOW())
+                    """;
+                
+                PreparedStatement insertStmt = connection.prepareStatement(insertQuery);
+                insertStmt.setInt(1, requestId);
+                insertStmt.setInt(2, currentUser.getId());
+                insertStmt.setString(3, status);
+                insertStmt.setString(4, remarks);
+                rowsAffected = insertStmt.executeUpdate();
+            }
             
             if (rowsAffected > 0) {
                 if ("APPROVED".equals(status)) {
@@ -933,21 +998,25 @@ public class LibrarianDashboardController implements Initializable {
             refreshRequests();
             
             if (currentStudentId > 0 && selectedRequest != null && selectedRequest.getRequestId() == requestId) {
-                lblDetailStatus.setText(status);
-                updateStatusLabelStyle(lblDetailStatus, status);
-                btnApproveFromDetails.setDisable(true);
-                btnRejectFromDetails.setDisable(true);
+                if (lblDetailStatus != null) {
+                    lblDetailStatus.setText(status);
+                    updateStatusLabelStyle(lblDetailStatus, status);
+                }
+                if (btnApproveFromDetails != null) btnApproveFromDetails.setDisable(true);
+                if (btnRejectFromDetails != null) btnRejectFromDetails.setDisable(true);
                 
-                String color = "APPROVED".equals(status) ? "#27ae60" : "#e74c3c";
-                lblDetailStatus.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, " + color + ", 10, 0.5, 0, 0);");
-                
-                Timeline flash = new Timeline(
-                    new KeyFrame(Duration.ZERO, new KeyValue(lblDetailStatus.opacityProperty(), 1.0)),
-                    new KeyFrame(Duration.millis(500), new KeyValue(lblDetailStatus.opacityProperty(), 0.3)),
-                    new KeyFrame(Duration.millis(1000), new KeyValue(lblDetailStatus.opacityProperty(), 1.0))
-                );
-                flash.setCycleCount(3);
-                flash.play();
+                if (lblDetailStatus != null) {
+                    String color = "APPROVED".equals(status) ? "#27ae60" : "#e74c3c";
+                    lblDetailStatus.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, " + color + ", 10, 0.5, 0, 0);");
+                    
+                    Timeline flash = new Timeline(
+                        new KeyFrame(Duration.ZERO, new KeyValue(lblDetailStatus.opacityProperty(), 1.0)),
+                        new KeyFrame(Duration.millis(500), new KeyValue(lblDetailStatus.opacityProperty(), 0.3)),
+                        new KeyFrame(Duration.millis(1000), new KeyValue(lblDetailStatus.opacityProperty(), 1.0))
+                    );
+                    flash.setCycleCount(3);
+                    flash.play();
+                }
             }
             
         } catch (SQLException e) {
@@ -982,6 +1051,8 @@ public class LibrarianDashboardController implements Initializable {
     
     @FXML
     private void searchBorrowingHistory() {
+        if (filteredBorrowingHistory == null) return;
+        
         String searchText = txtSearchStudent.getText().toLowerCase();
         String selectedStatus = cmbStatusFilter.getValue();
         
@@ -1002,7 +1073,9 @@ public class LibrarianDashboardController implements Initializable {
     private void clearFilters() {
         txtSearchStudent.clear();
         cmbStatusFilter.setValue("All");
-        filteredBorrowingHistory.setPredicate(null);
+        if (filteredBorrowingHistory != null) {
+            filteredBorrowingHistory.setPredicate(null);
+        }
         showToastNotification("Filters cleared");
     }
     
@@ -1023,38 +1096,44 @@ public class LibrarianDashboardController implements Initializable {
     
     private void updateDashboardStats() {
         try {
-            String totalBooksQuery = "SELECT COUNT(*) as count FROM book_borrowings";
-            PreparedStatement pstmt1 = connection.prepareStatement(totalBooksQuery);
-            ResultSet rs1 = pstmt1.executeQuery();
-            if (rs1.next()) {
-                lblTotalBooks.setText(String.valueOf(rs1.getInt("count")));
-            }
+            // Check if book_borrowings table exists
+            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
+            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
+            ResultSet checkRs = checkStmt.executeQuery();
             
-            String activeBorrowersQuery = """
-                SELECT COUNT(DISTINCT student_id) as count 
-                FROM book_borrowings 
-                WHERE status IN ('BORROWED', 'OVERDUE')
-                """;
-            PreparedStatement pstmt2 = connection.prepareStatement(activeBorrowersQuery);
-            ResultSet rs2 = pstmt2.executeQuery();
-            if (rs2.next()) {
-                lblActiveBorrowers.setText(String.valueOf(rs2.getInt("count")));
-            }
-            
-            String overdueQuery = """
-                SELECT COUNT(*) as count 
-                FROM book_borrowings 
-                WHERE due_date < CURDATE() AND return_date IS NULL
-                """;
-            PreparedStatement pstmt3 = connection.prepareStatement(overdueQuery);
-            ResultSet rs3 = pstmt3.executeQuery();
-            if (rs3.next()) {
-                lblOverdueCount.setText(String.valueOf(rs3.getInt("count")));
+            if (checkRs.next()) {
+                String totalBooksQuery = "SELECT COUNT(*) as count FROM book_borrowings";
+                PreparedStatement pstmt1 = connection.prepareStatement(totalBooksQuery);
+                ResultSet rs1 = pstmt1.executeQuery();
+                if (rs1.next() && lblTotalBooks != null) {
+                    lblTotalBooks.setText(String.valueOf(rs1.getInt("count")));
+                }
+                
+                String activeBorrowersQuery = """
+                    SELECT COUNT(DISTINCT student_id) as count 
+                    FROM book_borrowings 
+                    WHERE status IN ('BORROWED', 'OVERDUE')
+                    """;
+                PreparedStatement pstmt2 = connection.prepareStatement(activeBorrowersQuery);
+                ResultSet rs2 = pstmt2.executeQuery();
+                if (rs2.next() && lblActiveBorrowers != null) {
+                    lblActiveBorrowers.setText(String.valueOf(rs2.getInt("count")));
+                }
+                
+                String overdueQuery = """
+                    SELECT COUNT(*) as count 
+                    FROM book_borrowings 
+                    WHERE due_date < CURDATE() AND return_date IS NULL
+                    """;
+                PreparedStatement pstmt3 = connection.prepareStatement(overdueQuery);
+                ResultSet rs3 = pstmt3.executeQuery();
+                if (rs3.next() && lblOverdueCount != null) {
+                    lblOverdueCount.setText(String.valueOf(rs3.getInt("count")));
+                }
             }
             
         } catch (SQLException e) {
-            showErrorAlert("Database Error", "Failed to load dashboard stats: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Note: Could not load dashboard stats: " + e.getMessage());
         }
     }
     
@@ -1067,9 +1146,9 @@ public class LibrarianDashboardController implements Initializable {
             .mapToDouble(BorrowingRecord::getFine)
             .sum();
         
-        lblTotalBorrowed.setText(String.valueOf(totalBorrowed));
-        lblCurrentlyBorrowed.setText(String.valueOf(currentlyBorrowed));
-        lblTotalFines.setText(String.format("₦%.2f", totalFines));
+        if (lblTotalBorrowed != null) lblTotalBorrowed.setText(String.valueOf(totalBorrowed));
+        if (lblCurrentlyBorrowed != null) lblCurrentlyBorrowed.setText(String.valueOf(currentlyBorrowed));
+        if (lblTotalFines != null) lblTotalFines.setText(String.format("ETB%.2f", totalFines));
     }
     
     private void showSuccessAlert(String title, String message) {
@@ -1104,68 +1183,9 @@ public class LibrarianDashboardController implements Initializable {
         alert.showAndWait();
     }
     
-    private void showProcessingAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Processing");
-        alert.setHeaderText("⏳ Please wait...");
-        alert.setContentText(message);
-        alert.getDialogPane().getButtonTypes().clear();
-        alert.show();
-        
-        new Thread(() -> {
-            try {
-                Thread.sleep(800);
-                Platform.runLater(() -> alert.close());
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }).start();
-    }
-    
     private void showToastNotification(String message) {
-        if (tableRequests == null || tableRequests.getScene() == null) {
-            System.out.println("[Toast]: " + message);
-            return;
-        }
-        
-        Label toast = new Label(message);
-        toast.getStyleClass().add("toast-notification");
-        
-        Stage stage = (Stage) tableRequests.getScene().getWindow();
-        if (stage == null) {
-            return;
-        }
-        
-        Stage toastStage = new Stage();
-        toastStage.initOwner(stage);
-        toastStage.initStyle(StageStyle.TRANSPARENT);
-        toastStage.initModality(Modality.NONE);
-        
-        StackPane root = new StackPane(toast);
-        root.getStyleClass().add("toast-container");
-        
-        Scene scene = new Scene(root);
-        scene.setFill(Color.TRANSPARENT);
-        scene.getStylesheets().add(getClass().getResource("/com/university/clearance/resources/css/dashboard.css").toExternalForm());
-        toastStage.setScene(scene);
-        
-        toastStage.setX(stage.getX() + stage.getWidth() / 2 - 150);
-        toastStage.setY(stage.getY() + stage.getHeight() - 100);
-        
-        toastStage.show();
-        
-        new Thread(() -> {
-            try {
-                Thread.sleep(3000);
-                Platform.runLater(() -> {
-                    if (toastStage.isShowing()) {
-                        toastStage.close();
-                    }
-                });
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }).start();
+        // Simple console notification for now
+        System.out.println("[Toast]: " + message);
     }
     
     @FXML
@@ -1182,7 +1202,6 @@ public class LibrarianDashboardController implements Initializable {
         alert.showAndWait().ifPresent(response -> {
             if (response == yesButton) {
                 try {
-                    // Perform logout without showing saving session alert
                     performLogout();
                 } catch (Exception e) {
                     showErrorAlert("Logout Error", "Failed to logout: " + e.getMessage());
@@ -1222,7 +1241,7 @@ public class LibrarianDashboardController implements Initializable {
         }
     }
     
-    // Model classes (same as before)
+    // Model classes
     public static class ClearanceRequest {
         private final int requestId;
         private final String studentId;

@@ -51,27 +51,27 @@
             <children>
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="USER MANAGEMENT" />
                 
-                <Button onAction="#openRegisterStudent" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="➕ Register Student" />
-                <Button onAction="#openManageOfficers" style="-fx-background-color: #b2b5b8; -fx-text-fill: wblackhite; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
-                <Button onAction="#resetUserPassword" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
-                <Button onAction="#toggleUserStatus" style="-fx-background-color: #b2b5b8; -fx-text-fill: whiblackte; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
+                <Button onAction="#openRegisterStudent" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="➕ Register Student" />
+                <Button onAction="#openManageOfficers" style="-fx-background-color: #4aaced; -fx-text-fill: wblackhite; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
+                <Button onAction="#resetUserPassword" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
+                <Button onAction="#toggleUserStatus" style="-fx-background-color: #4aaced; -fx-text-fill: whiblackte; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
                 <!-- NEW DELETE USER BUTTON -->
-                <Button fx:id="btnDeleteUser" onAction="#handleDeleteUser" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🗑️ Delete User" />
+                <Button fx:id="btnDeleteUser" onAction="#handleDeleteUser" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🗑️ Delete User" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="SYSTEM CONFIGURATION" />
                 
-                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #b2b5b8; -fx-text-fill: whblackite; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="⚙️ Approval Workflow" />
-                <Button onAction="#openSessionManagement" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="📅 Academic Sessions" />
-                <Button onAction="#processSemesterRollover" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Semester Rollover" />
+                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #4aaced; -fx-text-fill: whblackite; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="⚙️ Approval Workflow" />
+                <Button onAction="#openSessionManagement" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="📅 Academic Sessions" />
+                <Button onAction="#processSemesterRollover" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Semester Rollover" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="QUICK ACTIONS" />
                 
-                <Button onAction="#handleRefresh" style="-fx-background-color: #b2b5b8; -fx-text-fill: whitblacke; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
-                <Button fx:id="btnCurrentInfo" onAction="#showCurrentInfo" style="-fx-background-color: #b2b5b8; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📊 Current Info" />
+                <Button onAction="#handleRefresh" style="-fx-background-color: #4aaced; -fx-text-fill: whitblacke; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
+                <Button fx:id="btnCurrentInfo" onAction="#showCurrentInfo" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📊 Current Info" />
             </children>
         </VBox>
     </left>

@@ -21,6 +21,8 @@ import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PDFCertificateService {
 
@@ -42,6 +44,25 @@ public class PDFCertificateService {
         "sig4.png",  // CAFETERIA
         "sig5.png"   // DORMITORY
     };
+
+    // Officer role mapping for database lookup
+    private static final String[] OFFICER_ROLES = {
+        "REGISTRAR",
+        "DEPARTMENT_HEAD",
+        "LIBRARIAN",
+        "CAFETERIA",
+        "DORMITORY"
+    };
+    
+    // Officer titles mapping
+    private static final Map<String, String> OFFICER_TITLES = new HashMap<>();
+    static {
+        OFFICER_TITLES.put("REGISTRAR", "University Registrar");
+        OFFICER_TITLES.put("DEPARTMENT_HEAD", "Head of Department");
+        OFFICER_TITLES.put("LIBRARIAN", "Chief Librarian");
+        OFFICER_TITLES.put("CAFETERIA", "Cafeteria Manager");
+        OFFICER_TITLES.put("DORMITORY", "Dormitory Supervisor");
+    }
 
     public String generatePDFCertificate(int studentId, int requestId) {
         logDebug("=== START CERTIFICATE GENERATION ===");
@@ -202,9 +223,12 @@ public class PDFCertificateService {
                 logDebug("  Request Date: " + requestDate);
                 logDebug("  Completion Date: " + completionDate);
 
+                // Get officer data from database
+                Map<String, String> officerData = getOfficerDataFromDatabase(conn, department);
+                
                 String certificatePath = createCertificateWithLogo(fullName, studentIdStr, department, 
                                                         yearLevel, email, phone, 
-                                                        requestDate, completionDate);
+                                                        requestDate, completionDate, officerData);
                 
                 if (certificatePath != null) {
                     logDebug("✅ Certificate generated successfully at: " + certificatePath);
@@ -234,9 +258,12 @@ public class PDFCertificateService {
                     Date requestDate = rs2.getDate("request_date");
                     Date completionDate = rs2.getDate("completion_date");
                     
+                    // Get officer data from database
+                    Map<String, String> officerData = getOfficerDataFromDatabase(conn, department);
+                    
                     return createCertificateWithLogo(fullName, studentIdStr, department, 
                                                     yearLevel, email, phone, 
-                                                    requestDate, completionDate);
+                                                    requestDate, completionDate, officerData);
                 } else {
                     logError("❌ Still no data after retry.");
                     
@@ -289,114 +316,120 @@ public class PDFCertificateService {
         return null;
     }
     
-    // Alternative method that doesn't require FULLY_CLEARED status (for testing)
-    public String generatePDFCertificateForTesting(int studentId, int requestId) {
-        logDebug("=== TEST CERTIFICATE GENERATION (Bypassing status check) ===");
+    // ==================== DATABASE METHODS ====================
+    
+    /**
+     * Fetch officer names from database based on their roles
+     */
+    private Map<String, String> getOfficerDataFromDatabase(Connection conn, String studentDepartment) {
+        Map<String, String> officerData = new HashMap<>();
         
-        try (Connection conn = DatabaseConnection.getConnection()) {
+        try {
+            // Query to get active officers from database
             String sql = """
-                SELECT 
-                    u.full_name, 
-                    u.username, 
-                    u.department, 
-                    u.year_level,
-                    u.email, 
-                    u.phone, 
-                    cr.request_date, 
-                    NOW() as completion_date
-                FROM users u
-                JOIN clearance_requests cr ON u.id = cr.student_id
-                WHERE u.id = ? 
-                AND cr.id = ?
+                SELECT role, full_name 
+                FROM users 
+                WHERE role IN ('REGISTRAR', 'LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'DEPARTMENT_HEAD')
+                AND status = 'ACTIVE'
+                ORDER BY FIELD(role, 'REGISTRAR', 'DEPARTMENT_HEAD', 'LIBRARIAN', 'CAFETERIA', 'DORMITORY')
                 """;
-
+            
             PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, studentId);
-            ps.setInt(2, requestId);
             ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                String fullName = rs.getString("full_name");
-                String studentIdStr = rs.getString("username");
-                String department = rs.getString("department");
-                String yearLevel = rs.getString("year_level");
-                String email = rs.getString("email");
-                String phone = rs.getString("phone");
-                Date requestDate = rs.getDate("request_date");
-                Date completionDate = rs.getDate("completion_date");
-                
-                logDebug("⚠️ Generating certificate for testing (bypassing FULLY_CLEARED check)");
-                logDebug("  This certificate will be marked as TEST VERSION");
-
-                return createCertificateWithLogo(fullName, studentIdStr, department, 
-                                                yearLevel, email, phone, 
-                                                requestDate, completionDate);
+            
+            // Store all officers in a map
+            Map<String, String> allOfficers = new HashMap<>();
+            while (rs.next()) {
+                String role = rs.getString("role");
+                String name = rs.getString("full_name");
+                allOfficers.put(role, name);
+                logDebug("Found officer: " + role + " - " + name);
             }
-
+            
+            // Get specific department head for student's department
+            String deptHeadSql = """
+                SELECT full_name 
+                FROM users 
+                WHERE role = 'DEPARTMENT_HEAD' 
+                AND department = ?
+                AND status = 'ACTIVE'
+                LIMIT 1
+                """;
+            
+            PreparedStatement deptHeadPs = conn.prepareStatement(deptHeadSql);
+            deptHeadPs.setString(1, studentDepartment);
+            ResultSet deptHeadRs = deptHeadPs.executeQuery();
+            
+            String departmentHeadName = null;
+            if (deptHeadRs.next()) {
+                departmentHeadName = deptHeadRs.getString("full_name");
+                logDebug("Department Head for " + studentDepartment + ": " + departmentHeadName);
+            }
+            
+            // Fill officer data map with actual names from database
+            // REGISTRAR
+            officerData.put("REGISTRAR_NAME", allOfficers.getOrDefault("REGISTRAR", "Dr. Registrar Officer"));
+            officerData.put("REGISTRAR_TITLE", "University Registrar");
+            
+            // DEPARTMENT HEAD (use specific department head if found, otherwise general)
+            if (departmentHeadName != null) {
+                officerData.put("DEPARTMENT_HEAD_NAME", departmentHeadName);
+            } else {
+                officerData.put("DEPARTMENT_HEAD_NAME", allOfficers.getOrDefault("DEPARTMENT_HEAD", "Prof. Department Head"));
+            }
+            officerData.put("DEPARTMENT_HEAD_TITLE", "Head of Department");
+            
+            // LIBRARIAN
+            officerData.put("LIBRARIAN_NAME", allOfficers.getOrDefault("LIBRARIAN", "Mr. Library Manager"));
+            officerData.put("LIBRARIAN_TITLE", "Chief Librarian");
+            
+            // CAFETERIA
+            officerData.put("CAFETERIA_NAME", allOfficers.getOrDefault("CAFETERIA", "Ms. Cafeteria Head"));
+            officerData.put("CAFETERIA_TITLE", "Cafeteria Manager");
+            
+            // DORMITORY
+            officerData.put("DORMITORY_NAME", allOfficers.getOrDefault("DORMITORY", "Mr. Dormitory Supervisor"));
+            officerData.put("DORMITORY_TITLE", "Dormitory Supervisor");
+            
+            logDebug("Officer data loaded from database: " + officerData);
+            
         } catch (Exception e) {
-            logError("❌ Error in test certificate generation: " + e.getMessage());
-            e.printStackTrace();
+            logError("❌ Error fetching officer data from database: " + e.getMessage());
+            // Use default names as fallback
+            officerData = getDefaultOfficerData();
         }
-        return null;
+        
+        return officerData;
     }
     
-    // Helper method to update request status to FULLY_CLEARED
-    public boolean updateRequestToFullyCleared(int requestId) {
-        logDebug("=== UPDATING REQUEST TO FULLY_CLEARED ===");
-        logDebug("Request ID: " + requestId);
+    /**
+     * Default officer data as fallback
+     */
+    private Map<String, String> getDefaultOfficerData() {
+        Map<String, String> defaultData = new HashMap<>();
         
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            // First check if all approvals are APPROVED
-            String checkSql = """
-                SELECT COUNT(*) as total, 
-                       SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved
-                FROM clearance_approvals 
-                WHERE request_id = ?
-                """;
-            
-            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
-            checkStmt.setInt(1, requestId);
-            ResultSet checkRs = checkStmt.executeQuery();
-            
-            if (checkRs.next()) {
-                int total = checkRs.getInt("total");
-                int approved = checkRs.getInt("approved");
-                
-                logDebug("Approval status: " + approved + "/" + total + " approved");
-                
-                if (total > 0 && approved == total) {
-                    String updateSql = """
-                        UPDATE clearance_requests 
-                        SET status = 'FULLY_CLEARED', 
-                            completion_date = NOW()
-                        WHERE id = ?
-                        """;
-                    
-                    PreparedStatement updateStmt = conn.prepareStatement(updateSql);
-                    updateStmt.setInt(1, requestId);
-                    int rowsUpdated = updateStmt.executeUpdate();
-                    
-                    if (rowsUpdated > 0) {
-                        logDebug("✅ Successfully updated request " + requestId + " to FULLY_CLEARED");
-                        return true;
-                    } else {
-                        logError("❌ Failed to update request - no rows affected");
-                    }
-                } else {
-                    logError("❌ Cannot update to FULLY_CLEARED - not all approvals are approved");
-                    logError("   Approved: " + approved + "/" + total);
-                }
-            }
-        } catch (Exception e) {
-            logError("❌ Error updating request status: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return false;
+        defaultData.put("REGISTRAR_NAME", "Dr. Registrar Officer");
+        defaultData.put("REGISTRAR_TITLE", "University Registrar");
+        
+        defaultData.put("DEPARTMENT_HEAD_NAME", "Prof. Department Head");
+        defaultData.put("DEPARTMENT_HEAD_TITLE", "Head of Department");
+        
+        defaultData.put("LIBRARIAN_NAME", "Mr. Library Manager");
+        defaultData.put("LIBRARIAN_TITLE", "Chief Librarian");
+        
+        defaultData.put("CAFETERIA_NAME", "Ms. Cafeteria Head");
+        defaultData.put("CAFETERIA_TITLE", "Cafeteria Manager");
+        
+        defaultData.put("DORMITORY_NAME", "Mr. Dormitory Supervisor");
+        defaultData.put("DORMITORY_TITLE", "Dormitory Supervisor");
+        
+        return defaultData;
     }
 
     private String createCertificateWithLogo(String fullName, String studentId, String department,
                                            String yearLevel, String email, String phone,
-                                           Date requestDate, Date completionDate) {
+                                           Date requestDate, Date completionDate, 
+                                           Map<String, String> officerData) {
 
         String fileName = System.getProperty("user.home") + "/Downloads/DBU_Clearance_Certificate_" 
                         + studentId + "_" + System.currentTimeMillis() + ".pdf";
@@ -624,12 +657,17 @@ public class PDFCertificateService {
             signaturesTable.setHorizontalAlignment(HorizontalAlignment.CENTER);
             signaturesTable.setWidth(500);
             
-            // Add signature columns with your sig1.png to sig5.png files
-            addSignatureColumn(signaturesTable, "University Registrar", currentDate, 0);  // sig1.png
-            addSignatureColumn(signaturesTable, "Department Head", currentDate, 1);       // sig2.png
-            addSignatureColumn(signaturesTable, "Librarian", currentDate, 2);            // sig3.png
-            addSignatureColumn(signaturesTable, "Cafeteria", currentDate, 3);            // sig4.png
-            addSignatureColumn(signaturesTable, "Dormitory", currentDate, 4);            // sig5.png
+            // Add signature columns with database-fetched names
+            addSignatureColumn(signaturesTable, officerData.get("REGISTRAR_TITLE"), 
+                              currentDate, 0, officerData.get("REGISTRAR_NAME"));
+            addSignatureColumn(signaturesTable, officerData.get("DEPARTMENT_HEAD_TITLE"), 
+                              currentDate, 1, officerData.get("DEPARTMENT_HEAD_NAME"));
+            addSignatureColumn(signaturesTable, officerData.get("LIBRARIAN_TITLE"), 
+                              currentDate, 2, officerData.get("LIBRARIAN_NAME"));
+            addSignatureColumn(signaturesTable, officerData.get("CAFETERIA_TITLE"), 
+                              currentDate, 3, officerData.get("CAFETERIA_NAME"));
+            addSignatureColumn(signaturesTable, officerData.get("DORMITORY_TITLE"), 
+                              currentDate, 4, officerData.get("DORMITORY_NAME"));
             
             signaturesSection.add(signaturesTable);
             
@@ -685,7 +723,7 @@ public class PDFCertificateService {
     
     // ==================== SIGNATURE METHODS ====================
     
-    private void addSignatureColumn(Table table, String title, String date, int signatureIndex) {
+    private void addSignatureColumn(Table table, String title, String date, int signatureIndex, String officerName) {
         Cell cell = new Cell();
         cell.setBorder(Border.NO_BORDER);
         cell.setTextAlignment(TextAlignment.CENTER);
@@ -715,7 +753,6 @@ public class PDFCertificateService {
                     .setMarginBottom(8));
             
             // Create a text-based signature as fallback
-            String officerName = getOfficerNameByIndex(signatureIndex);
             Image generatedSignature = createTextSignature(officerName);
             if (generatedSignature != null) {
                 generatedSignature.setWidth(70);
@@ -726,14 +763,14 @@ public class PDFCertificateService {
             }
         }
         
-        // Add officer name
-        cell.add(new Paragraph(getOfficerNameByIndex(signatureIndex))
+        // Add officer name (from database)
+        cell.add(new Paragraph(officerName != null ? officerName : getDefaultOfficerName(signatureIndex))
                 .setFontSize(8)
                 .setFontColor(ColorConstants.DARK_GRAY)
                 .setMarginBottom(2));
         
         // Add position/title
-        cell.add(new Paragraph(getOfficerPositionByIndex(signatureIndex))
+        cell.add(new Paragraph(getOfficerTitleByIndex(signatureIndex))
                 .setFontSize(7)
                 .setFontColor(ColorConstants.GRAY)
                 .setMarginBottom(2));
@@ -807,26 +844,26 @@ public class PDFCertificateService {
         return null;
     }
     
-    // Get officer name based on signature index
-    private String getOfficerNameByIndex(int index) {
+    // Get default officer name based on signature index (fallback)
+    private String getDefaultOfficerName(int index) {
         switch(index) {
             case 0: // sig1.png - Registrar
-                return "Dr. Samuel Tekle";
+                return "Dr. Registrar Officer";
             case 1: // sig2.png - Department Head
-                return "Prof. Michael Asrat";
+                return "Prof. Department Head";
             case 2: // sig3.png - Librarian
-                return "Mrs. Sarah Mulugeta";
+                return "Mr. Library Manager";
             case 3: // sig4.png - Cafeteria
-                return "Mr. Daniel Wolde";
+                return "Ms. Cafeteria Head";
             case 4: // sig5.png - Dormitory
-                return "Mrs. Ruth Bekele";
+                return "Mr. Dormitory Supervisor";
             default:
                 return "Authorized Signatory";
         }
     }
     
-    // Get officer position based on signature index
-    private String getOfficerPositionByIndex(int index) {
+    // Get officer title based on signature index
+    private String getOfficerTitleByIndex(int index) {
         switch(index) {
             case 0: // sig1.png - Registrar
                 return "University Registrar";
@@ -1056,6 +1093,17 @@ public class PDFCertificateService {
                         rs.getDate("completion_date") != null ? rs.getDate("completion_date").toString() : "N/A"
                     ));
                 }
+                
+                // Also test officer data fetching
+                logDebug("\n=== OFFICER DATA TEST ===");
+                Map<String, String> officerData = getOfficerDataFromDatabase(conn, "Software Engineering");
+                logDebug("Officer names from database:");
+                for (Map.Entry<String, String> entry : officerData.entrySet()) {
+                    if (entry.getKey().contains("NAME")) {
+                        logDebug("  " + entry.getKey() + ": " + entry.getValue());
+                    }
+                }
+                
             } else {
                 logError("❌ Database connection failed");
             }
@@ -1066,7 +1114,134 @@ public class PDFCertificateService {
         logDebug("=== END DATABASE TEST ===\n");
     }
     
-    // Bulk update all eligible requests to FULLY_CLEARED
+    // Debug logging methods
+    private void logDebug(String message) {
+        if (DEBUG_MODE) {
+            System.out.println("[DEBUG] " + message);
+        }
+    }
+    
+    private void logError(String message) {
+        System.err.println("[ERROR] " + message);
+    }
+    
+    // ==================== ADDITIONAL METHODS ====================
+    
+    /**
+     * Alternative method that doesn't require FULLY_CLEARED status (for testing)
+     */
+    public String generatePDFCertificateForTesting(int studentId, int requestId) {
+        logDebug("=== TEST CERTIFICATE GENERATION (Bypassing status check) ===");
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT 
+                    u.full_name, 
+                    u.username, 
+                    u.department, 
+                    u.year_level,
+                    u.email, 
+                    u.phone, 
+                    cr.request_date, 
+                    NOW() as completion_date
+                FROM users u
+                JOIN clearance_requests cr ON u.id = cr.student_id
+                WHERE u.id = ? 
+                AND cr.id = ?
+                """;
+
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, studentId);
+            ps.setInt(2, requestId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                String fullName = rs.getString("full_name");
+                String studentIdStr = rs.getString("username");
+                String department = rs.getString("department");
+                String yearLevel = rs.getString("year_level");
+                String email = rs.getString("email");
+                String phone = rs.getString("phone");
+                Date requestDate = rs.getDate("request_date");
+                Date completionDate = rs.getDate("completion_date");
+                
+                logDebug("⚠️ Generating certificate for testing (bypassing FULLY_CLEARED check)");
+                logDebug("  This certificate will be marked as TEST VERSION");
+
+                // Get officer data from database
+                Map<String, String> officerData = getOfficerDataFromDatabase(conn, department);
+                
+                return createCertificateWithLogo(fullName, studentIdStr, department, 
+                                                yearLevel, email, phone, 
+                                                requestDate, completionDate, officerData);
+            }
+
+        } catch (Exception e) {
+            logError("❌ Error in test certificate generation: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
+    /**
+     * Helper method to update request status to FULLY_CLEARED
+     */
+    public boolean updateRequestToFullyCleared(int requestId) {
+        logDebug("=== UPDATING REQUEST TO FULLY_CLEARED ===");
+        logDebug("Request ID: " + requestId);
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // First check if all approvals are APPROVED
+            String checkSql = """
+                SELECT COUNT(*) as total, 
+                       SUM(CASE WHEN status = 'APPROVED' THEN 1 ELSE 0 END) as approved
+                FROM clearance_approvals 
+                WHERE request_id = ?
+                """;
+            
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, requestId);
+            ResultSet checkRs = checkStmt.executeQuery();
+            
+            if (checkRs.next()) {
+                int total = checkRs.getInt("total");
+                int approved = checkRs.getInt("approved");
+                
+                logDebug("Approval status: " + approved + "/" + total + " approved");
+                
+                if (total > 0 && approved == total) {
+                    String updateSql = """
+                        UPDATE clearance_requests 
+                        SET status = 'FULLY_CLEARED', 
+                            completion_date = NOW()
+                        WHERE id = ?
+                        """;
+                    
+                    PreparedStatement updateStmt = conn.prepareStatement(updateSql);
+                    updateStmt.setInt(1, requestId);
+                    int rowsUpdated = updateStmt.executeUpdate();
+                    
+                    if (rowsUpdated > 0) {
+                        logDebug("✅ Successfully updated request " + requestId + " to FULLY_CLEARED");
+                        return true;
+                    } else {
+                        logError("❌ Failed to update request - no rows affected");
+                    }
+                } else {
+                    logError("❌ Cannot update to FULLY_CLEARED - not all approvals are approved");
+                    logError("   Approved: " + approved + "/" + total);
+                }
+            }
+        } catch (Exception e) {
+            logError("❌ Error updating request status: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    /**
+     * Bulk update all eligible requests to FULLY_CLEARED
+     */
     public int bulkUpdateToFullyCleared() {
         logDebug("=== BULK UPDATE TO FULLY_CLEARED ===");
         int updatedCount = 0;
@@ -1128,18 +1303,9 @@ public class PDFCertificateService {
         return updatedCount;
     }
     
-    // Debug logging methods
-    private void logDebug(String message) {
-        if (DEBUG_MODE) {
-            System.out.println("[DEBUG] " + message);
-        }
-    }
-    
-    private void logError(String message) {
-        System.err.println("[ERROR] " + message);
-    }
-    
-    // Utility method to check if certificate can be generated for a student
+    /**
+     * Utility method to check if certificate can be generated for a student
+     */
     public boolean canGenerateCertificate(int studentId) {
         logDebug("=== CHECKING IF CERTIFICATE CAN BE GENERATED ===");
         logDebug("Student ID: " + studentId);
@@ -1197,58 +1363,5 @@ public class PDFCertificateService {
             e.printStackTrace();
             return false;
         }
-    }
-    
-    // ==================== SIGNATURE FILE CHECK METHOD ====================
-    
-    /**
-     * Method to verify all signature files exist
-     * Call this at application startup
-     */
-    public void checkSignatureFiles() {
-        logDebug("=== CHECKING SIGNATURE FILES ===");
-        
-        for (int i = 0; i < SIGNATURE_FILES.length; i++) {
-            String signatureFile = SIGNATURE_FILES[i];
-            String[] possiblePaths = {
-                "/com/university/clearance/resources/images/signatures/" + signatureFile,
-                "resources/images/signatures/" + signatureFile,
-                "images/signatures/" + signatureFile,
-                "src/main/resources/com/university/clearance/resources/images/signatures/" + signatureFile,
-                "C:/Users/A&A COMPUTER/eclipse-workspace/ClearanceManagementSystem/src/com/university/clearance/resources/images/signatures/" + signatureFile
-            };
-            
-            boolean found = false;
-            for (String path : possiblePaths) {
-                try {
-                    if (path.startsWith("/")) {
-                        // Try as resource
-                        InputStream stream = getClass().getResourceAsStream(path);
-                        if (stream != null) {
-                            stream.close();
-                            found = true;
-                            logDebug("✅ Found " + signatureFile + " at: " + path);
-                            break;
-                        }
-                    } else {
-                        // Try as file path
-                        java.io.File file = new java.io.File(path);
-                        if (file.exists()) {
-                            found = true;
-                            logDebug("✅ Found " + signatureFile + " at: " + path);
-                            break;
-                        }
-                    }
-                } catch (Exception e) {
-                    // Ignore and try next path
-                }
-            }
-            
-            if (!found) {
-                logDebug("⚠️ WARNING: Signature file not found: " + signatureFile);
-                logDebug("   Will use text-based signature as fallback");
-            }
-        }
-        logDebug("=== SIGNATURE CHECK COMPLETE ===");
     }
 }

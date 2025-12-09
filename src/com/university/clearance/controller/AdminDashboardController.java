@@ -2784,13 +2784,13 @@ public class AdminDashboardController {
     private void setupOfficerValidationListeners(GridPane grid, SimpleBooleanProperty allFieldsValid) {
         Object[] components = (Object[]) grid.getUserData();
         
-        Label lblFullNameValidation = (Label) components[8];
-        Label lblUsernameValidation = (Label) components[9];
-        Label lblPasswordValidation = (Label) components[10];
-        Label lblEmailValidation = (Label) components[11];
-        Label lblPhoneValidation = (Label) components[12];
-        Label lblRoleValidation = (Label) components[13];
-        Label lblDeptValidation = (Label) components[14];
+        Label lblFullNameValidation = (Label) components[7];      // was 8
+        Label lblUsernameValidation = (Label) components[8];      // was 9
+        Label lblPasswordValidation = (Label) components[9];      // was 10
+        Label lblEmailValidation = (Label) components[10];        // was 11
+        Label lblPhoneValidation = (Label) components[11];        // was 12
+        Label lblRoleValidation = (Label) components[12];         // was 13
+        Label lblDeptValidation = (Label) components[13];         // was 14
         
         Runnable validationChecker = () -> {
             boolean allValid = 
@@ -2817,14 +2817,15 @@ public class AdminDashboardController {
     private boolean validateOfficerFields(GridPane grid) {
         Object[] components = (Object[]) grid.getUserData();
         
+        // Update indices to match the array structure
         Label[] validationLabels = new Label[]{
-            (Label) components[8],   // Full Name
-            (Label) components[9],   // Username
-            (Label) components[10],  // Password
-            (Label) components[11],  // Email
-            (Label) components[12],  // Phone
-            (Label) components[13],  // Role
-            (Label) components[14]   // Department
+            (Label) components[7],   // Full Name (was 8)
+            (Label) components[8],   // Username (was 9)
+            (Label) components[9],   // Password (was 10)
+            (Label) components[10],  // Email (was 11)
+            (Label) components[11],  // Phone (was 12)
+            (Label) components[12],  // Role (was 13)
+            (Label) components[13]   // Department (was 14)
         };
         
         for (Label label : validationLabels) {

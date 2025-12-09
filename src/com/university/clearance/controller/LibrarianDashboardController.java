@@ -1,28 +1,38 @@
 package com.university.clearance.controller;
 
 import com.university.clearance.DatabaseConnection;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.fxml.Initializable;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.HBox;
-import javafx.stage.Stage;
-import javafx.util.Callback;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.util.Callback;
+import javafx.util.Duration;
 
+import java.io.IOException;
 import java.net.URL;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ResourceBundle;
-import java.io.IOException;
 
 public class LibrarianDashboardController implements Initializable {
     
@@ -102,10 +112,14 @@ public class LibrarianDashboardController implements Initializable {
             // Get database connection
             connection = DatabaseConnection.getConnection();
             
-            // Get current librarian info (from session)
-            currentUserId = getCurrentUserId(); // This should be set during login
+            // Get current librarian info
+            currentUserId = getCurrentUserId();
             currentLibrarianName = getCurrentUserName();
-            lblWelcome.setText("Welcome, " + currentLibrarianName);
+            
+            // Set welcome label
+            if (lblWelcome != null) {
+                lblWelcome.setText("Welcome, " + currentLibrarianName);
+            }
             
             // Initialize observable lists
             clearanceRequests = FXCollections.observableArrayList();
@@ -121,20 +135,85 @@ public class LibrarianDashboardController implements Initializable {
             configureBorrowingHistoryTable();
             configureStudentDetailsTable();
             
-            // Load initial data
-            refreshAllData();
+            // Apply CSS for active tab indicator
+            applyActiveTabStyling();
             
-            // Set up search filtering for borrowing history
+            // Load initial data
+            Platform.runLater(() -> {
+                refreshAllData();
+                showToastNotification("Dashboard loaded successfully");
+            });
+            
+            // Set up search filtering
             setupSearchFilter();
             
+            // Add keyboard shortcuts
+            Platform.runLater(() -> setupKeyboardShortcuts());
+            
+            // Add tooltips
+            Platform.runLater(() -> setupTooltips());
+            
         } catch (Exception e) {
-            showAlert("Initialization Error", "Cannot initialize dashboard: " + e.getMessage());
+            showErrorAlert("Initialization Error", "Cannot initialize dashboard: " + e.getMessage());
             e.printStackTrace();
         }
     }
     
+    // Apply CSS styling for active tab
+    private void applyActiveTabStyling() {
+        mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab != null) {
+                // This will work with the CSS we'll add
+                newTab.getStyleClass().add("active-tab");
+            }
+            if (oldTab != null) {
+                oldTab.getStyleClass().remove("active-tab");
+            }
+        });
+    }
+    
+    public void setCurrentUser(int userId, String userName) {
+        this.currentUserId = userId;
+        this.currentLibrarianName = userName;
+        if (lblWelcome != null) {
+            lblWelcome.setText("Welcome, " + currentLibrarianName);
+        }
+    }
+    
+    private void setupKeyboardShortcuts() {
+        tableRequests.getScene().addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isControlDown()) {
+                switch (event.getCode()) {
+                    case R:
+                        refreshRequests();
+                        event.consume();
+                        break;
+                    case F:
+                        if (mainTabPane.getSelectionModel().getSelectedIndex() == 1) {
+                            txtSearchStudent.requestFocus();
+                            event.consume();
+                        }
+                        break;
+                    case A:
+                        if (mainTabPane.getSelectionModel().getSelectedIndex() == 2 && 
+                            btnApproveFromDetails.isVisible() && !btnApproveFromDetails.isDisabled()) {
+                            approveFromDetails();
+                            event.consume();
+                        }
+                        break;
+                }
+            }
+        });
+    }
+    
+    private void setupTooltips() {
+        btnApproveFromDetails.setTooltip(new Tooltip("Approve this student's library clearance (Ctrl+A)"));
+        btnRejectFromDetails.setTooltip(new Tooltip("Reject this student's library clearance"));
+        txtSearchStudent.setTooltip(new Tooltip("Search by student ID, name, or book title"));
+        cmbStatusFilter.setTooltip(new Tooltip("Filter borrowing records by status"));
+    }
+    
     private int getCurrentUserId() {
-        // This should come from session/login. For now, hardcode librarian ID
         try {
             String query = "SELECT id FROM users WHERE username = 'librarian' AND role = 'LIBRARIAN'";
             PreparedStatement pstmt = connection.prepareStatement(query);
@@ -145,7 +224,7 @@ public class LibrarianDashboardController implements Initializable {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return 2; // Default librarian ID from your database
+        return 2;
     }
     
     private String getCurrentUserName() {
@@ -164,14 +243,43 @@ public class LibrarianDashboardController implements Initializable {
     }
     
     private void configureClearanceTable() {
-        // Set up cell value factories
         colStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
         colStudentName.setCellValueFactory(new PropertyValueFactory<>("studentName"));
         colDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         colBookStatus.setCellValueFactory(new PropertyValueFactory<>("bookStatus"));
         
-        // Set up actions column with buttons
+        colBookStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setText(null);
+                    setStyle("");
+                    setTooltip(null);
+                } else {
+                    setText(status);
+                    switch (status) {
+                        case "CLEAR":
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                            setTooltip(new Tooltip("No borrowed books, overdue items, or fines"));
+                            break;
+                        case "WARNING":
+                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                            setTooltip(new Tooltip("Has borrowed books but no overdue items or fines"));
+                            break;
+                        case "ISSUE":
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                            setTooltip(new Tooltip("Has overdue books and/or unpaid fines"));
+                            break;
+                        default:
+                            setStyle("");
+                            setTooltip(null);
+                    }
+                }
+            }
+        });
+        
         colActions.setCellFactory(new Callback<TableColumn<ClearanceRequest, Void>, TableCell<ClearanceRequest, Void>>() {
             @Override
             public TableCell<ClearanceRequest, Void> call(TableColumn<ClearanceRequest, Void> param) {
@@ -182,9 +290,13 @@ public class LibrarianDashboardController implements Initializable {
                     private final HBox buttonBox = new HBox(5, btnDetails, btnApprove, btnReject);
                     
                     {
-                        btnDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 12px;");
-                        btnApprove.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 12px;");
-                        btnReject.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 12px;");
+                        btnDetails.getStyleClass().add("details-button");
+                        btnApprove.getStyleClass().add("approve-button");
+                        btnReject.getStyleClass().add("reject-button");
+                        
+                        btnDetails.setTooltip(new Tooltip("View detailed student information and borrowing records"));
+                        btnApprove.setTooltip(new Tooltip("Approve library clearance for this student"));
+                        btnReject.setTooltip(new Tooltip("Reject library clearance for this student"));
                         
                         btnDetails.setOnAction(e -> {
                             ClearanceRequest request = getTableView().getItems().get(getIndex());
@@ -228,7 +340,6 @@ public class LibrarianDashboardController implements Initializable {
         colHistoryStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colHistoryFine.setCellValueFactory(new PropertyValueFactory<>("fine"));
         
-        // Add styling for status column
         colHistoryStatus.setCellFactory(column -> new TableCell<BorrowingRecord, String>() {
             @Override
             protected void updateItem(String status, boolean empty) {
@@ -255,6 +366,24 @@ public class LibrarianDashboardController implements Initializable {
             }
         });
         
+        colHistoryFine.setCellFactory(column -> new TableCell<BorrowingRecord, Double>() {
+            @Override
+            protected void updateItem(Double fine, boolean empty) {
+                super.updateItem(fine, empty);
+                if (empty || fine == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.format("₦%.2f", fine));
+                    if (fine > 0) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #27ae60;");
+                    }
+                }
+            }
+        });
+        
         tableBorrowingHistory.setItems(borrowingHistory);
     }
     
@@ -267,7 +396,6 @@ public class LibrarianDashboardController implements Initializable {
         colDetailStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colDetailFine.setCellValueFactory(new PropertyValueFactory<>("fine"));
         
-        // Add styling for status column
         colDetailStatus.setCellFactory(column -> new TableCell<BookDetail, String>() {
             @Override
             protected void updateItem(String status, boolean empty) {
@@ -294,6 +422,24 @@ public class LibrarianDashboardController implements Initializable {
             }
         });
         
+        colDetailFine.setCellFactory(column -> new TableCell<BookDetail, Double>() {
+            @Override
+            protected void updateItem(Double fine, boolean empty) {
+                super.updateItem(fine, empty);
+                if (empty || fine == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.format("₦%.2f", fine));
+                    if (fine > 0) {
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #27ae60;");
+                    }
+                }
+            }
+        });
+        
         tableStudentBookDetails.setItems(studentBookDetails);
     }
     
@@ -301,12 +447,14 @@ public class LibrarianDashboardController implements Initializable {
     private void refreshRequests() {
         loadClearanceRequests();
         updateDashboardStats();
+        showToastNotification("Requests refreshed successfully");
     }
     
     @FXML
     private void refreshBorrowingHistory() {
         loadBorrowingHistory();
         updateHistoryStats();
+        showToastNotification("Borrowing history refreshed");
     }
     
     private void refreshAllData() {
@@ -317,7 +465,6 @@ public class LibrarianDashboardController implements Initializable {
     private void loadClearanceRequests() {
         clearanceRequests.clear();
         try {
-            // Get pending clearance requests for librarian approval
             String query = """
                 SELECT 
                     cr.id as request_id,
@@ -350,7 +497,6 @@ public class LibrarianDashboardController implements Initializable {
                 int overdueCount = rs.getInt("overdue_count");
                 double totalFine = rs.getDouble("total_fine");
                 
-                // Determine book status based on borrowing records
                 String bookStatus = determineBookStatus(totalBorrowed, overdueCount, totalFine);
                 
                 ClearanceRequest request = new ClearanceRequest(
@@ -367,7 +513,6 @@ public class LibrarianDashboardController implements Initializable {
                 
                 clearanceRequests.add(request);
                 
-                // Count status types
                 switch (bookStatus) {
                     case "CLEAR":
                         clearCount++;
@@ -381,7 +526,6 @@ public class LibrarianDashboardController implements Initializable {
                 }
             }
             
-            // Update counters
             lblTotalRequests.setText(String.valueOf(clearanceRequests.size()));
             lblClearCount.setText("Clear: " + clearCount);
             lblWarningCount.setText("Warning: " + warningCount);
@@ -389,7 +533,7 @@ public class LibrarianDashboardController implements Initializable {
             lblPendingCount.setText("Pending: " + clearanceRequests.size());
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to load clearance requests: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to load clearance requests: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -445,7 +589,7 @@ public class LibrarianDashboardController implements Initializable {
             }
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to load borrowing history: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to load borrowing history: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -500,14 +644,13 @@ public class LibrarianDashboardController implements Initializable {
                 totalFines += detail.getFine();
             }
             
-            // Update summary labels
             lblDetailTotalBorrowed.setText(String.valueOf(totalBorrowed));
             lblDetailCurrentBorrowed.setText(String.valueOf(currentBorrowed));
             lblDetailOverdue.setText(String.valueOf(overdue));
             lblDetailTotalFines.setText(String.format("₦%.2f", totalFines));
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to load student book details: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to load student book details: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -547,7 +690,7 @@ public class LibrarianDashboardController implements Initializable {
             }
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to load student information: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to load student information: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -576,11 +719,9 @@ public class LibrarianDashboardController implements Initializable {
     private void showStudentDetails(ClearanceRequest request) {
         selectedRequest = request;
         
-        // Load student information
         loadStudentInfo(request.getStudentId());
         loadStudentBookDetails(currentStudentId);
         
-        // Update button states based on request status
         if ("PENDING".equals(selectedRequest.getApprovalStatus()) || 
             "IN_PROGRESS".equals(selectedRequest.getApprovalStatus())) {
             btnApproveFromDetails.setDisable(false);
@@ -590,17 +731,20 @@ public class LibrarianDashboardController implements Initializable {
             btnRejectFromDetails.setDisable(true);
         }
         
-        // Switch to student details tab
         if (!mainTabPane.getTabs().contains(tabStudentDetails)) {
             mainTabPane.getTabs().add(tabStudentDetails);
         }
         mainTabPane.getSelectionModel().select(tabStudentDetails);
+        
+        showToastNotification("Loaded details for " + request.getStudentName());
     }
     
     @FXML
     private void approveFromDetails() {
         if (selectedRequest != null) {
             approveClearance(selectedRequest);
+        } else {
+            showWarningAlert("No Selection", "Please select a student first.");
         }
     }
     
@@ -608,6 +752,8 @@ public class LibrarianDashboardController implements Initializable {
     private void rejectFromDetails() {
         if (selectedRequest != null) {
             rejectClearance(selectedRequest);
+        } else {
+            showWarningAlert("No Selection", "Please select a student first.");
         }
     }
     
@@ -625,37 +771,130 @@ public class LibrarianDashboardController implements Initializable {
     
     private void approveClearance(ClearanceRequest request) {
         try {
-            // Check if student has any issues
+            String studentName = request.getStudentName();
+            String studentId = request.getStudentId();
+            
             if ("ISSUE".equals(request.getBookStatus())) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Warning");
-                alert.setHeaderText("Student has book issues");
-                alert.setContentText("This student has overdue books or unpaid fines. Are you sure you want to approve?");
+                alert.setTitle("Warning - Outstanding Issues");
+                alert.setHeaderText("⚠ Student has outstanding library issues!");
+                alert.setContentText(String.format(
+                    "Student: %s (%s)\n\nIssues Found:\n• Overdue books: %d\n• Total fines: ₦%.2f\n\nThis student has overdue books or unpaid fines. Are you sure you want to approve?",
+                    studentName, studentId, request.getOverdueCount(), request.getTotalFine()
+                ));
                 alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
                 
                 alert.showAndWait().ifPresent(response -> {
                     if (response == ButtonType.YES) {
-                        updateClearanceStatus(request.getRequestId(), "APPROVED", "Library clearance approved with issues");
+                        showProcessingAlert("Approving clearance...");
+                        updateClearanceStatus(request.getRequestId(), "APPROVED", 
+                            "Library clearance approved with outstanding issues");
+                        showSuccessAlert("Clearance Approved", 
+                            String.format("Clearance for %s (%s) has been approved despite outstanding issues.", 
+                            studentName, studentId));
+                    }
+                });
+            } else if ("WARNING".equals(request.getBookStatus())) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirm Approval");
+                alert.setHeaderText("⚠ Student has borrowed books");
+                alert.setContentText(String.format(
+                    "Student: %s (%s)\n\nWarning:\n• Currently borrowed books: %d\n\nNote: Student has borrowed books but no overdue items or fines. Approve clearance?",
+                    studentName, studentId, request.getTotalBorrowed()
+                ));
+                alert.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+                
+                alert.showAndWait().ifPresent(response -> {
+                    if (response == ButtonType.YES) {
+                        showProcessingAlert("Approving clearance...");
+                        updateClearanceStatus(request.getRequestId(), "APPROVED", 
+                            "Library clearance approved - borrowed books present");
+                        showSuccessAlert("Clearance Approved", 
+                            String.format("Clearance for %s (%s) has been approved.", studentName, studentId));
                     }
                 });
             } else {
-                updateClearanceStatus(request.getRequestId(), "APPROVED", "Library clearance approved");
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Confirm Approval");
+                alert.setHeaderText("✅ Student is clear");
+                alert.setContentText(String.format(
+                    "Student: %s (%s)\n\nStatus: No borrowed books, overdue items, or fines.\n\nApprove library clearance?",
+                    studentName, studentId
+                ));
+                
+                alert.showAndWait().ifPresent(response -> {
+                    if (response == ButtonType.OK) {
+                        showProcessingAlert("Approving clearance...");
+                        updateClearanceStatus(request.getRequestId(), "APPROVED", "Library clearance approved - clear status");
+                        showSuccessAlert("Clearance Approved", 
+                            String.format("Clearance for %s (%s) has been approved.", studentName, studentId));
+                    }
+                });
             }
         } catch (Exception e) {
-            showAlert("Error", "Failed to approve clearance: " + e.getMessage());
+            showErrorAlert("Approval Error", "Failed to approve clearance: " + e.getMessage());
             e.printStackTrace();
         }
     }
     
     private void rejectClearance(ClearanceRequest request) {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Reject Clearance");
-        dialog.setHeaderText("Reason for rejection");
-        dialog.setContentText("Please enter the reason:");
+        String studentName = request.getStudentName();
+        String studentId = request.getStudentId();
         
-        dialog.showAndWait().ifPresent(reason -> {
-            if (!reason.trim().isEmpty()) {
-                updateClearanceStatus(request.getRequestId(), "REJECTED", reason);
+        StringBuilder rejectionReasons = new StringBuilder();
+        if (request.getOverdueCount() > 0) {
+            rejectionReasons.append("• ").append(request.getOverdueCount()).append(" overdue book(s)\n");
+        }
+        if (request.getTotalFine() > 0) {
+            rejectionReasons.append("• Unpaid fines: ₦").append(String.format("%.2f", request.getTotalFine())).append("\n");
+        }
+        if (request.getTotalBorrowed() > 0) {
+            rejectionReasons.append("• ").append(request.getTotalBorrowed()).append(" book(s) still borrowed\n");
+        }
+        
+        Alert confirmationAlert = new Alert(Alert.AlertType.WARNING);
+        confirmationAlert.setTitle("Reject Clearance Request");
+        confirmationAlert.setHeaderText("Confirm Rejection");
+        confirmationAlert.setContentText(String.format(
+            "Student: %s (%s)\n\nIssues detected:\n%s\nAre you sure you want to reject this clearance request?",
+            studentName, studentId, 
+            rejectionReasons.length() > 0 ? rejectionReasons.toString() : "No specific issues detected"
+        ));
+        
+        confirmationAlert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                TextInputDialog dialog = new TextInputDialog();
+                dialog.setTitle("Reject Clearance");
+                dialog.setHeaderText("Please specify reason for rejection");
+                dialog.setContentText(String.format(
+                    "Student: %s (%s)\n\nReason for rejection:",
+                    studentName, studentId
+                ));
+                
+                String defaultReason = "";
+                if (request.getOverdueCount() > 0) {
+                    defaultReason = "Overdue books: " + request.getOverdueCount();
+                }
+                if (request.getTotalFine() > 0) {
+                    if (!defaultReason.isEmpty()) defaultReason += ", ";
+                    defaultReason += "Unpaid fines: ₦" + String.format("%.2f", request.getTotalFine());
+                }
+                if (defaultReason.isEmpty()) {
+                    defaultReason = "Library clearance not approved";
+                }
+                dialog.getEditor().setText(defaultReason);
+                
+                dialog.showAndWait().ifPresent(reason -> {
+                    if (!reason.trim().isEmpty()) {
+                        showProcessingAlert("Processing rejection...");
+                        updateClearanceStatus(request.getRequestId(), "REJECTED", reason);
+                        showInfoAlert("Clearance Rejected", 
+                            String.format("Clearance for %s (%s) has been rejected.\nReason: %s", 
+                            studentName, studentId, reason));
+                    } else {
+                        showWarningAlert("No Reason Provided", "Please provide a reason for rejection.");
+                    }
+                });
             }
         });
     }
@@ -677,26 +916,42 @@ public class LibrarianDashboardController implements Initializable {
             pstmt.setInt(2, currentUserId);
             pstmt.setString(3, remarks);
             pstmt.setInt(4, requestId);
-            pstmt.executeUpdate();
+            int rowsAffected = pstmt.executeUpdate();
             
-            // Update overall clearance request status if needed
-            if ("APPROVED".equals(status)) {
-                checkIfAllApproved(requestId);
+            if (rowsAffected > 0) {
+                if ("APPROVED".equals(status)) {
+                    checkIfAllApproved(requestId);
+                }
+                
+                showToastNotification("Clearance " + status + " successfully!");
+                
+            } else {
+                showErrorAlert("Update Failed", "Failed to update clearance status. Please try again.");
+                return;
             }
             
-            showAlert("Success", "Clearance " + status + " successfully!");
             refreshRequests();
             
-            // If we're in the details tab, update the status label
             if (currentStudentId > 0 && selectedRequest != null && selectedRequest.getRequestId() == requestId) {
                 lblDetailStatus.setText(status);
                 updateStatusLabelStyle(lblDetailStatus, status);
                 btnApproveFromDetails.setDisable(true);
                 btnRejectFromDetails.setDisable(true);
+                
+                String color = "APPROVED".equals(status) ? "#27ae60" : "#e74c3c";
+                lblDetailStatus.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold; -fx-effect: dropshadow(gaussian, " + color + ", 10, 0.5, 0, 0);");
+                
+                Timeline flash = new Timeline(
+                    new KeyFrame(Duration.ZERO, new KeyValue(lblDetailStatus.opacityProperty(), 1.0)),
+                    new KeyFrame(Duration.millis(500), new KeyValue(lblDetailStatus.opacityProperty(), 0.3)),
+                    new KeyFrame(Duration.millis(1000), new KeyValue(lblDetailStatus.opacityProperty(), 1.0))
+                );
+                flash.setCycleCount(3);
+                flash.play();
             }
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to update clearance status: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to update clearance status: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -714,7 +969,6 @@ public class LibrarianDashboardController implements Initializable {
             ResultSet rs = pstmt.executeQuery();
             
             if (rs.next() && rs.getInt("pending_count") == 0) {
-                // All departments approved, update clearance request
                 String updateQuery = "UPDATE clearance_requests SET status = 'FULLY_CLEARED', completion_date = NOW() WHERE id = ?";
                 PreparedStatement updateStmt = connection.prepareStatement(updateQuery);
                 updateStmt.setInt(1, requestId);
@@ -749,6 +1003,7 @@ public class LibrarianDashboardController implements Initializable {
         txtSearchStudent.clear();
         cmbStatusFilter.setValue("All");
         filteredBorrowingHistory.setPredicate(null);
+        showToastNotification("Filters cleared");
     }
     
     private void setupSearchFilter() {
@@ -768,7 +1023,6 @@ public class LibrarianDashboardController implements Initializable {
     
     private void updateDashboardStats() {
         try {
-            // Total books borrowed count
             String totalBooksQuery = "SELECT COUNT(*) as count FROM book_borrowings";
             PreparedStatement pstmt1 = connection.prepareStatement(totalBooksQuery);
             ResultSet rs1 = pstmt1.executeQuery();
@@ -776,7 +1030,6 @@ public class LibrarianDashboardController implements Initializable {
                 lblTotalBooks.setText(String.valueOf(rs1.getInt("count")));
             }
             
-            // Active borrowers
             String activeBorrowersQuery = """
                 SELECT COUNT(DISTINCT student_id) as count 
                 FROM book_borrowings 
@@ -788,7 +1041,6 @@ public class LibrarianDashboardController implements Initializable {
                 lblActiveBorrowers.setText(String.valueOf(rs2.getInt("count")));
             }
             
-            // Overdue count
             String overdueQuery = """
                 SELECT COUNT(*) as count 
                 FROM book_borrowings 
@@ -801,7 +1053,7 @@ public class LibrarianDashboardController implements Initializable {
             }
             
         } catch (SQLException e) {
-            showAlert("Database Error", "Failed to load dashboard stats: " + e.getMessage());
+            showErrorAlert("Database Error", "Failed to load dashboard stats: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -820,63 +1072,157 @@ public class LibrarianDashboardController implements Initializable {
         lblTotalFines.setText(String.format("₦%.2f", totalFines));
     }
     
-    @FXML
-    private void handleLogout() {
-        try {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Logout");
-            alert.setHeaderText("Confirm Logout");
-            alert.setContentText("Are you sure you want to logout?");
-            
-            alert.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.OK) {
-                    try {
-                        // Close database connection
-                        if (connection != null && !connection.isClosed()) {
-                            connection.close();
-                        }
-                        
-                        // Get current window and scene information
-                        Scene currentScene = btnLogout.getScene();
-                        Stage stage = (Stage) currentScene.getWindow();
-                        
-                        // Load login screen
-                        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/university/clearance/resources/views/Login.fxml"));
-                        Parent root = loader.load();
-                        
-                        // Preserve current window dimensions
-                        Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
-                        stage.setScene(newScene);
-                        
-                        // Center and set title
-                        stage.setTitle("Debre Birhan University - Clearance System Login");
-                        stage.centerOnScreen();
-                        
-                    } catch (IOException e) {
-                        showAlert("Error", "Failed to load login screen: " + e.getMessage());
-                        e.printStackTrace();
-                    } catch (SQLException e) {
-                        showAlert("Database Error", "Failed to close database connection: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
-            });
-            
-        } catch (Exception e) {
-            showAlert("Error", "Failed to logout: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    private void showAlert(String title, String message) {
+    private void showSuccessAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
-        alert.setHeaderText(null);
+        alert.setHeaderText("✅ Success");
         alert.setContentText(message);
         alert.showAndWait();
     }
     
-    // Model classes
+    private void showErrorAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText("❌ Error");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showWarningAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText("⚠ Warning");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showInfoAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText("ℹ Information");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showProcessingAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.NONE);
+        alert.setTitle("Processing");
+        alert.setHeaderText("⏳ Please wait...");
+        alert.setContentText(message);
+        alert.getDialogPane().getButtonTypes().clear();
+        alert.show();
+        
+        new Thread(() -> {
+            try {
+                Thread.sleep(800);
+                Platform.runLater(() -> alert.close());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+    }
+    
+    private void showToastNotification(String message) {
+        if (tableRequests == null || tableRequests.getScene() == null) {
+            System.out.println("[Toast]: " + message);
+            return;
+        }
+        
+        Label toast = new Label(message);
+        toast.getStyleClass().add("toast-notification");
+        
+        Stage stage = (Stage) tableRequests.getScene().getWindow();
+        if (stage == null) {
+            return;
+        }
+        
+        Stage toastStage = new Stage();
+        toastStage.initOwner(stage);
+        toastStage.initStyle(StageStyle.TRANSPARENT);
+        toastStage.initModality(Modality.NONE);
+        
+        StackPane root = new StackPane(toast);
+        root.getStyleClass().add("toast-container");
+        
+        Scene scene = new Scene(root);
+        scene.setFill(Color.TRANSPARENT);
+        scene.getStylesheets().add(getClass().getResource("/com/university/clearance/resources/css/dashboard.css").toExternalForm());
+        toastStage.setScene(scene);
+        
+        toastStage.setX(stage.getX() + stage.getWidth() / 2 - 150);
+        toastStage.setY(stage.getY() + stage.getHeight() - 100);
+        
+        toastStage.show();
+        
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                Platform.runLater(() -> {
+                    if (toastStage.isShowing()) {
+                        toastStage.close();
+                    }
+                });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+    }
+    
+    @FXML
+    private void handleLogout() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Logout");
+        alert.setHeaderText("Confirm Logout");
+        alert.setContentText("Are you sure you want to logout from the library dashboard?");
+        
+        ButtonType yesButton = new ButtonType("Yes, Logout", ButtonBar.ButtonData.YES);
+        ButtonType noButton = new ButtonType("Cancel", ButtonBar.ButtonData.NO);
+        alert.getButtonTypes().setAll(yesButton, noButton);
+        
+        alert.showAndWait().ifPresent(response -> {
+            if (response == yesButton) {
+                try {
+                    // Perform logout without showing saving session alert
+                    performLogout();
+                } catch (Exception e) {
+                    showErrorAlert("Logout Error", "Failed to logout: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+    
+    private void performLogout() {
+        try {
+            // Close database connection
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
+            
+            Scene currentScene = btnLogout.getScene();
+            Stage stage = (Stage) currentScene.getWindow();
+            
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/university/clearance/resources/views/Login.fxml"));
+            Parent root = loader.load();
+            
+            Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
+            stage.setScene(newScene);
+            
+            stage.setTitle("Debre Birhan University - Clearance System Login");
+            stage.centerOnScreen();
+            
+            showToastNotification("Successfully logged out");
+            
+        } catch (IOException e) {
+            showErrorAlert("Error", "Failed to load login screen: " + e.getMessage());
+            e.printStackTrace();
+        } catch (SQLException e) {
+            showErrorAlert("Database Error", "Failed to close database connection: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    // Model classes (same as before)
     public static class ClearanceRequest {
         private final int requestId;
         private final String studentId;
@@ -904,7 +1250,6 @@ public class LibrarianDashboardController implements Initializable {
             this.approvalStatus = "PENDING";
         }
         
-        // Getters
         public int getRequestId() { return requestId; }
         public String getStudentId() { return studentId; }
         public String getStudentName() { return studentName; }
@@ -915,6 +1260,10 @@ public class LibrarianDashboardController implements Initializable {
         public int getOverdueCount() { return overdueCount; }
         public double getTotalFine() { return totalFine; }
         public String getApprovalStatus() { return approvalStatus; }
+        
+        public String getRequestDateFormatted() {
+            return requestDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        }
     }
     
     public static class BorrowingRecord {
@@ -944,7 +1293,6 @@ public class LibrarianDashboardController implements Initializable {
             this.fine = fine;
         }
         
-        // Getters
         public int getBorrowId() { return borrowId; }
         public String getStudentId() { return studentId; }
         public String getStudentName() { return studentName; }
@@ -955,6 +1303,18 @@ public class LibrarianDashboardController implements Initializable {
         public LocalDate getReturnDate() { return returnDate; }
         public String getStatus() { return status; }
         public double getFine() { return fine; }
+        
+        public String getBorrowDateFormatted() {
+            return borrowDate != null ? borrowDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
+        
+        public String getDueDateFormatted() {
+            return dueDate != null ? dueDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
+        
+        public String getReturnDateFormatted() {
+            return returnDate != null ? returnDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
     }
     
     public static class BookDetail {
@@ -977,7 +1337,6 @@ public class LibrarianDashboardController implements Initializable {
             this.fine = fine;
         }
         
-        // Getters
         public String getBookTitle() { return bookTitle; }
         public String getAuthor() { return author; }
         public LocalDate getBorrowDate() { return borrowDate; }
@@ -985,5 +1344,17 @@ public class LibrarianDashboardController implements Initializable {
         public LocalDate getReturnDate() { return returnDate; }
         public String getStatus() { return status; }
         public double getFine() { return fine; }
+        
+        public String getBorrowDateFormatted() {
+            return borrowDate != null ? borrowDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
+        
+        public String getDueDateFormatted() {
+            return dueDate != null ? dueDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
+        
+        public String getReturnDateFormatted() {
+            return returnDate != null ? returnDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
+        }
     }
 }

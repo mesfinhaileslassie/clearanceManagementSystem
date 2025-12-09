@@ -6,7 +6,12 @@ import com.university.clearance.model.ClearanceRequest;
 import com.university.clearance.utils.PhoneInputField;
 import com.university.clearance.utils.ValidationHelper;
 import com.university.clearance.utils.ValidationHelper.ValidationResult;
+import javafx.util.Callback;
+import javafx.animation.KeyFrame;
 
+import javafx.animation.KeyValue;
+import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -14,16 +19,17 @@ import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import javafx.geometry.Insets;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
+import java.net.URL;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -48,7 +54,8 @@ public class AdminDashboardController {
     
     // Main Tab Pane
     @FXML private TabPane mainTabPane;
-    
+    @FXML private BorderPane mainBorderPane;
+
     // Students Tables
     @FXML private TableView<User> tableAllStudents;
     @FXML private TableView<User> tableApprovedStudents;
@@ -132,12 +139,111 @@ public class AdminDashboardController {
     private void initialize() {
         setupAllTables();
         setupSearchFunctionality();
+        setupTabAnimations();
+        setupActiveTabHighlight();
+        
+        // Apply CSS with scene listener
+        Platform.runLater(() -> {
+            try {
+                Node node = lblWelcome;
+                while (node != null && !(node instanceof BorderPane)) {
+                    node = node.getParent();
+                }
+                
+                if (node != null) {
+                    BorderPane root = (BorderPane) node;
+                    Scene scene = root.getScene();
+                    
+                    if (scene != null) {
+                        String cssPath = "/com/university/clearance/resources/css/admin-dashboard.css";
+                        URL cssUrl = getClass().getResource(cssPath);
+                        
+                        if (cssUrl != null) {
+                            scene.getStylesheets().add(cssUrl.toExternalForm());
+                            System.out.println("CSS applied successfully");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to load CSS: " + e.getMessage());
+            }
+        });
     }
+    
+    
+    private void setupTabAnimations() {
+        // Add animation when switching tabs
+        mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab != null) {
+                // Fade in new content
+                Node content = newTab.getContent();
+                content.setOpacity(0);
+                content.setTranslateY(10);
+                
+                Timeline fadeIn = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                        new KeyValue(content.opacityProperty(), 0),
+                        new KeyValue(content.translateYProperty(), 10)
+                    ),
+                    new KeyFrame(Duration.millis(300),
+                        new KeyValue(content.opacityProperty(), 1),
+                        new KeyValue(content.translateYProperty(), 0)
+                    )
+                );
+                fadeIn.play();
+            }
+        });
+    }
+
+    
+    
+    
+    private void setupActiveTabHighlight() {
+        // Listen for tab changes
+        mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (oldTab != null) {
+                oldTab.setStyle("-fx-background-color: #bdc3c7; -fx-border-color: transparent;");
+            }
+            if (newTab != null) {
+                newTab.setStyle("-fx-background-color: white; -fx-border-color: #3498db; -fx-border-width: 0 0 3px 0;");
+                
+                // Add a subtle glow effect
+                PauseTransition pause = new PauseTransition(Duration.millis(100));
+                pause.setOnFinished(e -> {
+                    newTab.getStyleClass().add("glow");
+                    PauseTransition removeGlow = new PauseTransition(Duration.millis(300));
+                    removeGlow.setOnFinished(e2 -> newTab.getStyleClass().remove("glow"));
+                    removeGlow.play();
+                });
+                pause.play();
+            }
+        });
+        
+        // Set initial active tab
+        if (mainTabPane.getTabs().size() > 0) {
+            mainTabPane.getSelectionModel().getSelectedItem().setStyle(
+                "-fx-background-color: white; -fx-border-color: #3498db; -fx-border-width: 0 0 3px 0;"
+            );
+        }
+    }
+    
+    
     
     public void setCurrentUser(User user) {
         this.currentUser = user;
         lblWelcome.setText("Welcome, " + user.getFullName() + " (Admin)");
-        loadAllData();
+        
+        // Load data after UI is ready
+        Platform.runLater(() -> {
+            loadAllData();
+            System.out.println("[DEBUG] Data loaded for user: " + user.getUsername());
+            
+            // Force refresh of tables
+            if (tableAllStudents != null) {
+                tableAllStudents.refresh();
+                System.out.println("[DEBUG] Table refreshed");
+            }
+        });
     }
     
     @FXML
@@ -486,65 +592,102 @@ public class AdminDashboardController {
         }
     }
     
-    private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
-                                  TableColumn<User, String> colName, TableColumn<User, String> colDept,
-                                  TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
-                                  TableColumn<User, String> colActions) {
+		    private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
+		            TableColumn<User, String> colName, TableColumn<User, String> colDept,
+		            TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
+		            TableColumn<User, String> colActions) {
+		
+		colId.setCellValueFactory(new PropertyValueFactory<>("username"));
+		colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+		colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
+		colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
+		colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
+		
+		// Actions column
+		colActions.setCellFactory(param -> new TableCell<User, String>() {
+		private final Button btnAllowReapply = new Button("Allow Reapply");
+		private final Button btnViewDetails = new Button("View Details");
+		private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
+		
+		{
+		buttons.setPadding(new Insets(5));
+		btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+		btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+		
+		btnAllowReapply.setOnAction(event -> {
+		User student = getTableView().getItems().get(getIndex());
+		allowStudentReapply(student);
+		});
+		
+		btnViewDetails.setOnAction(event -> {
+		User student = getTableView().getItems().get(getIndex());
+		viewStudentDetails(student);
+		});
+		}
+		
+		@Override
+		protected void updateItem(String item, boolean empty) {
+		super.updateItem(item, empty);
+		if (empty) {
+		setGraphic(null);
+		} else {
+		User student = getTableView().getItems().get(getIndex());
+		if (student != null) {
+		  if (student.getClearanceStatus() != null && 
+		      student.getClearanceStatus().contains("❌")) {
+		      btnAllowReapply.setVisible(true);
+		      btnAllowReapply.setManaged(true);
+		  } else {
+		      btnAllowReapply.setVisible(false);
+		      btnAllowReapply.setManaged(false);
+		  }
+		  setGraphic(buttons);
+		} else {
+		  setGraphic(null);
+		}
+		}
+		}
+		});
+		
+		// Color code clearance status
+		colStatus.setCellFactory(column -> new TableCell<User, String>() {
+		@Override
+		protected void updateItem(String item, boolean empty) {
+		super.updateItem(item, empty);
+		if (empty || item == null) {
+		setText(null);
+		setStyle("");
+		} else {
+		setText(item);
+		if (item.contains("✅")) {
+		  setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+		} else if (item.contains("❌")) {
+		  setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+		} else if (item.contains("🔄")) {
+		  setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+		} else if (item.contains("⏳")) {
+		  setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+		} else {
+		  setStyle("");
+		}
+		}
+		}
+		});
+		}
+    
+    private void setupSimpleStudentTable(TableView<User> tableView) {
+        // Get the columns
+        if (tableView.getColumns().size() < 4) return;
         
-        colId.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
-        colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
+        // Setup first 4 columns
+        tableView.getColumns().get(0).setCellValueFactory(new PropertyValueFactory<>("username"));
+        tableView.getColumns().get(1).setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        tableView.getColumns().get(2).setCellValueFactory(new PropertyValueFactory<>("department"));
+        tableView.getColumns().get(3).setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
         
-        // Actions column
-        colActions.setCellFactory(param -> new TableCell<User, String>() {
-            private final Button btnAllowReapply = new Button("Allow Reapply");
-            private final Button btnViewDetails = new Button("View Details");
-            private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
-
-            {
-                buttons.setPadding(new Insets(5));
-                btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
-                btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
-                
-                btnAllowReapply.setOnAction(event -> {
-                    User student = getTableView().getItems().get(getIndex());
-                    allowStudentReapply(student);
-                });
-                
-                btnViewDetails.setOnAction(event -> {
-                    User student = getTableView().getItems().get(getIndex());
-                    viewStudentDetails(student);
-                });
-            }
-
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    User student = getTableView().getItems().get(getIndex());
-                    if (student != null) {
-                        if (student.getClearanceStatus() != null && 
-                            student.getClearanceStatus().contains("❌")) {
-                            btnAllowReapply.setVisible(true);
-                            btnAllowReapply.setManaged(true);
-                        } else {
-                            btnAllowReapply.setVisible(false);
-                            btnAllowReapply.setManaged(false);
-                        }
-                        setGraphic(buttons);
-                    } else {
-                        setGraphic(null);
-                    }
-                }
-            }
-        });
-        
-        // Color code clearance status
-        colStatus.setCellFactory(column -> new TableCell<User, String>() {
+        // Setup status column cell factory (column 3)
+        TableColumn<User, String> statusCol = (TableColumn<User, String>) tableView.getColumns().get(3);
+        statusCol.setCellFactory(column -> new TableCell<User, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -567,24 +710,11 @@ public class AdminDashboardController {
                 }
             }
         });
-    }
-    
-    private void setupSimpleStudentTable(TableView<User> tableView) {
-        boolean hasActionsColumn = tableView.getColumns().size() == 5;
         
-        TableColumn<User, String> col1 = (TableColumn<User, String>) tableView.getColumns().get(0);
-        TableColumn<User, String> col2 = (TableColumn<User, String>) tableView.getColumns().get(1);
-        TableColumn<User, String> col3 = (TableColumn<User, String>) tableView.getColumns().get(2);
-        TableColumn<User, String> col4 = (TableColumn<User, String>) tableView.getColumns().get(3);
-        
-        col1.setCellValueFactory(new PropertyValueFactory<>("username"));
-        col2.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        col3.setCellValueFactory(new PropertyValueFactory<>("department"));
-        col4.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
-        
-        if (hasActionsColumn) {
-            TableColumn<User, String> col5 = (TableColumn<User, String>) tableView.getColumns().get(4);
-            col5.setCellFactory(param -> new TableCell<User, String>() {
+        // Setup actions column if exists (column 4)
+        if (tableView.getColumns().size() >= 5) {
+            TableColumn<User, String> actionsCol = (TableColumn<User, String>) tableView.getColumns().get(4);
+            actionsCol.setCellFactory(column -> new TableCell<User, String>() {
                 private final Button btnAllowReapply = new Button("Allow Reapply");
                 private final Button btnViewDetails = new Button("View Details");
                 private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
@@ -629,30 +759,6 @@ public class AdminDashboardController {
                 }
             });
         }
-        
-        col4.setCellFactory(column -> new TableCell<User, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item);
-                    if (item.contains("✅")) {
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    } else if (item.contains("❌")) {
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                    } else if (item.contains("🔄")) {
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                    } else if (item.contains("⏳")) {
-                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-                    } else {
-                        setStyle("");
-                    }
-                }
-            }
-        });
     }
     
     @FXML
@@ -662,14 +768,28 @@ public class AdminDashboardController {
     }
     
     private void loadAllData() {
+        System.out.println("[DEBUG] loadAllData() called");
+        
         loadAllStudents();
         loadOfficers();
         loadAllUsers();
         loadClearanceRequests();
         updateDashboardStats();
+        
+        System.out.println("[DEBUG] All data loaded");
+        System.out.println("[DEBUG] Total students loaded: " + allStudentsData.size());
+        
+        // Verify table has items
+        if (tableAllStudents != null) {
+            System.out.println("[DEBUG] tableAllStudents items: " + tableAllStudents.getItems().size());
+        } else {
+            System.out.println("[ERROR] tableAllStudents is null!");
+        }
     }
     
     private void loadAllStudents() {
+        System.out.println("[DEBUG] Starting loadAllStudents()");
+        
         allStudentsData.clear();
         approvedStudentsData.clear();
         rejectedStudentsData.clear();
@@ -677,6 +797,8 @@ public class AdminDashboardController {
         inProgressStudentsData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("[DEBUG] Database connection established");
+            
             String sql = """
                 SELECT 
                     u.id,
@@ -696,10 +818,16 @@ public class AdminDashboardController {
                 ORDER BY u.username
                 """;
                 
+            System.out.println("[DEBUG] SQL query: " + sql);
+            
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             
+            int count = 0;
             while (rs.next()) {
+                count++;
+                System.out.println("[DEBUG] Found student #" + count + ": " + rs.getString("username"));
+                
                 User student = new User(
                     rs.getInt("id"),
                     rs.getString("username"),
@@ -722,24 +850,43 @@ public class AdminDashboardController {
                 
                 if (clearanceStatus.equals("FULLY_CLEARED") || clearanceStatus.equals("APPROVED")) {
                     approvedStudentsData.add(student);
+                    System.out.println("[DEBUG] Added to approved: " + student.getUsername());
                 } else if (clearanceStatus.equals("REJECTED") && !canReapply) {
                     rejectedStudentsData.add(student);
+                    System.out.println("[DEBUG] Added to rejected: " + student.getUsername());
                 } else if (clearanceStatus.equals("PENDING")) {
                     pendingStudentsData.add(student);
+                    System.out.println("[DEBUG] Added to pending: " + student.getUsername());
                 } else if (clearanceStatus.equals("IN_PROGRESS")) {
                     inProgressStudentsData.add(student);
+                    System.out.println("[DEBUG] Added to in progress: " + student.getUsername());
                 }
             }
             
+            System.out.println("[DEBUG] Total students loaded: " + count);
+            System.out.println("[DEBUG] allStudentsData size: " + allStudentsData.size());
+            System.out.println("[DEBUG] approvedStudentsData size: " + approvedStudentsData.size());
+            System.out.println("[DEBUG] rejectedStudentsData size: " + rejectedStudentsData.size());
+            System.out.println("[DEBUG] pendingStudentsData size: " + pendingStudentsData.size());
+            System.out.println("[DEBUG] inProgressStudentsData size: " + inProgressStudentsData.size());
+            
+            // Check if tables are null
+            System.out.println("[DEBUG] tableAllStudents is null: " + (tableAllStudents == null));
+            System.out.println("[DEBUG] tableApprovedStudents is null: " + (tableApprovedStudents == null));
+            
+            // Set the data to tables
             tableAllStudents.setItems(allStudentsData);
             tableApprovedStudents.setItems(approvedStudentsData);
             tableRejectedStudents.setItems(rejectedStudentsData);
             tablePendingStudents.setItems(pendingStudentsData);
             tableInProgressStudents.setItems(inProgressStudentsData);
             
+            System.out.println("[DEBUG] Data set to tables successfully");
+            
         } catch (Exception e) {
-            showAlert("Error", "Failed to load students: " + e.getMessage());
+            System.err.println("[ERROR] Failed to load students: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to load students: " + e.getMessage());
         }
     }
     
@@ -3294,6 +3441,12 @@ public class AdminDashboardController {
                     showAlert("Error", "Login screen not found. Check FXML path.");
                     return;
                 }
+                
+                
+                
+                
+                
+                
 
                 Parent root = loader.load();
                 System.out.println("[DEBUG] Login FXML loaded successfully.");

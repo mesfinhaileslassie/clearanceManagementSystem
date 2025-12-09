@@ -1,0 +1,36 @@
+/* alerts.css */
+.warning-dialog {
+    -fx-background-color: #fff3cd;
+}
+
+.warning-dialog .header-panel {
+    -fx-background-color: #ffc107;
+}
+
+.warning-dialog .content.label {
+    -fx-text-fill: #856404;
+}
+
+.success-dialog {
+    -fx-background-color: #d4edda;
+}
+
+.success-dialog .header-panel {
+    -fx-background-color: #28a745;
+}
+
+.success-dialog .content.label {
+    -fx-text-fill: #155724;
+}
+
+.error-dialog {
+    -fx-background-color: #f8d7da;
+}
+
+.error-dialog .header-panel {
+    -fx-background-color: #dc3545;
+}
+
+.error-dialog .content.label {
+    -fx-text-fill: #721c24;
+}

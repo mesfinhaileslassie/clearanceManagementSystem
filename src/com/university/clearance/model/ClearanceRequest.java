@@ -94,10 +94,17 @@ public class ClearanceRequest {
             LocalDateTime now = LocalDateTime.now();
             
             // Check if request is older than 30 days
-            return requestDateTime.plusDays(30).isBefore(now);
+            boolean expired = requestDateTime.plusDays(30).isBefore(now);
+            
+            System.out.println("DEBUG isExpired: " + 
+                             "Request date: " + requestDateTime + 
+                             ", Now: " + now + 
+                             ", Expired: " + expired +
+                             ", Days difference: " + java.time.Duration.between(requestDateTime, now).toDays());
+            
+            return expired;
         } catch (Exception e) {
-            System.err.println("Error parsing date for request: " + getRequestId() + 
-                             ", date: " + getRequestDate() + ", error: " + e.getMessage());
+            System.err.println("Error in isExpired for request " + getRequestId() + ": " + e.getMessage());
             return false;
         }
     }

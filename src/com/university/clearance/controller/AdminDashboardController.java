@@ -96,7 +96,7 @@ public class AdminDashboardController {
     @FXML private TableColumn<ClearanceRequest, String> colRequestStatus;
     @FXML private TableColumn<ClearanceRequest, String> colRequestDate;
     @FXML private TableColumn<ClearanceRequest, Integer> colRequestApproved;
-    
+    @FXML private TableColumn<ClearanceRequest, Void> colResubmission;
     // Search Components
     @FXML private TextField txtSearchUsers;
     @FXML private ComboBox<String> cmbSearchType;
@@ -154,7 +154,7 @@ public class AdminDashboardController {
         setupTabAnimations();
         setupActiveTabHighlight();
         setupDeleteButtons();
-        setupAllowResubmitButtons();
+        setupAllowResubmitButtons(); // Make sure this is called
         
         // Apply CSS with scene listener
         Platform.runLater(() -> {
@@ -253,48 +253,164 @@ public class AdminDashboardController {
     }
     
     private void setupAllowResubmitButtons() {
-        // Setup "Allow Resubmission" button for Clearance Requests table
-        TableColumn<ClearanceRequest, Void> resubmitCol = new TableColumn<>("Resubmission");
-        resubmitCol.setCellFactory(param -> new TableCell<ClearanceRequest, Void>() {
-            private final Button resubmitButton = new Button("Allow Resubmission");
-            
-            {
-                resubmitButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;");
-                resubmitButton.setOnAction(event -> {
-                    ClearanceRequest request = getTableView().getItems().get(getIndex());
-                    handleAllowResubmission(request);
-                });
+        System.out.println("=== DEBUG: Setting up Allow Resubmission buttons ===");
+        System.out.println("tableRequests is null: " + (tableRequests == null));
+        System.out.println("colResubmission is null: " + (colResubmission == null));
+        
+        if (tableRequests == null) {
+            System.err.println("ERROR: tableRequests is null!");
+            return;
+        }
+        
+        if (colResubmission == null) {
+            System.err.println("ERROR: colResubmission FXML reference is null!");
+            // Try to find it manually
+            colResubmission = (TableColumn<ClearanceRequest, Void>) tableRequests.getColumns().stream()
+                .filter(col -> "Resubmission".equals(col.getText()))
+                .findFirst()
+                .orElse(null);
+                
+            if (colResubmission == null) {
+                System.err.println("Creating new column as fallback");
+                colResubmission = new TableColumn<>("Resubmission");
+                colResubmission.setPrefWidth(150);
+                colResubmission.setMinWidth(120);
+                tableRequests.getColumns().add(colResubmission);
             }
-            
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    ClearanceRequest request = getTableView().getItems().get(getIndex());
-                    if (request != null && shouldShowResubmitButton(request)) {
-                        resubmitButton.setVisible(true);
-                        resubmitButton.setManaged(true);
-                        setGraphic(resubmitButton);
-                    } else {
-                        resubmitButton.setVisible(false);
-                        resubmitButton.setManaged(false);
+        }
+        
+        // Now set the cell factory
+        colResubmission.setCellFactory(column -> {
+            System.out.println("Creating cell factory for resubmission column");
+            return new TableCell<ClearanceRequest, Void>() {
+                private final Button resubmitButton = new Button("Allow Resubmission");
+                
+                {
+                    resubmitButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;");
+                    resubmitButton.setOnAction(event -> {
+                        ClearanceRequest request = getTableView().getItems().get(getIndex());
+                        if (request != null) {
+                            System.out.println("DEBUG: Allow Resubmission clicked for student: " + request.getStudentId());
+                            handleAllowResubmission(request);
+                        }
+                    });
+                    
+                    // Add hover effects
+                    resubmitButton.setOnMouseEntered(e -> {
+                        if (!resubmitButton.isDisabled()) {
+                            resubmitButton.setStyle("-fx-background-color: #229954; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;");
+                        }
+                    });
+                    
+                    resubmitButton.setOnMouseExited(e -> {
+                        if (!resubmitButton.isDisabled()) {
+                            resubmitButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;");
+                        }
+                    });
+                }
+                
+                @Override  // <-- THIS IS THE ONE TO UPDATE!
+                protected void updateItem(Void item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || getTableRow() == null || getTableRow().getItem() == null) {
                         setGraphic(null);
+                        setText(null);
+                    } else {
+                        ClearanceRequest request = (ClearanceRequest) getTableRow().getItem();
+                        if (request != null) {
+                            // Button is ALWAYS VISIBLE
+                            setGraphic(resubmitButton);
+                            
+                            // Check if button should be enabled
+                            boolean shouldEnable = isResubmissionAllowed(request);
+                            
+                            System.out.println("CELL DEBUG: Row " + getIndex() + 
+                                             " - Student: " + request.getStudentId() + 
+                                             ", Status: " + request.getStatus() + 
+                                             ", Can reapply: " + request.isCanReapply() +
+                                             ", Is expired: " + request.isExpired() +
+                                             ", Should enable: " + shouldEnable);
+                            
+                            if (shouldEnable) {
+                                // Button is enabled and functional
+                                resubmitButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;");
+                                resubmitButton.setDisable(false);
+                                resubmitButton.setTooltip(new Tooltip("Click to allow this student to resubmit their clearance request"));
+                            } else {
+                                // Button is disabled (grayed out)
+                                resubmitButton.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: #ecf0f1; -fx-font-weight: normal; -fx-padding: 5 10;");
+                                resubmitButton.setDisable(true);
+                                
+                                // Set tooltip explaining why button is disabled
+                                String tooltipText = getDisableReason(request);
+                                resubmitButton.setTooltip(new Tooltip(tooltipText));
+                            }
+                        } else {
+                            setGraphic(null);
+                        }
                     }
                 }
-            }
+            };
         });
+    }
+    /**
+     * Check if resubmission is allowed for this request
+     * Conditions: REJECTED, canReapply = false, and expired
+     */
+    private boolean isResubmissionAllowed(ClearanceRequest request) {
+        if (request == null) return false;
         
-        if (tableRequests.getColumns().size() >= 7) {
-            tableRequests.getColumns().add(resubmitCol);
+        debugResubmissionConditions(request);
+        
+        // Button should be ACTIVE for ANY rejected or expired request
+        return "REJECTED".equals(request.getStatus()) || 
+               "EXPIRED".equals(request.getStatus());
+    }
+
+    /**
+     * Get the reason why resubmission is not allowed
+     */
+    private String getDisableReason(ClearanceRequest request) {
+        if (request == null) return "No request data";
+        
+        // Only disabled for non-rejected/non-expired requests
+        if (!"REJECTED".equals(request.getStatus()) && !"EXPIRED".equals(request.getStatus())) {
+            return "Only rejected or expired requests can be resubmitted\nCurrent status: " + request.getStatus();
         }
+        
+        return "Click to allow resubmission";
     }
     
-    private boolean shouldShowResubmitButton(ClearanceRequest request) {
-        // Simply delegate to the model method
-        return request.shouldShowResubmitButton();
+    
+    
+    
+    
+    
+    private void debugResubmissionConditions(ClearanceRequest request) {
+        System.out.println("=== DEBUG RESUBMISSION CONDITIONS ===");
+        System.out.println("Student: " + request.getFullName() + " (" + request.getStudentId() + ")");
+        System.out.println("Status: " + request.getStatus());
+        System.out.println("Is REJECTED: " + "REJECTED".equals(request.getStatus()));
+        System.out.println("Can Reapply: " + request.isCanReapply());
+        System.out.println("Days Since Request: " + request.getDaysSinceRequest());
+        System.out.println("Is Expired: " + request.isExpired());
+        System.out.println("Days Until Expiration: " + request.getDaysUntilExpiration());
+        System.out.println("Formatted Date: " + request.getFormattedDate());
+        System.out.println("Raw Date: " + request.getRequestDate());
+        
+        boolean condition1 = "REJECTED".equals(request.getStatus());
+        boolean condition2 = !request.isCanReapply();
+        boolean condition3 = request.isExpired();
+        
+        System.out.println("Condition 1 (REJECTED): " + condition1);
+        System.out.println("Condition 2 (!canReapply): " + condition2);
+        System.out.println("Condition 3 (expired): " + condition3);
+        System.out.println("ALL CONDITIONS MET: " + (condition1 && condition2 && condition3));
+        System.out.println("=====================================");
     }
+    
+    
+    
     
     @FXML
     private void handleDeleteUser() {
@@ -450,144 +566,438 @@ public class AdminDashboardController {
     }
     
     private void handleAllowResubmission(ClearanceRequest request) {
-        // Show confirmation dialog
+        System.out.println("=== HANDLE ALLOW RESUBMISSION START ===");
+        System.out.println("Processing request for student: " + request.getStudentId());
+        System.out.println("Current status: " + request.getStatus());
+        
+        // Check if request is eligible (either REJECTED or EXPIRED)
+        if (!"REJECTED".equals(request.getStatus()) && !"EXPIRED".equals(request.getStatus())) {
+            showAlert("Cannot Allow Resubmission", 
+                "Only rejected or expired requests can be resubmitted.\n" +
+                "Current status: " + request.getStatus());
+            return;
+        }
+        
+        // Show confirmation dialog with all details
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Allow Resubmission");
         confirm.setHeaderText("Allow Student to Resubmit Clearance Request");
-        confirm.setContentText("Student: " + request.getFullName() + 
-                             "\nStudent ID: " + request.getStudentId() +
-                             "\nDepartment: " + request.getDepartment() +
-                             "\n\nThis will:\n" +
-                             "• Reset clearance status to PENDING\n" +
-                             "• Enable student to submit new request\n" +
-                             "• Log this action for auditing\n\n" +
-                             "Proceed?");
+        
+        StringBuilder confirmationText = new StringBuilder();
+        confirmationText.append("Student Information:\n");
+        confirmationText.append("• Name: ").append(request.getFullName()).append("\n");
+        confirmationText.append("• Student ID: ").append(request.getStudentId()).append("\n");
+        confirmationText.append("• Department: ").append(request.getDepartment()).append("\n");
+        confirmationText.append("• Current Status: ").append(request.getStatus()).append("\n");
+        
+        if ("REJECTED".equals(request.getStatus())) {
+            confirmationText.append("• Request was REJECTED\n");
+        } else if ("EXPIRED".equals(request.getStatus())) {
+            confirmationText.append("• Request has EXPIRED (over 30 days old or timed out)\n");
+        }
+        
+        confirmationText.append("• Request Date: ").append(request.getFormattedDate()).append("\n");
+        confirmationText.append("• Days Since Request: ").append(request.getDaysSinceRequest()).append("\n\n");
+        
+        confirmationText.append("This action will:\n");
+        confirmationText.append("✅ Reset clearance status to PENDING\n");
+        confirmationText.append("✅ Clear all existing department approvals\n");
+        confirmationText.append("✅ Create new pending approvals for all departments\n");
+        confirmationText.append("✅ Update dormitory clearance status to PENDING\n");
+        confirmationText.append("✅ Send notification to student\n");
+        confirmationText.append("✅ Log this action in audit trail\n\n");
+        
+        confirmationText.append("⚠️  Important Notes:\n");
+        confirmationText.append("• Student will be able to submit a NEW clearance request\n");
+        confirmationText.append("• All departments will need to re-approve\n");
+        confirmationText.append("• This action cannot be undone\n\n");
+        
+        confirmationText.append("Proceed with allowing resubmission?");
+        
+        confirm.setContentText(confirmationText.toString());
+        
+        // Make the confirmation dialog larger
+        confirm.getDialogPane().setPrefSize(700, 500);
+        
+        // Add custom styling
+        confirm.getDialogPane().setStyle("-fx-border-color: #f39c12; -fx-border-width: 2px;");
+        
+        // Customize buttons
+        ButtonType proceedButton = new ButtonType("Proceed", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        confirm.getButtonTypes().setAll(proceedButton, cancelButton);
+        
+        // Get the proceed button and add warning style
+        Button proceedBtn = (Button) confirm.getDialogPane().lookupButton(proceedButton);
+        proceedBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
         
         Optional<ButtonType> result = confirm.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            allowResubmission(request);
+        
+        if (result.isPresent() && result.get() == proceedButton) {
+            System.out.println("User confirmed. Proceeding with resubmission...");
+            
+            // Show processing alert
+            Alert processingAlert = new Alert(Alert.AlertType.INFORMATION);
+            processingAlert.setTitle("Processing");
+            processingAlert.setHeaderText("Processing Resubmission Request");
+            processingAlert.setContentText("Please wait while we process the resubmission...");
+            processingAlert.show();
+            
+            try {
+                // Perform the resubmission
+                boolean success = performResubmissionProcess(request);
+                
+                // Close processing alert
+                processingAlert.close();
+                
+                if (success) {
+                    System.out.println("Resubmission successful!");
+                    
+                    // Show success message
+                    Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                    successAlert.setTitle("Success");
+                    successAlert.setHeaderText("✅ Resubmission Allowed Successfully!");
+                    
+                    StringBuilder successMessage = new StringBuilder();
+                    successMessage.append("Student: ").append(request.getFullName()).append("\n");
+                    successMessage.append("Student ID: ").append(request.getStudentId()).append("\n");
+                    successMessage.append("Department: ").append(request.getDepartment()).append("\n\n");
+                    
+                    successMessage.append("✅ Status has been reset to PENDING\n");
+                    successMessage.append("✅ Student can now submit a new clearance request\n");
+                    successMessage.append("✅ All department approvals have been reset\n");
+                    successMessage.append("✅ Student has been notified\n");
+                    successMessage.append("✅ Action has been logged for auditing\n\n");
+                    
+                    successMessage.append("Next Steps:\n");
+                    successMessage.append("1. Student should login and submit a new clearance request\n");
+                    successMessage.append("2. All departments will need to re-approve\n");
+                    successMessage.append("3. Student will receive email notification\n");
+                    
+                    successAlert.setContentText(successMessage.toString());
+                    successAlert.getDialogPane().setPrefSize(600, 400);
+                    successAlert.getDialogPane().setStyle("-fx-border-color: #27ae60; -fx-border-width: 2px;");
+                    
+                    successAlert.showAndWait();
+                    
+                    // Refresh all data
+                    refreshAllDataAfterResubmission();
+                    
+                } else {
+                    System.out.println("Resubmission failed!");
+                    
+                    // Show failure message
+                    Alert failureAlert = new Alert(Alert.AlertType.ERROR);
+                    failureAlert.setTitle("Error");
+                    failureAlert.setHeaderText("❌ Failed to Allow Resubmission");
+                    failureAlert.setContentText("An error occurred while processing the resubmission.\n" +
+                                              "Possible reasons:\n" +
+                                              "• No rejected or expired request found in database\n" +
+                                              "• Database connection issue\n" +
+                                              "• System error\n\n" +
+                                              "Please try again or contact system administrator.");
+                    failureAlert.showAndWait();
+                }
+                
+            } catch (Exception e) {
+                processingAlert.close();
+                System.err.println("Error during resubmission: " + e.getMessage());
+                e.printStackTrace();
+                
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("System Error");
+                errorAlert.setHeaderText("❌ System Error Occurred");
+                errorAlert.setContentText("An unexpected error occurred:\n" + e.getMessage() + 
+                                        "\n\nPlease contact system administrator.");
+                errorAlert.showAndWait();
+            }
+            
+        } else {
+            System.out.println("User cancelled the resubmission.");
         }
+        
+        System.out.println("=== HANDLE ALLOW RESUBMISSION END ===");
     }
-    
-    private void allowResubmission(ClearanceRequest request) {
+
+    /**
+     * Helper method to debug request details
+     */
+    private void debugRequestDetails(ClearanceRequest request) {
+        System.out.println("=== REQUEST DETAILS ===");
+        System.out.println("Student ID: " + request.getStudentId());
+        System.out.println("Full Name: " + request.getFullName());
+        System.out.println("Department: " + request.getDepartment());
+        System.out.println("Status: " + request.getStatus());
+        System.out.println("Can Reapply: " + request.isCanReapply());
+        System.out.println("Request Date: " + request.getRequestDate());
+        System.out.println("Formatted Date: " + request.getFormattedDate());
+        System.out.println("Days Since Request: " + request.getDaysSinceRequest());
+        System.out.println("Is Expired: " + request.isExpired());
+        System.out.println("Days Until Expiration: " + request.getDaysUntilExpiration());
+        System.out.println("Expiration Status: " + request.getExpirationStatus());
+        System.out.println("Resubmission Eligibility: " + request.getResubmissionEligibility());
+        System.out.println("=========================");
+    }
+
+    /**
+     * Perform the actual resubmission process
+     */
+    private boolean performResubmissionProcess(ClearanceRequest request) {
+        System.out.println("Starting resubmission process for: " + request.getStudentId());
+        System.out.println("Request status: " + request.getStatus());
+        
         try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
             
             try {
-                // Get the student ID from the username
+                // 1. Get the student ID from the username
                 String studentIdSql = "SELECT id FROM users WHERE username = ?";
                 PreparedStatement studentStmt = conn.prepareStatement(studentIdSql);
                 studentStmt.setString(1, request.getStudentId());
                 ResultSet studentRs = studentStmt.executeQuery();
                 
-                if (studentRs.next()) {
-                    int studentId = studentRs.getInt("id");
-                    
-                    // Get the latest rejected request for this student
-                    String getRequestSql = """
-                        SELECT id FROM clearance_requests 
-                        WHERE student_id = ? AND status = 'REJECTED'
-                        ORDER BY request_date DESC LIMIT 1
-                        """;
-                    PreparedStatement requestStmt = conn.prepareStatement(getRequestSql);
-                    requestStmt.setInt(1, studentId);
-                    ResultSet requestRs = requestStmt.executeQuery();
-                    
-                    if (requestRs.next()) {
-                        int requestId = requestRs.getInt("id");
-                        
-                        // Update the clearance request status to PENDING
-                        String updateRequestSql = """
-                            UPDATE clearance_requests 
-                            SET status = 'PENDING', 
-                                can_reapply = FALSE,
-                                request_date = NOW()
-                            WHERE id = ?
+                if (!studentRs.next()) {
+                    System.err.println("Student not found: " + request.getStudentId());
+                    conn.rollback();
+                    return false;
+                }
+                
+                int studentId = studentRs.getInt("id");
+                System.out.println("Found student ID: " + studentId);
+                
+                // 2. Get the latest request for this student (REJECTED or EXPIRED)
+                String getRequestSql = """
+                    SELECT id FROM clearance_requests 
+                    WHERE student_id = ? 
+                    AND (status = 'REJECTED' OR status = 'EXPIRED')
+                    ORDER BY request_date DESC LIMIT 1
+                    """;
+                PreparedStatement requestStmt = conn.prepareStatement(getRequestSql);
+                requestStmt.setInt(1, studentId);
+                ResultSet requestRs = requestStmt.executeQuery();
+                
+                if (!requestRs.next()) {
+                    System.err.println("No rejected or expired request found for student: " + studentId);
+                    conn.rollback();
+                    return false;
+                }
+                
+                int requestId = requestRs.getInt("id");
+                System.out.println("Found request ID: " + requestId + " with status: " + request.getStatus());
+                
+                // 3. Update the clearance request
+                String updateRequestSql = """
+                    UPDATE clearance_requests 
+                    SET status = 'PENDING', 
+                        can_reapply = TRUE,
+                        request_date = NOW()
+                    WHERE id = ?
+                    """;
+                PreparedStatement updateStmt = conn.prepareStatement(updateRequestSql);
+                updateStmt.setInt(1, requestId);
+                int rowsUpdated = updateStmt.executeUpdate();
+                
+                if (rowsUpdated == 0) {
+                    System.err.println("Failed to update clearance request");
+                    conn.rollback();
+                    return false;
+                }
+                
+                System.out.println("Updated clearance request: " + rowsUpdated + " rows affected");
+                
+                // 4. Clear existing approvals
+                String clearApprovalsSql = "DELETE FROM clearance_approvals WHERE request_id = ?";
+                PreparedStatement clearStmt = conn.prepareStatement(clearApprovalsSql);
+                clearStmt.setInt(1, requestId);
+                int approvalsDeleted = clearStmt.executeUpdate();
+                System.out.println("Deleted " + approvalsDeleted + " existing approvals");
+                
+                // 5. Create new pending approvals based on workflow
+                String workflowSql = "SELECT role FROM workflow_config ORDER BY sequence_order";
+                PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
+                ResultSet workflowRs = workflowStmt.executeQuery();
+                
+                // Check if clearance_approvals table has timestamp column
+                // Try with timestamp first, if error, try without
+                String insertApprovalSql;
+                try {
+                    // First, let's check the table structure
+                    DatabaseMetaData meta = conn.getMetaData();
+                    ResultSet columns = meta.getColumns(null, null, "clearance_approvals", "timestamp");
+                    if (columns.next()) {
+                        // Table has timestamp column
+                        insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, status, timestamp)
+                            VALUES (?, ?, 'PENDING', NOW())
                             """;
-                        PreparedStatement updateStmt = conn.prepareStatement(updateRequestSql);
-                        updateStmt.setInt(1, requestId);
-                        updateStmt.executeUpdate();
-                        
-                        // Clear existing approvals
-                        String clearApprovalsSql = "DELETE FROM clearance_approvals WHERE request_id = ?";
-                        PreparedStatement clearStmt = conn.prepareStatement(clearApprovalsSql);
-                        clearStmt.setInt(1, requestId);
-                        clearStmt.executeUpdate();
-                        
-                        // Create new pending approvals based on workflow
-                        String workflowSql = "SELECT role FROM workflow_config ORDER BY sequence_order";
-                        PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
-                        ResultSet workflowRs = workflowStmt.executeQuery();
-                        
-                        String insertApprovalSql = """
+                    } else {
+                        // Table doesn't have timestamp column
+                        insertApprovalSql = """
                             INSERT INTO clearance_approvals (request_id, officer_role, status)
                             VALUES (?, ?, 'PENDING')
                             """;
-                        PreparedStatement insertStmt = conn.prepareStatement(insertApprovalSql);
-                        
-                        while (workflowRs.next()) {
-                            insertStmt.setInt(1, requestId);
-                            insertStmt.setString(2, workflowRs.getString("role"));
-                            insertStmt.addBatch();
-                        }
-                        insertStmt.executeBatch();
-                        
-                        // Add audit log
-                        String auditSql = """
-                            INSERT INTO audit_logs (user_id, action, details, timestamp)
-                            VALUES (?, 'ALLOW_RESUBMISSION', ?, NOW())
-                            """;
-                        PreparedStatement auditStmt = conn.prepareStatement(auditSql);
-                        auditStmt.setInt(1, currentUser.getId());
-                        auditStmt.setString(2, "Allowed resubmission for student: " + 
-                                           request.getStudentId() + " - " + request.getFullName());
-                        auditStmt.executeUpdate();
-                        
-                        // Send notification to student
-                        String notificationSql = """
-                            INSERT INTO notifications (user_id, type, subject, message)
-                            VALUES (?, 'RESUBMISSION_ALLOWED', 'Clearance Resubmission Allowed', 
-                                    'Your clearance request has been reset to PENDING. You can now submit a new request.')
-                            """;
-                        PreparedStatement notifStmt = conn.prepareStatement(notificationSql);
-                        notifStmt.setInt(1, studentId);
-                        notifStmt.executeUpdate();
-                        
-                        conn.commit();
-                        
-                        showNotification("Success", 
-                            "✅ Resubmission allowed successfully!\n\n" +
-                            "Student: " + request.getFullName() + "\n" +
-                            "Status has been reset to PENDING\n" +
-                            "Student can now submit a new clearance request.", 
-                            "success");
-                        
-                        // Refresh tables
-                        loadClearanceRequests();
-                        loadAllStudents();
-                        updateReportStatistics();
-                        
-                    } else {
-                        showAlert("Error", "No rejected request found for this student!");
-                        conn.rollback();
                     }
-                } else {
-                    showAlert("Error", "Student not found!");
-                    conn.rollback();
+                    columns.close();
+                } catch (Exception e) {
+                    // Fallback to simple insert
+                    insertApprovalSql = """
+                        INSERT INTO clearance_approvals (request_id, officer_role, status)
+                        VALUES (?, ?, 'PENDING')
+                        """;
                 }
                 
+                PreparedStatement insertStmt = conn.prepareStatement(insertApprovalSql);
+                
+                int approvalsAdded = 0;
+                while (workflowRs.next()) {
+                    try {
+                        insertStmt.setInt(1, requestId);
+                        insertStmt.setString(2, workflowRs.getString("role"));
+                        insertStmt.addBatch();
+                        approvalsAdded++;
+                    } catch (Exception e) {
+                        System.err.println("Error adding approval for role " + workflowRs.getString("role") + ": " + e.getMessage());
+                    }
+                }
+                
+                if (approvalsAdded > 0) {
+                    try {
+                        insertStmt.executeBatch();
+                        System.out.println("Added " + approvalsAdded + " new pending approvals");
+                    } catch (Exception e) {
+                        System.err.println("Error executing batch: " + e.getMessage());
+                        // Try individual inserts as fallback
+                        insertStmt.clearBatch();
+                        workflowRs.beforeFirst();
+                        while (workflowRs.next()) {
+                            try {
+                                String simpleInsertSql = """
+                                    INSERT INTO clearance_approvals (request_id, officer_role, status)
+                                    VALUES (?, ?, 'PENDING')
+                                    """;
+                                PreparedStatement simpleStmt = conn.prepareStatement(simpleInsertSql);
+                                simpleStmt.setInt(1, requestId);
+                                simpleStmt.setString(2, workflowRs.getString("role"));
+                                simpleStmt.executeUpdate();
+                                approvalsAdded++;
+                            } catch (Exception ex) {
+                                System.err.println("Failed individual insert: " + ex.getMessage());
+                            }
+                        }
+                    }
+                }
+                
+                // 6. Update dormitory status if exists
+                try {
+                    String updateDormSql = """
+                        UPDATE student_dormitory_credentials 
+                        SET clearance_status = 'PENDING'
+                        WHERE student_id = ?
+                        """;
+                    PreparedStatement dormStmt = conn.prepareStatement(updateDormSql);
+                    dormStmt.setInt(1, studentId);
+                    int dormUpdated = dormStmt.executeUpdate();
+                    System.out.println("Updated dormitory status: " + dormUpdated + " rows affected");
+                } catch (Exception e) {
+                    System.out.println("Note: Could not update dormitory status (table might not exist or student not in dormitory): " + e.getMessage());
+                    // This is not a critical error, continue processing
+                }
+                
+                // 7. Add audit log
+                try {
+                    String auditSql = """
+                        INSERT INTO audit_logs (user_id, action, details, timestamp)
+                        VALUES (?, 'ALLOW_RESUBMISSION', ?, NOW())
+                        """;
+                    PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                    auditStmt.setInt(1, currentUser.getId());
+                    auditStmt.setString(2, "Allowed resubmission for student: " + 
+                                       request.getStudentId() + " - " + request.getFullName() +
+                                       " (Request ID: " + requestId + ", Previous status: " + request.getStatus() + ")");
+                    auditStmt.executeUpdate();
+                    System.out.println("Added audit log entry");
+                } catch (Exception e) {
+                    System.err.println("Could not add audit log: " + e.getMessage());
+                    // Continue even if audit log fails
+                }
+                
+                // 8. Send notification to student (if notifications table exists)
+                try {
+                    String notificationSql = """
+                        INSERT INTO notifications (user_id, type, subject, message, is_read, created_at)
+                        VALUES (?, 'RESUBMISSION_ALLOWED', 'Clearance Resubmission Allowed', 
+                                'Your clearance request has been reset to PENDING. You can now submit a new clearance request.', 
+                                FALSE, NOW())
+                        """;
+                    PreparedStatement notifStmt = conn.prepareStatement(notificationSql);
+                    notifStmt.setInt(1, studentId);
+                    notifStmt.executeUpdate();
+                    System.out.println("Added notification for student");
+                } catch (Exception e) {
+                    System.out.println("Note: Could not add notification (table might not exist): " + e.getMessage());
+                    // Not critical, continue
+                }
+                
+                // Commit all changes
+                conn.commit();
+                System.out.println("Transaction committed successfully");
+                
+                // Update the request object in memory
+                request.setCanReapply(true);
+                request.setStatus("PENDING");
+                
+                return true;
+                
             } catch (Exception e) {
-                conn.rollback();
+                System.err.println("Error during resubmission process: " + e.getMessage());
+                e.printStackTrace();
+                try {
+                    conn.rollback();
+                    System.err.println("Transaction rolled back");
+                } catch (SQLException ex) {
+                    System.err.println("Error rolling back: " + ex.getMessage());
+                }
                 throw e;
             } finally {
-                conn.setAutoCommit(true);
+                try {
+                    conn.setAutoCommit(true);
+                } catch (SQLException e) {
+                    System.err.println("Error setting auto-commit: " + e.getMessage());
+                }
             }
             
         } catch (Exception e) {
-            showAlert("Error", "Failed to allow resubmission: " + e.getMessage());
+            System.err.println("Database error in performResubmissionProcess: " + e.getMessage());
             e.printStackTrace();
+            return false;
         }
     }
+
+    /**
+     * Refresh all data after successful resubmission
+     */
+    private void refreshAllDataAfterResubmission() {
+        System.out.println("Refreshing all data after resubmission...");
+        
+        // Refresh clearance requests table
+        loadClearanceRequests();
+        
+        // Refresh all student tables
+        loadAllStudents();
+        
+        // Refresh dashboard statistics
+        updateDashboardStats();
+        
+        // Refresh report statistics
+        updateReportStatistics();
+        
+        // Refresh the specific table view
+        tableRequests.refresh();
+        
+        System.out.println("All data refreshed successfully");
+    }
+
+
     
     private void updateReportStatistics() {
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -1388,6 +1798,7 @@ public class AdminDashboardController {
     }
     
     private void loadClearanceRequests() {
+        System.out.println("=== DEBUG: Loading clearance requests ===");
         requestData.clear();
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
@@ -1403,7 +1814,10 @@ public class AdminDashboardController {
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
+            int count = 0;
+            int rejectedCount = 0;
             while (rs.next()) {
+                count++;
                 ClearanceRequest req = new ClearanceRequest(
                     rs.getString("username"),
                     rs.getString("full_name"),
@@ -1413,15 +1827,28 @@ public class AdminDashboardController {
                     rs.getInt("approved_count")
                 );
                 req.setRequestId(rs.getInt("id"));
-                req.setCanReapply(rs.getBoolean("can_reapply")); // Set the canReapply property
+                req.setCanReapply(rs.getBoolean("can_reapply"));
+                
+                // Debug info
+                if ("REJECTED".equals(req.getStatus())) {
+                    rejectedCount++;
+                    System.out.println("DEBUG: Rejected request found - Student: " + req.getStudentId() + 
+                                     ", Date: " + req.getRequestDate() +
+                                     ", Can reapply: " + req.isCanReapply() +
+                                     ", Is expired: " + req.isExpired());
+                }
+                
                 requestData.add(req);
             }
 
             tableRequests.setItems(requestData);
+            System.out.println("DEBUG: Loaded " + count + " clearance requests");
+            System.out.println("DEBUG: " + rejectedCount + " rejected requests found");
 
         } catch (Exception e) {
-            showAlert("Error", "Failed to load requests: " + e.getMessage());
+            System.err.println("ERROR: Failed to load requests: " + e.getMessage());
             e.printStackTrace();
+            showAlert("Error", "Failed to load requests: " + e.getMessage());
         }
     }
     

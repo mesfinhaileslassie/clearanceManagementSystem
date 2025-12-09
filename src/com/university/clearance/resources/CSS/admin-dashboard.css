@@ -267,8 +267,8 @@
 }
 
 .sidebar-button {
-    -fx-background-color: #3498db;
-    -fx-text-fill: white;
+    -fx-background-color: #7f8c8d;
+    -fx-text-fill: black;
     -fx-pref-width: 200;
     -fx-font-weight: bold;
     -fx-padding: 10;
@@ -329,6 +329,40 @@
     -fx-tab-min-height: 40;
     -fx-tab-min-width: 120;
 }
+
+/* Style for enabled resubmission button */
+.resubmit-button-enabled {
+    -fx-background-color: #27ae60;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 5 10;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-cursor: hand;
+}
+
+.resubmit-button-enabled:hover {
+    -fx-background-color: #219653;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 5, 0, 0, 1);
+}
+
+.resubmit-button-enabled:pressed {
+    -fx-background-color: #1e874b;
+}
+
+/* Style for disabled resubmission button */
+.resubmit-button-disabled {
+    -fx-background-color: #95a5a6;
+    -fx-text-fill: #ecf0f1;
+    -fx-font-weight: normal;
+    -fx-padding: 5 10;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-cursor: default;
+    -fx-opacity: 0.8;
+}
+
+
 
 .small-sidebar-button {
     -fx-pref-width: 180;

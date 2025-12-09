@@ -85,7 +85,7 @@
                 <!-- Dashboard Tab -->
                 <Tab style="-fx-background-color: #3498db; -fx-text-fill: white;" text="🏠 Dashboard">
                     <content>
-                        <ScrollPane fitToHeight="true" fitToWidth="true">
+                        <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
                             <VBox spacing="20" style="-fx-padding: 20;">
                                 <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Admin Dashboard Overview" />
                                 
@@ -217,17 +217,20 @@
                             
                             <Label fx:id="lblSearchStatus" style="-fx-text-fill: #3498db; -fx-font-size: 12px;" visible="false" />
                             
-                            <TableView fx:id="tableAllUsers" prefHeight="500">
-                                <columns>
-                                    <TableColumn fx:id="colAllUserId" prefWidth="120" text="Username" />
-                                    <TableColumn fx:id="colAllUserName" prefWidth="200" text="Full Name" />
-                                    <TableColumn fx:id="colAllUserRole" prefWidth="120" text="Role" />
-                                    <TableColumn fx:id="colAllUserDepartment" prefWidth="150" text="Department" />
-                                    <TableColumn fx:id="colAllUserStatus" prefWidth="100" text="Status" />
-                                    <!-- Delete button column -->
-                                    <TableColumn prefWidth="100" text="Actions" />
-                                </columns>
-                            </TableView>
+                            <!-- ScrollPane for All Users Table -->
+                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                <TableView fx:id="tableAllUsers" prefHeight="500">
+                                    <columns>
+                                        <TableColumn fx:id="colAllUserId" prefWidth="120" text="Username" />
+                                        <TableColumn fx:id="colAllUserName" prefWidth="200" text="Full Name" />
+                                        <TableColumn fx:id="colAllUserRole" prefWidth="120" text="Role" />
+                                        <TableColumn fx:id="colAllUserDepartment" prefWidth="150" text="Department" />
+                                        <TableColumn fx:id="colAllUserStatus" prefWidth="100" text="Status" />
+                                        <!-- Delete button column -->
+                                        <TableColumn fx:id="colAllUserActions" prefWidth="100" text="Actions" />
+                                    </columns>
+                                </TableView>
+                            </ScrollPane>
                         </VBox>
                     </content>
                 </Tab>
@@ -248,16 +251,19 @@
                                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All Students" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                             </HBox>
-                                            <TableView fx:id="tableAllStudents" prefHeight="500">
-                                                <columns>
-                                                    <TableColumn fx:id="colStudentId" prefWidth="120" text="Student ID" />
-                                                    <TableColumn fx:id="colStudentName" prefWidth="200" text="Full Name" />
-                                                    <TableColumn fx:id="colStudentDepartment" prefWidth="150" text="Department" />
-                                                    <TableColumn fx:id="colStudentYear" prefWidth="100" text="Year" />
-                                                    <TableColumn fx:id="colClearanceStatus" prefWidth="120" text="Status" />
-                                                    <TableColumn fx:id="colStudentActions" prefWidth="200" text="Actions" />
-                                                </columns>
-                                            </TableView>
+                                            <!-- ScrollPane for All Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                                <TableView fx:id="tableAllStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn fx:id="colStudentId" prefWidth="120" text="Student ID" />
+                                                        <TableColumn fx:id="colStudentName" prefWidth="200" text="Full Name" />
+                                                        <TableColumn fx:id="colStudentDepartment" prefWidth="150" text="Department" />
+                                                        <TableColumn fx:id="colStudentYear" prefWidth="100" text="Year" />
+                                                        <TableColumn fx:id="colClearanceStatus" prefWidth="120" text="Status" />
+                                                        <TableColumn fx:id="colStudentActions" prefWidth="200" text="Actions" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
                                         </VBox>
                                     </content>
                                 </Tab>
@@ -272,14 +278,17 @@
                                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="Approved Students" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                             </HBox>
-                                            <TableView fx:id="tableApprovedStudents" prefHeight="500">
-                                                <columns>
-                                                    <TableColumn prefWidth="120" text="Student ID" />
-                                                    <TableColumn prefWidth="200" text="Full Name" />
-                                                    <TableColumn prefWidth="150" text="Department" />
-                                                    <TableColumn prefWidth="120" text="Status" />
-                                                </columns>
-                                            </TableView>
+                                            <!-- ScrollPane for Approved Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                                <TableView fx:id="tableApprovedStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn prefWidth="120" text="Student ID" />
+                                                        <TableColumn prefWidth="200" text="Full Name" />
+                                                        <TableColumn prefWidth="150" text="Department" />
+                                                        <TableColumn prefWidth="120" text="Status" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
                                         </VBox>
                                     </content>
                                 </Tab>
@@ -294,15 +303,18 @@
                                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="Rejected Students" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                             </HBox>
-                                            <TableView fx:id="tableRejectedStudents" prefHeight="500">
-                                                <columns>
-                                                    <TableColumn prefWidth="120" text="Student ID" />
-                                                    <TableColumn prefWidth="200" text="Full Name" />
-                                                    <TableColumn prefWidth="150" text="Department" />
-                                                    <TableColumn prefWidth="120" text="Status" />
-                                                    <TableColumn prefWidth="200" text="Actions" />
-                                                </columns>
-                                            </TableView>
+                                            <!-- ScrollPane for Rejected Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                                <TableView fx:id="tableRejectedStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn prefWidth="120" text="Student ID" />
+                                                        <TableColumn prefWidth="200" text="Full Name" />
+                                                        <TableColumn prefWidth="150" text="Department" />
+                                                        <TableColumn prefWidth="120" text="Status" />
+                                                        <TableColumn prefWidth="200" text="Actions" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
                                         </VBox>
                                     </content>
                                 </Tab>
@@ -317,14 +329,17 @@
                                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="Pending Students" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                             </HBox>
-                                            <TableView fx:id="tablePendingStudents" prefHeight="500">
-                                                <columns>
-                                                    <TableColumn prefWidth="120" text="Student ID" />
-                                                    <TableColumn prefWidth="200" text="Full Name" />
-                                                    <TableColumn prefWidth="150" text="Department" />
-                                                    <TableColumn prefWidth="120" text="Status" />
-                                                </columns>
-                                            </TableView>
+                                            <!-- ScrollPane for Pending Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                                <TableView fx:id="tablePendingStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn prefWidth="120" text="Student ID" />
+                                                        <TableColumn prefWidth="200" text="Full Name" />
+                                                        <TableColumn prefWidth="150" text="Department" />
+                                                        <TableColumn prefWidth="120" text="Status" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
                                         </VBox>
                                     </content>
                                 </Tab>
@@ -339,14 +354,17 @@
                                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="In Progress Students" />
                                                 <Region HBox.hgrow="ALWAYS" />
                                             </HBox>
-                                            <TableView fx:id="tableInProgressStudents" prefHeight="500">
-                                                <columns>
-                                                    <TableColumn prefWidth="120" text="Student ID" />
-                                                    <TableColumn prefWidth="200" text="Full Name" />
-                                                    <TableColumn prefWidth="150" text="Department" />
-                                                    <TableColumn prefWidth="120" text="Status" />
-                                                </columns>
-                                            </TableView>
+                                            <!-- ScrollPane for In Progress Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                                <TableView fx:id="tableInProgressStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn prefWidth="120" text="Student ID" />
+                                                        <TableColumn prefWidth="200" text="Full Name" />
+                                                        <TableColumn prefWidth="150" text="Department" />
+                                                        <TableColumn prefWidth="120" text="Status" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
                                         </VBox>
                                     </content>
                                 </Tab>
@@ -366,17 +384,20 @@
                                 <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="All Officers" />
                                 <Region HBox.hgrow="ALWAYS" />
                             </HBox>
-                            <TableView fx:id="tableOfficers" prefHeight="500">
-                                <columns>
-                                    <TableColumn fx:id="colOfficerId" prefWidth="120" text="Username" />
-                                    <TableColumn fx:id="colOfficerName" prefWidth="200" text="Full Name" />
-                                    <TableColumn fx:id="colOfficerRole" prefWidth="120" text="Role" />
-                                    <TableColumn fx:id="colOfficerDepartment" prefWidth="150" text="Department" />
-                                    <TableColumn fx:id="colOfficerStatus" prefWidth="100" text="Status" />
-                                    <!-- Delete button column -->
-                                    <TableColumn prefWidth="100" text="Actions" />
-                                </columns>
-                            </TableView>
+                            <!-- ScrollPane for Officers Table -->
+                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                <TableView fx:id="tableOfficers" prefHeight="500">
+                                    <columns>
+                                        <TableColumn fx:id="colOfficerId" prefWidth="120" text="Username" />
+                                        <TableColumn fx:id="colOfficerName" prefWidth="200" text="Full Name" />
+                                        <TableColumn fx:id="colOfficerRole" prefWidth="120" text="Role" />
+                                        <TableColumn fx:id="colOfficerDepartment" prefWidth="150" text="Department" />
+                                        <TableColumn fx:id="colOfficerStatus" prefWidth="100" text="Status" />
+                                        <!-- Delete button column -->
+                                        <TableColumn fx:id="colOfficerActions" prefWidth="100" text="Actions" />
+                                    </columns>
+                                </TableView>
+                            </ScrollPane>
                         </VBox>
                     </content>
                 </Tab>
@@ -396,18 +417,21 @@
                                 <Button fx:id="btnClearRequestsSearch" onAction="#handleClearRequestsSearch" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" text="❌ Clear" />
                                 <Button onAction="#handleRefresh" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" text="🔄 Refresh" />
                             </HBox>
-                            <TableView fx:id="tableRequests" prefHeight="500">
-                                <columns>
-                                    <TableColumn fx:id="colRequestStudentId" prefWidth="120" text="Student ID" />
-                                    <TableColumn fx:id="colRequestName" prefWidth="200" text="Full Name" />
-                                    <TableColumn fx:id="colRequestDepartment" prefWidth="150" text="Department" />
-                                    <TableColumn fx:id="colRequestStatus" prefWidth="120" text="Status" />
-                                    <TableColumn fx:id="colRequestDate" prefWidth="150" text="Request Date" />
-                                    <TableColumn fx:id="colRequestApproved" prefWidth="100" text="Approved" />
-                                    <!-- NEW: Allow Resubmission button column -->
-                                    <TableColumn prefWidth="150" text="Resubmission" />
-                                </columns>
-                            </TableView>
+                            <!-- ScrollPane for Clearance Requests Table -->
+                            <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
+                                <TableView fx:id="tableRequests" prefHeight="500">
+                                    <columns>
+                                        <TableColumn fx:id="colRequestStudentId" prefWidth="120" text="Student ID" />
+                                        <TableColumn fx:id="colRequestName" prefWidth="200" text="Full Name" />
+                                        <TableColumn fx:id="colRequestDepartment" prefWidth="150" text="Department" />
+                                        <TableColumn fx:id="colRequestStatus" prefWidth="120" text="Status" />
+                                        <TableColumn fx:id="colRequestDate" prefWidth="150" text="Request Date" />
+                                        <TableColumn fx:id="colRequestApproved" prefWidth="100" text="Approved" />
+                                        <!-- NEW: Allow Resubmission button column with fx:id -->
+                                        <TableColumn fx:id="colResubmission" prefWidth="150" text="Resubmission" />
+                                    </columns>
+                                </TableView>
+                            </ScrollPane>
                         </VBox>
                     </content>
                 </Tab>
@@ -415,7 +439,7 @@
                 <!-- Reports Tab -->
                 <Tab style="-fx-background-color: #3498db;" text="📊 Reports">
                     <content>
-                        <ScrollPane fitToHeight="true" fitToWidth="true">
+                        <ScrollPane fitToHeight="true" fitToWidth="true" vbarPolicy="ALWAYS" hbarPolicy="AS_NEEDED">
                             <VBox spacing="20" style="-fx-padding: 20;">
                                 <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="System Reports &amp; Analytics" />
                                 
@@ -465,6 +489,43 @@
                                         </VBox>
                                     </GridPane>
                                 </VBox>
+                                
+                                <!-- Additional Statistics Section -->
+                                <VBox spacing="15" style="-fx-background-color: #e8f4f8; -fx-padding: 20; -fx-background-radius: 10;">
+                                    <Label style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Resubmission Statistics" />
+                                    <GridPane hgap="20" vgap="15">
+                                        <columnConstraints>
+                                            <ColumnConstraints percentWidth="33" />
+                                            <ColumnConstraints percentWidth="33" />
+                                            <ColumnConstraints percentWidth="33" />
+                                        </columnConstraints>
+                                        <rowConstraints>
+                                            <RowConstraints prefHeight="60" />
+                                        </rowConstraints>
+                                        
+                                        <VBox GridPane.columnIndex="0" alignment="CENTER">
+                                            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="Eligible for Resubmission" />
+                                            <Label fx:id="lblEligibleResubmissions" style="-fx-font-size: 28px; -fx-text-fill: #3498db; -fx-font-weight: bold;" text="0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="1" alignment="CENTER">
+                                            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="Recently Resubmitted" />
+                                            <Label fx:id="lblRecentResubmissions" style="-fx-font-size: 28px; -fx-text-fill: #27ae60; -fx-font-weight: bold;" text="0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="2" alignment="CENTER">
+                                            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="Resubmission Success Rate" />
+                                            <Label fx:id="lblResubmissionSuccessRate" style="-fx-font-size: 28px; -fx-text-fill: #f39c12; -fx-font-weight: bold;" text="0%" />
+                                        </VBox>
+                                    </GridPane>
+                                </VBox>
+                                
+                                <!-- Quick Actions for Reports -->
+                                <HBox spacing="15" alignment="CENTER">
+                                    <Button onAction="#generateClearanceCertificates" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;" text="📊 Generate Status Report" />
+                                    <Button onAction="#verifyCertificate" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;" text="📈 Performance Analytics" />
+                                    <Button style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;" text="📋 Export to Excel" />
+                                </HBox>
                             </VBox>
                         </ScrollPane>
                     </content>
@@ -481,6 +542,8 @@
                 <Region HBox.hgrow="ALWAYS" />
                 <Label fx:id="lblLastUpdate" style="-fx-text-fill: #7f8c8d;" text="Last update: " />
                 <Label fx:id="lblUpdateTime" style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" text="Just now" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Label fx:id="lblResubmissionStatus" style="-fx-text-fill: #3498db; -fx-font-size: 12px;" text="Resubmissions: 0 eligible" />
             </children>
         </HBox>
     </bottom>

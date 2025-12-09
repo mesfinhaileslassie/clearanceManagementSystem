@@ -102,12 +102,12 @@ public class PDFCertificateService {
             // Left column - Logo
             Cell logoCell = new Cell();
             logoCell.setBorder(Border.NO_BORDER);
-            logoCell.setTextAlignment(TextAlignment.LEFT);
+            logoCell.setTextAlignment(TextAlignment.CENTER);
             
             Image logo = loadUniversityLogo();
             if (logo != null) {
-                logo.setWidth(80);
-                logo.setHeight(80);
+                logo.setWidth(300);
+                logo.setHeight(130);
                 logoCell.add(logo);
             } else {
                 // Fallback if logo not found
@@ -125,27 +125,27 @@ public class PDFCertificateService {
             uniInfoCell.setBorder(Border.NO_BORDER);
             uniInfoCell.setTextAlignment(TextAlignment.CENTER);
             
-            Paragraph uniName = new Paragraph("DEBRE BIRHAN UNIVERSITY")
-                    .setBold()
-                    .setFontSize(24)
-                    .setFontColor(UNIVERSITY_RED)
-                    .setTextAlignment(TextAlignment.CENTER);
-            
-            Paragraph uniMotto = new Paragraph("Education for Transformation")
+//            Paragraph uniName = new Paragraph("DEBRE BIRHAN UNIVERSITY")
+//                    .setBold()
+//                    .setFontSize(24)
+//                    .setFontColor(UNIVERSITY_RED)
+//                    .setTextAlignment(TextAlignment.CENTER);
+//            
+            Paragraph uniMotto = new Paragraph("Practical knowledge for better success !")
                     .setItalic()
                     .setFontSize(14)
                     .setFontColor(UNIVERSITY_BLUE)
                     .setTextAlignment(TextAlignment.CENTER);
             
-            Paragraph uniAddress = new Paragraph("P.O. Box 445, Debre Birhan, Ethiopia")
-                    .setFontSize(10)
-                    .setFontColor(ColorConstants.GRAY)
-                    .setTextAlignment(TextAlignment.CENTER);
-            
-            uniInfoCell.add(uniName);
-            uniInfoCell.add(uniMotto);
-            uniInfoCell.add(uniAddress);
-            headerTable.addCell(uniInfoCell);
+//            Paragraph uniAddress = new Paragraph("P.O. Box 445, Debre Birhan, Ethiopia")
+//                    .setFontSize(10)
+//                    .setFontColor(ColorConstants.GRAY)
+//                    .setTextAlignment(TextAlignment.CENTER);
+//            
+//            uniInfoCell.add(uniName);
+//            uniInfoCell.add(uniMotto);
+//            uniInfoCell.add(uniAddress);
+//            headerTable.addCell(uniInfoCell);
             
             // Right column - Certificate info
             Cell certInfoCell = new Cell();
@@ -196,8 +196,8 @@ public class PDFCertificateService {
             Paragraph declaration = new Paragraph("THIS CERTIFIES THAT")
                     .setBold()
                     .setFontSize(18)
-                    .setFontColor(UNIVERSITY_RED)
-                    .setTextAlignment(TextAlignment.CENTER)
+                    .setFontColor(UNIVERSITY_BLUE)
+                    .setTextAlignment(TextAlignment.LEFT)
                     .setMarginBottom(20);
             mainContainer.add(declaration);
             
@@ -209,11 +209,11 @@ public class PDFCertificateService {
             studentInfoBox.setMarginBottom(30);
             
             // Student name (highlighted)
-            Paragraph studentName = new Paragraph(fullName.toUpperCase())
+            Paragraph studentName = new Paragraph("Name:"+fullName.toUpperCase())
                     .setBold()
                     .setFontSize(20)
                     .setFontColor(UNIVERSITY_BLUE)
-                    .setTextAlignment(TextAlignment.CENTER)
+                    .setTextAlignment(TextAlignment.LEFT)
                     .setMarginBottom(10);
             studentInfoBox.add(studentName);
             
@@ -295,12 +295,14 @@ public class PDFCertificateService {
             signaturesSection.add(sigTitle);
             
             // Create signatures in a row
-            float[] sigWidths = {1, 1, 1}; // Three equal columns
+            float[] sigWidths = {1, 1, 1,}; // Three equal columns
             Table signaturesTable = new Table(sigWidths);
             
             addSignatureColumn(signaturesTable, "University Registrar", currentDate);
             addSignatureColumn(signaturesTable, "Department Head", currentDate);
-            addSignatureColumn(signaturesTable, "Head Librarian", currentDate);
+            addSignatureColumn(signaturesTable, "Librarian Head", currentDate);
+            addSignatureColumn(signaturesTable, "Cafeteria Head", currentDate);
+            addSignatureColumn(signaturesTable, "Dormitory", currentDate);
             
             signaturesSection.add(signaturesTable);
             mainContainer.add(signaturesSection);

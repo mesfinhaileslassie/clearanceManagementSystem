@@ -32,6 +32,7 @@ import javafx.util.Duration;
 import java.net.URL;
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -125,6 +126,17 @@ public class AdminDashboardController {
     @FXML private Label lblClearanceRate;
     @FXML private Label lblRateStatus;
     
+    // Report Labels
+    @FXML private Label lblDeletedToday;
+    @FXML private Label lblResubmissionsAllowed;
+    @FXML private Label lblPendingResubmissions;
+    @FXML private Label lblExpiredRequests;
+    
+    // Status Bar
+    @FXML private Label lblConnectionStatus;
+    @FXML private Label lblLastUpdate;
+    @FXML private Label lblUpdateTime;
+    
     private User currentUser;
     private ObservableList<User> allStudentsData = FXCollections.observableArrayList();
     private ObservableList<User> approvedStudentsData = FXCollections.observableArrayList();
@@ -141,6 +153,8 @@ public class AdminDashboardController {
         setupSearchFunctionality();
         setupTabAnimations();
         setupActiveTabHighlight();
+        setupDeleteButtons();
+        setupAllowResubmitButtons();
         
         // Apply CSS with scene listener
         Platform.runLater(() -> {
@@ -170,12 +184,470 @@ public class AdminDashboardController {
         });
     }
     
+    private void setupDeleteButtons() {
+        // Setup delete button for All Users table
+        TableColumn<User, Void> deleteCol = new TableColumn<>("Actions");
+        deleteCol.setCellFactory(param -> new TableCell<User, Void>() {
+            private final Button deleteButton = new Button("🗑️ Delete");
+            
+            {
+                deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+                deleteButton.setOnAction(event -> {
+                    User user = getTableView().getItems().get(getIndex());
+                    handleDeleteUser(user);
+                });
+            }
+            
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    User user = getTableView().getItems().get(getIndex());
+                    if (user != null && !"admin".equals(user.getUsername())) {
+                        setGraphic(deleteButton);
+                    } else {
+                        setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        if (tableAllUsers.getColumns().size() >= 6) {
+            tableAllUsers.getColumns().add(deleteCol);
+        }
+        
+        // Setup delete button for Officers table
+        TableColumn<User, Void> deleteOfficerCol = new TableColumn<>("Actions");
+        deleteOfficerCol.setCellFactory(param -> new TableCell<User, Void>() {
+            private final Button deleteButton = new Button("🗑️ Delete");
+            
+            {
+                deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+                deleteButton.setOnAction(event -> {
+                    User officer = getTableView().getItems().get(getIndex());
+                    handleDeleteUser(officer);
+                });
+            }
+            
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    User officer = getTableView().getItems().get(getIndex());
+                    if (officer != null && !"admin".equals(officer.getUsername())) {
+                        setGraphic(deleteButton);
+                    } else {
+                        setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        if (tableOfficers.getColumns().size() >= 6) {
+            tableOfficers.getColumns().add(deleteOfficerCol);
+        }
+    }
+    
+    private void setupAllowResubmitButtons() {
+        // Setup "Allow Resubmission" button for Clearance Requests table
+        TableColumn<ClearanceRequest, Void> resubmitCol = new TableColumn<>("Resubmission");
+        resubmitCol.setCellFactory(param -> new TableCell<ClearanceRequest, Void>() {
+            private final Button resubmitButton = new Button("Allow Resubmission");
+            
+            {
+                resubmitButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;");
+                resubmitButton.setOnAction(event -> {
+                    ClearanceRequest request = getTableView().getItems().get(getIndex());
+                    handleAllowResubmission(request);
+                });
+            }
+            
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    ClearanceRequest request = getTableView().getItems().get(getIndex());
+                    if (request != null && shouldShowResubmitButton(request)) {
+                        resubmitButton.setVisible(true);
+                        resubmitButton.setManaged(true);
+                        setGraphic(resubmitButton);
+                    } else {
+                        resubmitButton.setVisible(false);
+                        resubmitButton.setManaged(false);
+                        setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        if (tableRequests.getColumns().size() >= 7) {
+            tableRequests.getColumns().add(resubmitCol);
+        }
+    }
+    
+    private boolean shouldShowResubmitButton(ClearanceRequest request) {
+        // Simply delegate to the model method
+        return request.shouldShowResubmitButton();
+    }
+    
+    @FXML
+    private void handleDeleteUser() {
+        User selectedUser = null;
+        
+        // Determine which table is currently active
+        Tab selectedTab = mainTabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            String tabText = selectedTab.getText();
+            if (tabText.contains("All Users")) {
+                selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
+            } else if (tabText.contains("Officers")) {
+                selectedUser = tableOfficers.getSelectionModel().getSelectedItem();
+            } else if (tabText.contains("Students")) {
+                // Check which student tab is active
+                Node content = selectedTab.getContent();
+                if (content instanceof TabPane) {
+                    TabPane studentTabs = (TabPane) content;
+                    Tab selectedStudentTab = studentTabs.getSelectionModel().getSelectedItem();
+                    if (selectedStudentTab != null) {
+                        String studentTabText = selectedStudentTab.getText();
+                        if (studentTabText.contains("All Students")) {
+                            selectedUser = tableAllStudents.getSelectionModel().getSelectedItem();
+                        } else if (studentTabText.contains("Rejected")) {
+                            selectedUser = tableRejectedStudents.getSelectionModel().getSelectedItem();
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (selectedUser == null) {
+            showAlert("Error", "Please select a user to delete!");
+            return;
+        }
+        
+        handleDeleteUser(selectedUser);
+    }
+    
+    private void handleDeleteUser(User user) {
+        // Prevent deleting admin user
+        if ("admin".equals(user.getUsername())) {
+            showAlert("Error", "Cannot delete the admin user!");
+            return;
+        }
+        
+        // Show confirmation dialog
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete User");
+        confirm.setHeaderText("Are you sure you want to permanently delete this user?");
+        confirm.setContentText("User: " + user.getFullName() + 
+                             "\nUsername: " + user.getUsername() + 
+                             "\nRole: " + user.getRole() +
+                             "\n\n⚠️ This action cannot be undone!");
+        
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            deleteUserFromDatabase(user);
+        }
+    }
+    
+    private void deleteUserFromDatabase(User user) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // First, archive the user data for audit purposes
+                String archiveSql = """
+                    INSERT INTO deleted_users_archive 
+                    (original_id, username, full_name, role, email, phone, 
+                     department, year_level, status, deleted_by, deleted_at)
+                    SELECT id, username, full_name, role, email, phone, 
+                           department, year_level, status, ?, NOW()
+                    FROM users 
+                    WHERE id = ?
+                    """;
+                
+                PreparedStatement archiveStmt = conn.prepareStatement(archiveSql);
+                archiveStmt.setInt(1, currentUser.getId());
+                archiveStmt.setInt(2, user.getId());
+                archiveStmt.executeUpdate();
+                
+                // Delete dependent records first (due to foreign key constraints)
+                String[] deleteQueries = {
+                    "DELETE FROM notifications WHERE user_id = ?",
+                    "DELETE FROM audit_logs WHERE user_id = ?",
+                    "DELETE FROM clearance_approvals WHERE officer_id = ? OR request_id IN (SELECT id FROM clearance_requests WHERE student_id = ?)",
+                    "DELETE FROM clearance_requests WHERE student_id = ?",
+                    "DELETE FROM student_dormitory_credentials WHERE student_id = ?",
+                    "DELETE FROM student_academic_records WHERE student_id = ?",
+                    "DELETE FROM book_borrowings WHERE student_id = ?",
+                    "DELETE FROM cafeteria_records WHERE student_id = ?",
+                    "DELETE FROM dormitory_records WHERE student_id = ?",
+                    "DELETE FROM department_requirements WHERE student_id = ?",
+                    "DELETE FROM student_courses WHERE student_id = ?"
+                };
+                
+                for (String query : deleteQueries) {
+                    PreparedStatement stmt = conn.prepareStatement(query);
+                    stmt.setInt(1, user.getId());
+                    if (query.contains("clearance_approvals")) {
+                        stmt.setInt(1, user.getId());
+                        stmt.setInt(2, user.getId());
+                        stmt.executeUpdate();
+                    } else {
+                        stmt.executeUpdate();
+                    }
+                }
+                
+                // Finally, delete the user
+                String deleteUserSql = "DELETE FROM users WHERE id = ?";
+                PreparedStatement deleteStmt = conn.prepareStatement(deleteUserSql);
+                deleteStmt.setInt(1, user.getId());
+                int rowsAffected = deleteStmt.executeUpdate();
+                
+                // Add audit log
+                String auditSql = """
+                    INSERT INTO audit_logs (user_id, action, details, timestamp)
+                    VALUES (?, 'USER_DELETION', ?, NOW())
+                    """;
+                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, currentUser.getId());
+                auditStmt.setString(2, "Deleted user: " + user.getUsername() + " - " + user.getFullName() + 
+                                    " (Role: " + user.getRole() + ")");
+                auditStmt.executeUpdate();
+                
+                conn.commit();
+                
+                if (rowsAffected > 0) {
+                    showNotification("Success", "✅ User deleted successfully!", "success");
+                    
+                    // Refresh all tables
+                    loadAllData();
+                    
+                    // Update report statistics
+                    updateReportStatistics();
+                } else {
+                    conn.rollback();
+                    showAlert("Error", "Failed to delete user!");
+                }
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to delete user: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void handleAllowResubmission(ClearanceRequest request) {
+        // Show confirmation dialog
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Allow Resubmission");
+        confirm.setHeaderText("Allow Student to Resubmit Clearance Request");
+        confirm.setContentText("Student: " + request.getFullName() + 
+                             "\nStudent ID: " + request.getStudentId() +
+                             "\nDepartment: " + request.getDepartment() +
+                             "\n\nThis will:\n" +
+                             "• Reset clearance status to PENDING\n" +
+                             "• Enable student to submit new request\n" +
+                             "• Log this action for auditing\n\n" +
+                             "Proceed?");
+        
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            allowResubmission(request);
+        }
+    }
+    
+    private void allowResubmission(ClearanceRequest request) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // Get the student ID from the username
+                String studentIdSql = "SELECT id FROM users WHERE username = ?";
+                PreparedStatement studentStmt = conn.prepareStatement(studentIdSql);
+                studentStmt.setString(1, request.getStudentId());
+                ResultSet studentRs = studentStmt.executeQuery();
+                
+                if (studentRs.next()) {
+                    int studentId = studentRs.getInt("id");
+                    
+                    // Get the latest rejected request for this student
+                    String getRequestSql = """
+                        SELECT id FROM clearance_requests 
+                        WHERE student_id = ? AND status = 'REJECTED'
+                        ORDER BY request_date DESC LIMIT 1
+                        """;
+                    PreparedStatement requestStmt = conn.prepareStatement(getRequestSql);
+                    requestStmt.setInt(1, studentId);
+                    ResultSet requestRs = requestStmt.executeQuery();
+                    
+                    if (requestRs.next()) {
+                        int requestId = requestRs.getInt("id");
+                        
+                        // Update the clearance request status to PENDING
+                        String updateRequestSql = """
+                            UPDATE clearance_requests 
+                            SET status = 'PENDING', 
+                                can_reapply = FALSE,
+                                request_date = NOW()
+                            WHERE id = ?
+                            """;
+                        PreparedStatement updateStmt = conn.prepareStatement(updateRequestSql);
+                        updateStmt.setInt(1, requestId);
+                        updateStmt.executeUpdate();
+                        
+                        // Clear existing approvals
+                        String clearApprovalsSql = "DELETE FROM clearance_approvals WHERE request_id = ?";
+                        PreparedStatement clearStmt = conn.prepareStatement(clearApprovalsSql);
+                        clearStmt.setInt(1, requestId);
+                        clearStmt.executeUpdate();
+                        
+                        // Create new pending approvals based on workflow
+                        String workflowSql = "SELECT role FROM workflow_config ORDER BY sequence_order";
+                        PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
+                        ResultSet workflowRs = workflowStmt.executeQuery();
+                        
+                        String insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, status)
+                            VALUES (?, ?, 'PENDING')
+                            """;
+                        PreparedStatement insertStmt = conn.prepareStatement(insertApprovalSql);
+                        
+                        while (workflowRs.next()) {
+                            insertStmt.setInt(1, requestId);
+                            insertStmt.setString(2, workflowRs.getString("role"));
+                            insertStmt.addBatch();
+                        }
+                        insertStmt.executeBatch();
+                        
+                        // Add audit log
+                        String auditSql = """
+                            INSERT INTO audit_logs (user_id, action, details, timestamp)
+                            VALUES (?, 'ALLOW_RESUBMISSION', ?, NOW())
+                            """;
+                        PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                        auditStmt.setInt(1, currentUser.getId());
+                        auditStmt.setString(2, "Allowed resubmission for student: " + 
+                                           request.getStudentId() + " - " + request.getFullName());
+                        auditStmt.executeUpdate();
+                        
+                        // Send notification to student
+                        String notificationSql = """
+                            INSERT INTO notifications (user_id, type, subject, message)
+                            VALUES (?, 'RESUBMISSION_ALLOWED', 'Clearance Resubmission Allowed', 
+                                    'Your clearance request has been reset to PENDING. You can now submit a new request.')
+                            """;
+                        PreparedStatement notifStmt = conn.prepareStatement(notificationSql);
+                        notifStmt.setInt(1, studentId);
+                        notifStmt.executeUpdate();
+                        
+                        conn.commit();
+                        
+                        showNotification("Success", 
+                            "✅ Resubmission allowed successfully!\n\n" +
+                            "Student: " + request.getFullName() + "\n" +
+                            "Status has been reset to PENDING\n" +
+                            "Student can now submit a new clearance request.", 
+                            "success");
+                        
+                        // Refresh tables
+                        loadClearanceRequests();
+                        loadAllStudents();
+                        updateReportStatistics();
+                        
+                    } else {
+                        showAlert("Error", "No rejected request found for this student!");
+                        conn.rollback();
+                    }
+                } else {
+                    showAlert("Error", "Student not found!");
+                    conn.rollback();
+                }
+                
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to allow resubmission: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void updateReportStatistics() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Get today's deleted users count
+            String deletedSql = """
+                SELECT COUNT(*) as count FROM audit_logs 
+                WHERE action = 'USER_DELETION' 
+                AND DATE(timestamp) = CURDATE()
+                """;
+            PreparedStatement deletedStmt = conn.prepareStatement(deletedSql);
+            ResultSet deletedRs = deletedStmt.executeQuery();
+            if (deletedRs.next()) {
+                lblDeletedToday.setText(String.valueOf(deletedRs.getInt("count")));
+            }
+            
+            // Get resubmissions allowed count
+            String resubmitSql = """
+                SELECT COUNT(*) as count FROM audit_logs 
+                WHERE action = 'ALLOW_RESUBMISSION'
+                AND DATE(timestamp) = CURDATE()
+                """;
+            PreparedStatement resubmitStmt = conn.prepareStatement(resubmitSql);
+            ResultSet resubmitRs = resubmitStmt.executeQuery();
+            if (resubmitRs.next()) {
+                lblResubmissionsAllowed.setText(String.valueOf(resubmitRs.getInt("count")));
+            }
+            
+            // Get pending resubmissions (expired rejected requests)
+            String pendingSql = """
+                SELECT COUNT(*) as count FROM clearance_requests cr
+                JOIN users u ON cr.student_id = u.id
+                WHERE cr.status = 'REJECTED'
+                AND cr.request_date < DATE_SUB(NOW(), INTERVAL 30 DAY)
+                AND cr.can_reapply = FALSE
+                """;
+            PreparedStatement pendingStmt = conn.prepareStatement(pendingSql);
+            ResultSet pendingRs = pendingStmt.executeQuery();
+            if (pendingRs.next()) {
+                lblPendingResubmissions.setText(String.valueOf(pendingRs.getInt("count")));
+            }
+            
+            // Get expired requests
+            String expiredSql = """
+                SELECT COUNT(*) as count FROM clearance_requests 
+                WHERE status = 'EXPIRED'
+                """;
+            PreparedStatement expiredStmt = conn.prepareStatement(expiredSql);
+            ResultSet expiredRs = expiredStmt.executeQuery();
+            if (expiredRs.next()) {
+                lblExpiredRequests.setText(String.valueOf(expiredRs.getInt("count")));
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error updating report statistics: " + e.getMessage());
+        }
+    }
     
     private void setupTabAnimations() {
-        // Add animation when switching tabs
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (newTab != null) {
-                // Fade in new content
                 Node content = newTab.getContent();
                 content.setOpacity(0);
                 content.setTranslateY(10);
@@ -194,12 +666,8 @@ public class AdminDashboardController {
             }
         });
     }
-
-    
-    
     
     private void setupActiveTabHighlight() {
-        // Listen for tab changes
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (oldTab != null) {
                 oldTab.setStyle("-fx-background-color: #bdc3c7; -fx-border-color: transparent;");
@@ -207,7 +675,6 @@ public class AdminDashboardController {
             if (newTab != null) {
                 newTab.setStyle("-fx-background-color: white; -fx-border-color: #3498db; -fx-border-width: 0 0 3px 0;");
                 
-                // Add a subtle glow effect
                 PauseTransition pause = new PauseTransition(Duration.millis(100));
                 pause.setOnFinished(e -> {
                     newTab.getStyleClass().add("glow");
@@ -219,7 +686,6 @@ public class AdminDashboardController {
             }
         });
         
-        // Set initial active tab
         if (mainTabPane.getTabs().size() > 0) {
             mainTabPane.getSelectionModel().getSelectedItem().setStyle(
                 "-fx-background-color: white; -fx-border-color: #3498db; -fx-border-width: 0 0 3px 0;"
@@ -227,18 +693,15 @@ public class AdminDashboardController {
         }
     }
     
-    
-    
     public void setCurrentUser(User user) {
         this.currentUser = user;
         lblWelcome.setText("Welcome, " + user.getFullName() + " (Admin)");
         
-        // Load data after UI is ready
         Platform.runLater(() -> {
             loadAllData();
+            updateReportStatistics();
             System.out.println("[DEBUG] Data loaded for user: " + user.getUsername());
             
-            // Force refresh of tables
             if (tableAllStudents != null) {
                 tableAllStudents.refresh();
                 System.out.println("[DEBUG] Table refreshed");
@@ -258,10 +721,6 @@ public class AdminDashboardController {
     }
 
     private void loadCurrentInfoData() {
-        // Load data from your services/database
-        // These are example values - replace with actual data retrieval
-        
-        // Example data loading
         lblActiveSessions.setText("3");
         lblSessionStatus.setText("Current: 2024 Spring");
         
@@ -288,31 +747,26 @@ public class AdminDashboardController {
     }
         
     private void setupAllTables() {
-        // Setup Students Table
         setupStudentTable(tableAllStudents, colStudentId, colStudentName, colStudentDepartment, 
                          colStudentYear, colClearanceStatus, colStudentActions);
         
-        // Setup simplified tables for categorized views
         setupSimpleStudentTable(tableApprovedStudents);
         setupSimpleStudentTable(tableRejectedStudents);
         setupSimpleStudentTable(tablePendingStudents);
         setupSimpleStudentTable(tableInProgressStudents);
         
-        // Setup Officers Table
         colOfficerId.setCellValueFactory(new PropertyValueFactory<>("username"));
         colOfficerName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         colOfficerRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         colOfficerDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colOfficerStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         
-        // Setup All Users Table
         colAllUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
         colAllUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         colAllUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         colAllUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colAllUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         
-        // Setup Clearance Requests Table
         colRequestStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
         colRequestName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         colRequestDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
@@ -320,7 +774,6 @@ public class AdminDashboardController {
         colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         colRequestApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
         
-        // Color coding for status column in requests
         colRequestStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -338,6 +791,8 @@ public class AdminDashboardController {
                         setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
                     } else if (item.equals("PENDING")) {
                         setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    } else if (item.equals("EXPIRED")) {
+                        setStyle("-fx-text-fill: #95a5a6; -fx-font-weight: bold;");
                     } else {
                         setStyle("");
                     }
@@ -347,7 +802,6 @@ public class AdminDashboardController {
     }
     
     private void setupSearchFunctionality() {
-        // Initialize search type combobox
         cmbSearchType.setItems(FXCollections.observableArrayList(
             "All Users",
             "Students Only", 
@@ -355,28 +809,22 @@ public class AdminDashboardController {
         ));
         cmbSearchType.setValue("All Users");
         
-        // Initialize search status label
         if (lblSearchStatus != null) {
             lblSearchStatus.setText("");
             lblSearchStatus.setVisible(false);
         }
         
-        // Set up button actions
         btnSearchUsers.setOnAction(e -> handleUserSearch());
         btnClearSearch.setOnAction(e -> handleClearSearch());
         
-        // Enable search button only when there's text
         btnSearchUsers.disableProperty().bind(
             txtSearchUsers.textProperty().isEmpty()
         );
         
-        // Add Enter key support for search
         txtSearchUsers.setOnAction(e -> handleUserSearch());
         
-        // Set up combo box tooltip
         cmbSearchType.setTooltip(new Tooltip("Select user type to filter"));
         
-        // Set up requests search
         if (txtSearchRequests != null && btnSearchRequests != null) {
             btnSearchRequests.setOnAction(e -> handleRequestsSearch());
             btnClearRequestsSearch.setOnAction(e -> handleClearRequestsSearch());
@@ -465,7 +913,7 @@ public class AdminDashboardController {
                     }
                     break;
                     
-                default: // All Users
+                default:
                     sql = """
                         SELECT * FROM users 
                         WHERE (username LIKE ? OR full_name LIKE ? OR department LIKE ? OR email LIKE ?)
@@ -504,7 +952,6 @@ public class AdminDashboardController {
             
             tableAllUsers.setItems(allUsersData);
             
-            // Update search status
             if (count > 0) {
                 updateSearchStatus("Found " + count + " " + 
                     (searchType.equals("All Users") ? "users" : 
@@ -592,100 +1039,95 @@ public class AdminDashboardController {
         }
     }
     
-		    private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
-		            TableColumn<User, String> colName, TableColumn<User, String> colDept,
-		            TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
-		            TableColumn<User, String> colActions) {
-		
-		colId.setCellValueFactory(new PropertyValueFactory<>("username"));
-		colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-		colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
-		colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
-		colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
-		
-		// Actions column
-		colActions.setCellFactory(param -> new TableCell<User, String>() {
-		private final Button btnAllowReapply = new Button("Allow Reapply");
-		private final Button btnViewDetails = new Button("View Details");
-		private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
-		
-		{
-		buttons.setPadding(new Insets(5));
-		btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
-		btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
-		
-		btnAllowReapply.setOnAction(event -> {
-		User student = getTableView().getItems().get(getIndex());
-		allowStudentReapply(student);
-		});
-		
-		btnViewDetails.setOnAction(event -> {
-		User student = getTableView().getItems().get(getIndex());
-		viewStudentDetails(student);
-		});
-		}
-		
-		@Override
-		protected void updateItem(String item, boolean empty) {
-		super.updateItem(item, empty);
-		if (empty) {
-		setGraphic(null);
-		} else {
-		User student = getTableView().getItems().get(getIndex());
-		if (student != null) {
-		  if (student.getClearanceStatus() != null && 
-		      student.getClearanceStatus().contains("❌")) {
-		      btnAllowReapply.setVisible(true);
-		      btnAllowReapply.setManaged(true);
-		  } else {
-		      btnAllowReapply.setVisible(false);
-		      btnAllowReapply.setManaged(false);
-		  }
-		  setGraphic(buttons);
-		} else {
-		  setGraphic(null);
-		}
-		}
-		}
-		});
-		
-		// Color code clearance status
-		colStatus.setCellFactory(column -> new TableCell<User, String>() {
-		@Override
-		protected void updateItem(String item, boolean empty) {
-		super.updateItem(item, empty);
-		if (empty || item == null) {
-		setText(null);
-		setStyle("");
-		} else {
-		setText(item);
-		if (item.contains("✅")) {
-		  setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-		} else if (item.contains("❌")) {
-		  setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-		} else if (item.contains("🔄")) {
-		  setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-		} else if (item.contains("⏳")) {
-		  setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-		} else {
-		  setStyle("");
-		}
-		}
-		}
-		});
-		}
+    private void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
+            TableColumn<User, String> colName, TableColumn<User, String> colDept,
+            TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
+            TableColumn<User, String> colActions) {
+        
+        colId.setCellValueFactory(new PropertyValueFactory<>("username"));
+        colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+        colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
+        colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
+        colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
+        
+        colActions.setCellFactory(param -> new TableCell<User, String>() {
+            private final Button btnAllowReapply = new Button("Allow Reapply");
+            private final Button btnViewDetails = new Button("View Details");
+            private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
+            
+            {
+                buttons.setPadding(new Insets(5));
+                btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+                btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+                
+                btnAllowReapply.setOnAction(event -> {
+                    User student = getTableView().getItems().get(getIndex());
+                    allowStudentReapply(student);
+                });
+                
+                btnViewDetails.setOnAction(event -> {
+                    User student = getTableView().getItems().get(getIndex());
+                    viewStudentDetails(student);
+                });
+            }
+            
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    User student = getTableView().getItems().get(getIndex());
+                    if (student != null) {
+                      if (student.getClearanceStatus() != null && 
+                          student.getClearanceStatus().contains("❌")) {
+                          btnAllowReapply.setVisible(true);
+                          btnAllowReapply.setManaged(true);
+                      } else {
+                          btnAllowReapply.setVisible(false);
+                          btnAllowReapply.setManaged(false);
+                      }
+                      setGraphic(buttons);
+                    } else {
+                      setGraphic(null);
+                    }
+                }
+            }
+        });
+        
+        colStatus.setCellFactory(column -> new TableCell<User, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (item.contains("✅")) {
+                      setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                    } else if (item.contains("❌")) {
+                      setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    } else if (item.contains("🔄")) {
+                      setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                    } else if (item.contains("⏳")) {
+                      setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    } else {
+                      setStyle("");
+                    }
+                }
+            }
+        });
+    }
     
     private void setupSimpleStudentTable(TableView<User> tableView) {
-        // Get the columns
         if (tableView.getColumns().size() < 4) return;
         
-        // Setup first 4 columns
         tableView.getColumns().get(0).setCellValueFactory(new PropertyValueFactory<>("username"));
         tableView.getColumns().get(1).setCellValueFactory(new PropertyValueFactory<>("fullName"));
         tableView.getColumns().get(2).setCellValueFactory(new PropertyValueFactory<>("department"));
         tableView.getColumns().get(3).setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
         
-        // Setup status column cell factory (column 3)
         TableColumn<User, String> statusCol = (TableColumn<User, String>) tableView.getColumns().get(3);
         statusCol.setCellFactory(column -> new TableCell<User, String>() {
             @Override
@@ -711,7 +1153,6 @@ public class AdminDashboardController {
             }
         });
         
-        // Setup actions column if exists (column 4)
         if (tableView.getColumns().size() >= 5) {
             TableColumn<User, String> actionsCol = (TableColumn<User, String>) tableView.getColumns().get(4);
             actionsCol.setCellFactory(column -> new TableCell<User, String>() {
@@ -764,7 +1205,8 @@ public class AdminDashboardController {
     @FXML
     private void handleRefresh() {
         loadAllData();
-        showAlert("Refreshed", "All data has been refreshed successfully!");
+        updateReportStatistics();
+        showNotification("Refreshed", "All data has been refreshed successfully!", "info");
     }
     
     private void loadAllData() {
@@ -779,7 +1221,6 @@ public class AdminDashboardController {
         System.out.println("[DEBUG] All data loaded");
         System.out.println("[DEBUG] Total students loaded: " + allStudentsData.size());
         
-        // Verify table has items
         if (tableAllStudents != null) {
             System.out.println("[DEBUG] tableAllStudents items: " + tableAllStudents.getItems().size());
         } else {
@@ -870,11 +1311,9 @@ public class AdminDashboardController {
             System.out.println("[DEBUG] pendingStudentsData size: " + pendingStudentsData.size());
             System.out.println("[DEBUG] inProgressStudentsData size: " + inProgressStudentsData.size());
             
-            // Check if tables are null
             System.out.println("[DEBUG] tableAllStudents is null: " + (tableAllStudents == null));
             System.out.println("[DEBUG] tableApprovedStudents is null: " + (tableApprovedStudents == null));
             
-            // Set the data to tables
             tableAllStudents.setItems(allStudentsData);
             tableApprovedStudents.setItems(approvedStudentsData);
             tableRejectedStudents.setItems(rejectedStudentsData);
@@ -953,11 +1392,12 @@ public class AdminDashboardController {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
                 SELECT cr.id, u.username, u.full_name, u.department, 
-                       cr.request_date, cr.status, COUNT(ca.id) as approved_count
+                       cr.request_date, cr.status, COUNT(ca.id) as approved_count,
+                       cr.can_reapply
                 FROM clearance_requests cr
                 JOIN users u ON cr.student_id = u.id
                 LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id AND ca.status = 'APPROVED'
-                GROUP BY cr.id, u.username, u.full_name, u.department, cr.request_date, cr.status
+                GROUP BY cr.id, u.username, u.full_name, u.department, cr.request_date, cr.status, cr.can_reapply
                 ORDER BY cr.request_date DESC
                 """;
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -973,6 +1413,7 @@ public class AdminDashboardController {
                     rs.getInt("approved_count")
                 );
                 req.setRequestId(rs.getInt("id"));
+                req.setCanReapply(rs.getBoolean("can_reapply")); // Set the canReapply property
                 requestData.add(req);
             }
 
@@ -1001,6 +1442,8 @@ public class AdminDashboardController {
                 return "🔄 In Progress";
             case "PENDING":
                 return "⏳ Pending";
+            case "EXPIRED":
+                return "⌛ Expired";
             case "NO_REQUEST":
                 return "📝 No Request";
             default:
@@ -1052,9 +1495,12 @@ public class AdminDashboardController {
         if (lblPendingCount != null) {
             lblPendingCount.setText(String.valueOf(pendingCount));
         }
+        
+        // Update status bar
+        lblUpdateTime.setText(LocalDateTime.now().toString().substring(11, 19));
     }
     
-    // ==================== STUDENT REGISTRATION WITH REAL-TIME VALIDATION ====================
+    // ==================== STUDENT REGISTRATION ====================
     
     @FXML
     private void openRegisterStudent() {
@@ -1099,33 +1545,6 @@ public class AdminDashboardController {
         }
     }
     
-    
-    
-    
- // Test method to verify student ID pattern
-    private void testStudentIdPattern() {
-        System.out.println("=== STUDENT ID PATTERN TEST ===");
-        String[] testIds = {
-            "DBU1601111",
-            "dbu1601111",  // lowercase
-            "DBU160111",   // too short
-            "DBU16011111", // too long
-            "ABC1601111",  // wrong prefix
-            "DBU1601ABC",  // letters in digits
-            "DBU 1601111", // space
-            "DBU-1601111"  // dash
-        };
-        
-        for (String id : testIds) {
-            ValidationResult result = ValidationHelper.validateStudentId(id);
-            System.out.println(id + " -> " + result.getMessage() + " (" + result.isValid() + ")");
-        }
-        System.out.println("=============================");
-    }
-    
-    
-    
-    
     private GridPane createStudentFormWithValidation() {
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -1134,7 +1553,6 @@ public class AdminDashboardController {
         
         int row = 0;
         
-        // ===== STUDENT ID =====
         TextField txtStudentId = new TextField();
         txtStudentId.setPromptText("DBU1601111");
         txtStudentId.setPrefWidth(200);
@@ -1145,16 +1563,13 @@ public class AdminDashboardController {
         Label lblStudentIdValidation = new Label("Required");
         lblStudentIdValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
-        // ===== USERNAME (Auto-filled) =====
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("dbu1601111");
         txtUsername.setEditable(false);
         txtUsername.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #000000;");
         
-        // Student ID text change listener
         txtStudentId.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
-                // Auto-add DBU prefix if not present
                 if (!newVal.startsWith("DBU")) {
                     Platform.runLater(() -> {
                         txtStudentId.setText("DBU" + newVal.replaceAll("[^\\d]", ""));
@@ -1162,7 +1577,6 @@ public class AdminDashboardController {
                     });
                 }
                 
-                // Ensure maximum 7 digits after DBU (total 10 characters)
                 if (newVal.startsWith("DBU") && newVal.length() > 10) {
                     Platform.runLater(() -> {
                         txtStudentId.setText(newVal.substring(0, 10));
@@ -1170,7 +1584,6 @@ public class AdminDashboardController {
                     });
                 }
                 
-                // Only allow digits after DBU
                 if (newVal.startsWith("DBU") && newVal.length() > 3) {
                     String afterDBU = newVal.substring(3);
                     if (!afterDBU.matches("\\d*")) {
@@ -1184,7 +1597,6 @@ public class AdminDashboardController {
                 ValidationResult result = ValidationHelper.validateStudentId(newVal);
                 updateValidationLabel(lblStudentIdValidation, result);
                 
-                // Auto-fill username in real-time
                 String username = ValidationHelper.generateUsername(newVal);
                 txtUsername.setText(username);
             }
@@ -1198,14 +1610,12 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblStudentIdValidation, 2);
         row++;
         
-        // Username row
         grid.add(new Label("Username*:"), 0, row);
         grid.add(txtUsername, 1, row);
         grid.add(new Label("(Auto-generated from Student ID)"), 2, row);
         row++;
-        row++; // Empty row for spacing
+        row++;
         
-        // ===== FULL NAME =====
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("John Smith");
         
@@ -1228,7 +1638,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblFullNameValidation, 2);
         row++;
         
-        // ===== PASSWORD =====
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("At least 6 chars, letters & numbers");
         
@@ -1251,7 +1660,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblPasswordValidation, 2);
         row++;
         
-        // ===== EMAIL =====
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("student@dbu.edu.et");
         
@@ -1274,7 +1682,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblEmailValidation, 2);
         row++;
         
-        // ===== PHONE =====
         PhoneInputField phoneInputField = new PhoneInputField();
         
         Label lblPhoneHint = new Label("Format: 09xxxxxxx (Provider A) or 07xxxxxxx (Provider B)");
@@ -1283,7 +1690,6 @@ public class AdminDashboardController {
         Label lblPhoneValidation = new Label("Required");
         lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
         
-        // Validation listener for phone
         phoneInputField.getPhoneField().textProperty().addListener((obs, oldVal, newVal) -> {
             ValidationResult result = ValidationHelper.validatePhoneWithProvider(newVal, phoneInputField.getProvider());
             updateValidationLabel(lblPhoneValidation, result);
@@ -1305,7 +1711,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblPhoneValidation, 2);
         row++;
         
-        // ===== DEPARTMENT =====
         ComboBox<String> cmbDepartment = new ComboBox<>();
         cmbDepartment.setItems(FXCollections.observableArrayList(
             "Software Engineering", "Computer Science", "Electrical Engineering",
@@ -1330,7 +1735,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblDeptValidation, 2);
         row++;
         
-        // ===== YEAR LEVEL =====
         ComboBox<String> cmbYear = new ComboBox<>();
         cmbYear.setItems(FXCollections.observableArrayList(
             "1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"
@@ -1352,7 +1756,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblYearValidation, 2);
         row++;
         
-        // ===== BLOCK NUMBER =====
         TextField txtBlockNumber = new TextField();
         txtBlockNumber.setPromptText("1-45");
 
@@ -1366,7 +1769,6 @@ public class AdminDashboardController {
             if (!newVal.matches("\\d*")) {
                 txtBlockNumber.setText(newVal.replaceAll("[^\\d]", ""));
             }
-            // Limit to 2 digits maximum (for 1-45)
             if (txtBlockNumber.getText().length() > 2) {
                 txtBlockNumber.setText(txtBlockNumber.getText().substring(0, 2));
             }
@@ -1383,7 +1785,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblBlockValidation, 2);
         row++;
         
-        // ===== DORM NUMBER =====
         TextField txtDormNumber = new TextField();
         txtDormNumber.setPromptText("101-4999");
         
@@ -1412,7 +1813,6 @@ public class AdminDashboardController {
         grid.add(lblDormValidation, 1, row);
         GridPane.setColumnSpan(lblDormValidation, 2);
         
-        // Store all components for later access
         grid.setUserData(new Object[]{
             txtStudentId, txtUsername, txtFullName, txtPassword,
             txtEmail, phoneInputField, cmbDepartment, cmbYear,
@@ -1425,23 +1825,18 @@ public class AdminDashboardController {
         return grid;
     }
     
-    
-    
-    
     private void setupValidationListeners(GridPane grid, SimpleBooleanProperty allFieldsValid) {
         Object[] components = (Object[]) grid.getUserData();
         
-        // Update indices based on new component order
-        Label lblStudentIdValidation = (Label) components[10];      // Index 10
-        Label lblFullNameValidation = (Label) components[11];      // Index 11
-        Label lblPasswordValidation = (Label) components[12];      // Index 12
-        Label lblEmailValidation = (Label) components[13];         // Index 13
-        Label lblPhoneValidation = (Label) components[14];         // Index 14
-        Label lblDeptValidation = (Label) components[15];          // Index 15
-        Label lblYearValidation = (Label) components[16];          // Index 16
+        Label lblStudentIdValidation = (Label) components[10];
+        Label lblFullNameValidation = (Label) components[11];
+        Label lblPasswordValidation = (Label) components[12];
+        Label lblEmailValidation = (Label) components[13];
+        Label lblPhoneValidation = (Label) components[14];
+        Label lblDeptValidation = (Label) components[15];
+        Label lblYearValidation = (Label) components[16];
         
         Runnable validationChecker = () -> {
-            // Check if all fields are valid (contain checkmark)
             boolean studentIdValid = lblStudentIdValidation.getText().contains("✓");
             boolean nameValid = lblFullNameValidation.getText().contains("✓");
             boolean passwordValid = lblPasswordValidation.getText().contains("✓");
@@ -1467,7 +1862,6 @@ public class AdminDashboardController {
             allFieldsValid.set(allValid);
         };
         
-        // Add listeners to all validation labels
         lblStudentIdValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblFullNameValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblPasswordValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
@@ -1476,11 +1870,228 @@ public class AdminDashboardController {
         lblDeptValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         lblYearValidation.textProperty().addListener((obs, oldVal, newVal) -> validationChecker.run());
         
-        // Initial check
         validationChecker.run();
     }
     
+    private void updateValidationLabel(Label label, ValidationResult result) {
+        if (result.isValid()) {
+            label.setText("✓ " + result.getMessage().replace("✓", "").trim());
+            label.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+        } else {
+            label.setText(result.getMessage());
+            label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        }
+    }
     
+    private boolean validateAllFields(GridPane grid) {
+        Object[] components = (Object[]) grid.getUserData();
+        
+        Label lblStudentIdValidation = (Label) components[10];
+        Label lblFullNameValidation = (Label) components[11];
+        Label lblPasswordValidation = (Label) components[12];
+        Label lblEmailValidation = (Label) components[13];
+        Label lblPhoneValidation = (Label) components[14];
+        Label lblDeptValidation = (Label) components[15];
+        Label lblYearValidation = (Label) components[16];
+        
+        boolean studentIdValid = lblStudentIdValidation.getText().contains("✓");
+        boolean nameValid = lblFullNameValidation.getText().contains("✓");
+        boolean passwordValid = lblPasswordValidation.getText().contains("✓");
+        boolean emailValid = lblEmailValidation.getText().contains("✓");
+        boolean phoneValid = lblPhoneValidation.getText().contains("✓");
+        boolean deptValid = lblDeptValidation.getText().contains("✓");
+        boolean yearValid = lblYearValidation.getText().contains("✓");
+        
+        boolean allValid = studentIdValid && nameValid && passwordValid && 
+                          emailValid && phoneValid && deptValid && yearValid;
+        
+        if (!allValid) {
+            StringBuilder errorMsg = new StringBuilder("Please fix the following fields:\n");
+            
+            if (!studentIdValid) errorMsg.append("• Student ID: ").append(lblStudentIdValidation.getText()).append("\n");
+            if (!nameValid) errorMsg.append("• Full Name: ").append(lblFullNameValidation.getText()).append("\n");
+            if (!passwordValid) errorMsg.append("• Password: ").append(lblPasswordValidation.getText()).append("\n");
+            if (!emailValid) errorMsg.append("• Email: ").append(lblEmailValidation.getText()).append("\n");
+            if (!phoneValid) errorMsg.append("• Phone: ").append(lblPhoneValidation.getText()).append("\n");
+            if (!deptValid) errorMsg.append("• Department: ").append(lblDeptValidation.getText()).append("\n");
+            if (!yearValid) errorMsg.append("• Year Level: ").append(lblYearValidation.getText()).append("\n");
+            
+            showAlert("Validation Error", errorMsg.toString());
+        }
+        
+        return allValid;
+    }
+    
+    private boolean registerStudentFromForm(GridPane grid) {
+        if (!validateAllFields(grid)) {
+            return false;
+        }
+        
+        Object[] components = (Object[]) grid.getUserData();
+        
+        TextField txtStudentId = (TextField) components[0];
+        TextField txtUsername = (TextField) components[1];
+        TextField txtFullName = (TextField) components[2];
+        PasswordField txtPassword = (PasswordField) components[3];
+        TextField txtEmail = (TextField) components[4];
+        PhoneInputField phoneInputField = (PhoneInputField) components[5];
+        ComboBox<String> cmbDepartment = (ComboBox<String>) components[6];
+        ComboBox<String> cmbYear = (ComboBox<String>) components[7];
+        TextField txtBlockNumber = (TextField) components[8];
+        TextField txtDormNumber = (TextField) components[9];
+        
+        String studentId = txtStudentId.getText().trim().toUpperCase();
+        String username = txtUsername.getText().trim().toLowerCase();
+        String fullName = txtFullName.getText().trim();
+        String password = txtPassword.getText();
+        String email = txtEmail.getText().trim();
+        String phone = phoneInputField.getPhoneNumber();
+        String provider = phoneInputField.getProvider();
+        String department = cmbDepartment.getValue();
+        String year = cmbYear.getValue();
+        String blockNumber = txtBlockNumber.getText().trim();
+        String dormNumber = txtDormNumber.getText().trim();
+        
+        System.out.println("=== ATTEMPTING REGISTRATION ===");
+        System.out.println("Student ID: " + studentId);
+        System.out.println("Username: " + username);
+        System.out.println("Full Name: " + fullName);
+        System.out.println("Department: " + department);
+        System.out.println("Year: " + year);
+        System.out.println("Phone: " + phone);
+        System.out.println("Provider: " + provider);
+        System.out.println("Email: " + email);
+        
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                String checkDuplicate = "SELECT username, full_name FROM users WHERE username = ?";
+                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
+                checkStmt.setString(1, username);
+                
+                ResultSet checkRs = checkStmt.executeQuery();
+                
+                if (checkRs.next()) {
+                    String existingUsername = checkRs.getString("username");
+                    String existingName = checkRs.getString("full_name");
+                    
+                    showAlert("Duplicate Student ID", 
+                        "Student ID '" + existingUsername + "' already exists in the system.\n\n" +
+                        "Associated with student: " + existingName + "\n\n" +
+                        "The Student ID must be unique. Please use a different Student ID.");
+                    conn.rollback();
+                    return false;
+                }
+                
+                String userSql = """
+                    INSERT INTO users (username, password, full_name, role, email, phone, 
+                                      department, year_level, status, created_at)
+                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE', NOW())
+                """;
+
+                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
+                userStmt.setString(1, username);
+                userStmt.setString(2, password);
+                userStmt.setString(3, fullName);
+                userStmt.setString(4, email.isEmpty() ? null : email);
+                userStmt.setString(5, phone);
+                userStmt.setString(6, department);
+                userStmt.setString(7, year);
+
+                int userRows = userStmt.executeUpdate();
+                
+                if (userRows <= 0) {
+                    conn.rollback();
+                    showAlert("Error", "Failed to register student!");
+                    return false;
+                }
+                
+                ResultSet generatedKeys = userStmt.getGeneratedKeys();
+                int studentDbId = -1;
+                if (generatedKeys.next()) {
+                    studentDbId = generatedKeys.getInt(1);
+                }
+                
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    String dormSql = """
+                        INSERT INTO student_dormitory_credentials 
+                        (student_id, block_number, room_number, key_returned, 
+                         damage_paid, clearance_status, last_updated)
+                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING', NOW())
+                    """;
+                    
+                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
+                    dormStmt.setInt(1, studentDbId);
+                    dormStmt.setString(2, blockNumber);
+                    dormStmt.setString(3, dormNumber);
+                    dormStmt.executeUpdate();
+                }
+                
+                String academicSql = """
+                    INSERT INTO student_academic_records 
+                    (student_id, academic_hold, outstanding_fees, 
+                     incomplete_courses, gpa)
+                    VALUES (?, 'NONE', 0.00, 0, 0.00)
+                """;
+                PreparedStatement academicStmt = conn.prepareStatement(academicSql);
+                academicStmt.setInt(1, studentDbId);
+                academicStmt.executeUpdate();
+                
+                String auditSql = """
+                    INSERT INTO audit_logs (user_id, action, details, timestamp)
+                    VALUES (?, 'STUDENT_REGISTRATION', ?, NOW())
+                """;
+                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                auditStmt.setInt(1, currentUser.getId());
+                auditStmt.setString(2, "Registered student: " + username + " - " + fullName);
+                auditStmt.executeUpdate();
+                
+                conn.commit();
+                
+                StringBuilder successMsg = new StringBuilder();
+                successMsg.append("✅ Student Registered Successfully!\n\n");
+                successMsg.append("Name: ").append(fullName).append("\n");
+                successMsg.append("Student ID: ").append(studentId).append("\n");
+                successMsg.append("Username: ").append(username).append("\n");
+                successMsg.append("Department: ").append(department).append("\n");
+                successMsg.append("Year: ").append(year).append("\n");
+                successMsg.append("Phone: ").append(phone).append("\n");
+                successMsg.append("Provider: ").append(provider).append("\n");
+                if (!email.isEmpty()) {
+                    successMsg.append("Email: ").append(email).append("\n");
+                }
+                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
+                    successMsg.append("Dormitory: Block ").append(blockNumber)
+                              .append(", Room ").append(dormNumber).append("\n");
+                }
+                successMsg.append("\nStudent can now login with username: ").append(username);
+                
+                showAlert("Registration Successful", successMsg.toString());
+                return true;
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                
+                if (e.getSQLState().equals("23000")) {
+                    showAlert("Duplicate Student ID", 
+                        "Student ID '" + username + "' already exists in the system.\n\n" +
+                        "The Student ID must be unique. Please use a different Student ID.");
+                } else {
+                    showAlert("Error", "Registration failed: " + e.getMessage());
+                }
+                e.printStackTrace();
+                return false;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+
+        } catch (SQLException e) {
+            showAlert("Error", "Database connection failed: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
     
     // ==================== OFFICER REGISTRATION ====================
     
@@ -1535,7 +2146,6 @@ public class AdminDashboardController {
         
         int row = 0;
         
-        // ===== FULL NAME =====
         TextField txtFullName = new TextField();
         txtFullName.setPromptText("John Smith");
         
@@ -1558,7 +2168,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblFullNameValidation, 2);
         row++;
         
-        // ===== USERNAME =====
         TextField txtUsername = new TextField();
         txtUsername.setPromptText("officer_username");
         
@@ -1593,7 +2202,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblUsernameValidation, 2);
         row++;
         
-        // ===== PASSWORD =====
         PasswordField txtPassword = new PasswordField();
         txtPassword.setPromptText("Min 8 chars, uppercase, lowercase, number");
         
@@ -1625,7 +2233,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblPasswordValidation, 2);
         row++;
         
-        // ===== EMAIL =====
         TextField txtEmail = new TextField();
         txtEmail.setPromptText("officer@dbu.edu.et");
         
@@ -1655,7 +2262,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblEmailValidation, 2);
         row++;
         
-        // ===== PHONE =====
         PhoneInputField phoneInputField = new PhoneInputField();
         
         Label lblPhoneHint = new Label("Format: 09xxxxxxx (Ethio Telecom) or 07xxxxxxx (Safaricom)");
@@ -1664,7 +2270,6 @@ public class AdminDashboardController {
         Label lblPhoneValidation = new Label("Required");
         lblPhoneValidation.setStyle("-fx-font-size: 11px; -fx-text-fill: #e74c3c;");
 
-        // Validation listener for phone
         phoneInputField.getPhoneField().textProperty().addListener((obs, oldVal, newVal) -> {
             ValidationResult result = ValidationHelper.validatePhoneWithProvider(newVal, phoneInputField.getProvider());
             updateValidationLabel(lblPhoneValidation, result);
@@ -1686,7 +2291,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblPhoneValidation, 2);
         row++;
         
-        // ===== ROLE =====
         ComboBox<String> cmbRole = new ComboBox<>();
         cmbRole.setItems(FXCollections.observableArrayList(
             "LIBRARIAN", "CAFETERIA", "DORMITORY", "REGISTRAR", "DEPARTMENT_HEAD"
@@ -1713,7 +2317,6 @@ public class AdminDashboardController {
         GridPane.setColumnSpan(lblRoleValidation, 2);
         row++;
         
-        // ===== DEPARTMENT =====
         ComboBox<String> cmbDepartment = new ComboBox<>();
         cmbDepartment.setItems(FXCollections.observableArrayList(
             "Library", "Cafeteria", "Dormitory", "Registrar Office",
@@ -1743,7 +2346,7 @@ public class AdminDashboardController {
         
         grid.setUserData(new Object[]{
             txtFullName, txtUsername, txtPassword, txtEmail,
-            phoneInputField, cmbRole, cmbDepartment,  // CHANGED: phoneInputField
+            phoneInputField, cmbRole, cmbDepartment,
             lblFullNameValidation, lblUsernameValidation, lblPasswordValidation,
             lblEmailValidation, lblPhoneValidation, lblRoleValidation, lblDeptValidation
         });
@@ -1825,7 +2428,6 @@ public class AdminDashboardController {
         String role = cmbRole.getValue();
         String department = cmbDepartment.getValue();
         
-        // Final validation
         if (fullName.isEmpty() || username.isEmpty() || password.isEmpty() ||
             email.isEmpty() || role == null || department == null) {
             showAlert("Validation Error", "All fields are required!");
@@ -1835,7 +2437,6 @@ public class AdminDashboardController {
         String finalPhone = phone;
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Only check for username duplicate (officer ID)
             String checkSql = "SELECT username FROM users WHERE username = ?";
             PreparedStatement checkStmt = conn.prepareStatement(checkSql);
             checkStmt.setString(1, username);
@@ -1849,7 +2450,6 @@ public class AdminDashboardController {
                 return false;
             }
             
-            // Check if department already has a head
             if ("DEPARTMENT_HEAD".equals(role)) {
                 String checkDeptHeadSql = """
                     SELECT COUNT(*) as head_count 
@@ -1872,7 +2472,6 @@ public class AdminDashboardController {
                         return false;
                     }
                     
-                    // Deactivate existing department head
                     String deactivateSql = """
                         UPDATE users SET status = 'INACTIVE' 
                         WHERE role = 'DEPARTMENT_HEAD' AND department = ? AND status = 'ACTIVE'
@@ -1901,7 +2500,6 @@ public class AdminDashboardController {
             int rows = stmt.executeUpdate();
             
             if (rows > 0) {
-                // Audit log
                 String auditSql = """
                     INSERT INTO audit_logs (user_id, action, details, timestamp)
                     VALUES (?, 'OFFICER_REGISTRATION', ?, NOW())
@@ -1938,271 +2536,7 @@ public class AdminDashboardController {
         }
     }
     
-    
-    
-    
-    private void updateValidationLabel(Label label, ValidationResult result) {
-        if (result.isValid()) {
-            label.setText("✓ " + result.getMessage().replace("✓", "").trim());
-            label.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-        } else {
-            label.setText(result.getMessage());
-            label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-        }
-    }
-    
-    private boolean validateAllFields(GridPane grid) {
-        Object[] components = (Object[]) grid.getUserData();
-        
-        // Get all validation labels
-        Label lblStudentIdValidation = (Label) components[10];  // Index 10
-        Label lblFullNameValidation = (Label) components[11];  // Index 11
-        Label lblPasswordValidation = (Label) components[12];  // Index 12
-        Label lblEmailValidation = (Label) components[13];     // Index 13
-        Label lblPhoneValidation = (Label) components[14];     // Index 14
-        Label lblDeptValidation = (Label) components[15];      // Index 15
-        Label lblYearValidation = (Label) components[16];      // Index 16
-        
-        // Check each validation label
-        boolean studentIdValid = lblStudentIdValidation.getText().contains("✓");
-        boolean nameValid = lblFullNameValidation.getText().contains("✓");
-        boolean passwordValid = lblPasswordValidation.getText().contains("✓");
-        boolean emailValid = lblEmailValidation.getText().contains("✓");
-        boolean phoneValid = lblPhoneValidation.getText().contains("✓");
-        boolean deptValid = lblDeptValidation.getText().contains("✓");
-        boolean yearValid = lblYearValidation.getText().contains("✓");
-        
-        boolean allValid = studentIdValid && nameValid && passwordValid && 
-                          emailValid && phoneValid && deptValid && yearValid;
-        
-        if (!allValid) {
-            // Show which field(s) are invalid
-            StringBuilder errorMsg = new StringBuilder("Please fix the following fields:\n");
-            
-            if (!studentIdValid) errorMsg.append("• Student ID: ").append(lblStudentIdValidation.getText()).append("\n");
-            if (!nameValid) errorMsg.append("• Full Name: ").append(lblFullNameValidation.getText()).append("\n");
-            if (!passwordValid) errorMsg.append("• Password: ").append(lblPasswordValidation.getText()).append("\n");
-            if (!emailValid) errorMsg.append("• Email: ").append(lblEmailValidation.getText()).append("\n");
-            if (!phoneValid) errorMsg.append("• Phone: ").append(lblPhoneValidation.getText()).append("\n");
-            if (!deptValid) errorMsg.append("• Department: ").append(lblDeptValidation.getText()).append("\n");
-            if (!yearValid) errorMsg.append("• Year Level: ").append(lblYearValidation.getText()).append("\n");
-            
-            showAlert("Validation Error", errorMsg.toString());
-        }
-        
-        return allValid;
-    }
-    
-    private boolean registerStudentFromForm(GridPane grid) {
-        // First validate all fields
-        if (!validateAllFields(grid)) {
-            return false;
-        }
-        
-        Object[] components = (Object[]) grid.getUserData();
-        
-        TextField txtStudentId = (TextField) components[0];
-        TextField txtUsername = (TextField) components[1];
-        TextField txtFullName = (TextField) components[2];
-        PasswordField txtPassword = (PasswordField) components[3];
-        TextField txtEmail = (TextField) components[4];
-        PhoneInputField phoneInputField = (PhoneInputField) components[5];
-        ComboBox<String> cmbDepartment = (ComboBox<String>) components[6];
-        ComboBox<String> cmbYear = (ComboBox<String>) components[7];
-        TextField txtBlockNumber = (TextField) components[8];
-        TextField txtDormNumber = (TextField) components[9];
-        
-        String studentId = txtStudentId.getText().trim().toUpperCase();
-        String username = txtUsername.getText().trim().toLowerCase();
-        String fullName = txtFullName.getText().trim();
-        String password = txtPassword.getText();
-        String email = txtEmail.getText().trim();
-        String phone = phoneInputField.getPhoneNumber();
-        String provider = phoneInputField.getProvider();
-        String department = cmbDepartment.getValue();
-        String year = cmbYear.getValue();
-        String blockNumber = txtBlockNumber.getText().trim();
-        String dormNumber = txtDormNumber.getText().trim();
-        
-        System.out.println("=== ATTEMPTING REGISTRATION ===");
-        System.out.println("Student ID: " + studentId);
-        System.out.println("Username: " + username);
-        System.out.println("Full Name: " + fullName);
-        System.out.println("Department: " + department);
-        System.out.println("Year: " + year);
-        System.out.println("Phone: " + phone);
-        System.out.println("Provider: " + provider);
-        System.out.println("Email: " + email);
-        
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            conn.setAutoCommit(false);
-            
-            try {
-                // Check for duplicate username
-                String checkDuplicate = "SELECT username, full_name FROM users WHERE username = ?";
-                PreparedStatement checkStmt = conn.prepareStatement(checkDuplicate);
-                checkStmt.setString(1, username);
-                
-                ResultSet checkRs = checkStmt.executeQuery();
-                
-                if (checkRs.next()) {
-                    String existingUsername = checkRs.getString("username");
-                    String existingName = checkRs.getString("full_name");
-                    
-                    showAlert("Duplicate Student ID", 
-                        "Student ID '" + existingUsername + "' already exists in the system.\n\n" +
-                        "Associated with student: " + existingName + "\n\n" +
-                        "The Student ID must be unique. Please use a different Student ID.");
-                    conn.rollback();
-                    return false;
-                }
-                
-                // Insert student into users table
-                String userSql = """
-                    INSERT INTO users (username, password, full_name, role, email, phone, 
-                                      department, year_level, status, created_at)
-                    VALUES (?, ?, ?, 'STUDENT', ?, ?, ?, ?, 'ACTIVE', NOW())
-                """;
-
-                PreparedStatement userStmt = conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS);
-                userStmt.setString(1, username);
-                userStmt.setString(2, password);
-                userStmt.setString(3, fullName);
-                userStmt.setString(4, email.isEmpty() ? null : email);
-                userStmt.setString(5, phone);
-                userStmt.setString(6, department);
-                userStmt.setString(7, year);
-
-                int userRows = userStmt.executeUpdate();
-                
-                if (userRows <= 0) {
-                    conn.rollback();
-                    showAlert("Error", "Failed to register student!");
-                    return false;
-                }
-                
-                // Get the auto-generated database ID
-                ResultSet generatedKeys = userStmt.getGeneratedKeys();
-                int studentDbId = -1;
-                if (generatedKeys.next()) {
-                    studentDbId = generatedKeys.getInt(1);
-                }
-                
-                // Insert dormitory information if provided
-                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
-                    String dormSql = """
-                        INSERT INTO student_dormitory_credentials 
-                        (student_id, block_number, room_number, key_returned, 
-                         damage_paid, clearance_status, last_updated)
-                        VALUES (?, ?, ?, FALSE, FALSE, 'PENDING', NOW())
-                    """;
-                    
-                    PreparedStatement dormStmt = conn.prepareStatement(dormSql);
-                    dormStmt.setInt(1, studentDbId);
-                    dormStmt.setString(2, blockNumber);
-                    dormStmt.setString(3, dormNumber);
-                    dormStmt.executeUpdate();
-                }
-                
-                // Insert default academic record
-                String academicSql = """
-                    INSERT INTO student_academic_records 
-                    (student_id, academic_hold, outstanding_fees, 
-                     incomplete_courses, gpa)
-                    VALUES (?, 'NONE', 0.00, 0, 0.00)
-                """;
-                PreparedStatement academicStmt = conn.prepareStatement(academicSql);
-                academicStmt.setInt(1, studentDbId);
-                academicStmt.executeUpdate();
-                
-                // Add audit log entry
-                String auditSql = """
-                    INSERT INTO audit_logs (user_id, action, details, timestamp)
-                    VALUES (?, 'STUDENT_REGISTRATION', ?, NOW())
-                """;
-                PreparedStatement auditStmt = conn.prepareStatement(auditSql);
-                auditStmt.setInt(1, currentUser.getId());
-                auditStmt.setString(2, "Registered student: " + username + " - " + fullName);
-                auditStmt.executeUpdate();
-                
-                conn.commit();
-                
-                // Show success message
-                StringBuilder successMsg = new StringBuilder();
-                successMsg.append("✅ Student Registered Successfully!\n\n");
-                successMsg.append("Name: ").append(fullName).append("\n");
-                successMsg.append("Student ID: ").append(studentId).append("\n");
-                successMsg.append("Username: ").append(username).append("\n");
-                successMsg.append("Department: ").append(department).append("\n");
-                successMsg.append("Year: ").append(year).append("\n");
-                successMsg.append("Phone: ").append(phone).append("\n");
-                successMsg.append("Provider: ").append(provider).append("\n");
-                if (!email.isEmpty()) {
-                    successMsg.append("Email: ").append(email).append("\n");
-                }
-                if (!blockNumber.isEmpty() && !dormNumber.isEmpty()) {
-                    successMsg.append("Dormitory: Block ").append(blockNumber)
-                              .append(", Room ").append(dormNumber).append("\n");
-                }
-                successMsg.append("\nStudent can now login with username: ").append(username);
-                
-                showAlert("Registration Successful", successMsg.toString());
-                return true;
-                
-            } catch (SQLException e) {
-                conn.rollback();
-                
-                if (e.getSQLState().equals("23000")) {
-                    showAlert("Duplicate Student ID", 
-                        "Student ID '" + username + "' already exists in the system.\n\n" +
-                        "The Student ID must be unique. Please use a different Student ID.");
-                } else {
-                    showAlert("Error", "Registration failed: " + e.getMessage());
-                }
-                e.printStackTrace();
-                return false;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-
-        } catch (SQLException e) {
-            showAlert("Error", "Database connection failed: " + e.getMessage());
-            e.printStackTrace();
-            return false;
-        }
-    }
-    
-    
-    
- // Add this method to AdminDashboardController to check what IDs already exist
-    private void checkExistingStudentIds() {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            String sql = "SELECT username, full_name, department FROM users WHERE role = 'STUDENT' ORDER BY username";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
-            
-            System.out.println("=== EXISTING STUDENT IDs ===");
-            int count = 0;
-            while (rs.next()) {
-                count++;
-                System.out.println(count + ". " + rs.getString("username") + 
-                                 " - " + rs.getString("full_name") + 
-                                 " (" + rs.getString("department") + ")");
-            }
-            System.out.println("Total students: " + count);
-            System.out.println("============================");
-            
-        } catch (Exception e) {
-            System.out.println("Error checking existing IDs: " + e.getMessage());
-        }
-    }
-    
-    
-    
-    
-    
-    
-    // ==================== OTHER METHODS (truncated for brevity) ====================
+    // ==================== STUDENT MANAGEMENT METHODS ====================
     
     private void allowStudentReapply(User student) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
@@ -2425,8 +2759,6 @@ public class AdminDashboardController {
         }
     }
     
-  
-    
     // ==================== VIEW STUDENT DETAILS ====================
     
     private void viewStudentDetails(User student) {
@@ -2453,7 +2785,6 @@ public class AdminDashboardController {
             details.append(String.format("%-20s: %s\n", "Clearance Status", student.getClearanceStatus()));
             details.append(String.format("%-20s: %s\n", "Can Reapply", student.isCanReapply() ? "Yes" : "No"));
             
-            // DORMITORY INFORMATION
             details.append("\n").append("=".repeat(60)).append("\n");
             details.append("DORMITORY INFORMATION\n");
             details.append("=".repeat(60)).append("\n\n");
@@ -2511,7 +2842,6 @@ public class AdminDashboardController {
                 details.append("(Use Edit Dormitory Info to add block and room numbers)\n");
             }
             
-            // COURSE INFORMATION
             details.append("\n").append("=".repeat(60)).append("\n");
             details.append("COURSE INFORMATION (Recent)\n");
             details.append("=".repeat(60)).append("\n\n");
@@ -2583,7 +2913,6 @@ public class AdminDashboardController {
                 details.append("\n(Showing 10 most recent courses)\n");
             }
             
-            // CLEARANCE HISTORY
             details.append("\n").append("=".repeat(60)).append("\n");
             details.append("CLEARANCE HISTORY\n");
             details.append("=".repeat(60)).append("\n\n");
@@ -2725,7 +3054,6 @@ public class AdminDashboardController {
         
         CheckBox chkDamagePaid = new CheckBox("Damage Paid");
         
-        // Load existing data
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
                 SELECT block_number, room_number, key_returned, key_return_date,
@@ -3230,18 +3558,6 @@ public class AdminDashboardController {
     // ==================== CERTIFICATE VERIFICATION ====================
     
     @FXML
-    private void openCertificateVerification() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Certificate Verification");
-        dialog.setHeaderText("Verify Clearance Certificate");
-        dialog.setContentText("Enter Student ID or Certificate ID:");
-
-        dialog.showAndWait().ifPresent(studentId -> {
-            verifyCertificateInDatabase(studentId);
-        });
-    }
-    
-    @FXML
     private void verifyCertificate() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Verify Certificate");
@@ -3442,12 +3758,6 @@ public class AdminDashboardController {
                     return;
                 }
                 
-                
-                
-                
-                
-                
-
                 Parent root = loader.load();
                 System.out.println("[DEBUG] Login FXML loaded successfully.");
 
@@ -3478,11 +3788,38 @@ public class AdminDashboardController {
         }
     }
 
+    // ==================== UTILITY METHODS ====================
+    
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    private void showNotification(String title, String message, String type) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        
+        // Customize based on type
+        switch (type) {
+            case "success":
+                alert.getDialogPane().setStyle("-fx-border-color: #27ae60; -fx-border-width: 2px;");
+                break;
+            case "error":
+                alert.getDialogPane().setStyle("-fx-border-color: #e74c3c; -fx-border-width: 2px;");
+                break;
+            case "warning":
+                alert.getDialogPane().setStyle("-fx-border-color: #f39c12; -fx-border-width: 2px;");
+                break;
+            case "info":
+                alert.getDialogPane().setStyle("-fx-border-color: #3498db; -fx-border-width: 2px;");
+                break;
+        }
+        
         alert.showAndWait();
     }
 }

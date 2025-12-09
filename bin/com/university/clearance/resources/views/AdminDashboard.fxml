@@ -20,7 +20,6 @@
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<!-- ADD fx:id="mainBorderPane" HERE -->
 <BorderPane fx:id="mainBorderPane" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
     
     <top>
@@ -56,6 +55,8 @@
                 <Button onAction="#openManageOfficers" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
                 <Button onAction="#resetUserPassword" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
                 <Button onAction="#toggleUserStatus" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
+                <!-- NEW DELETE USER BUTTON -->
+                <Button fx:id="btnDeleteUser" onAction="#handleDeleteUser" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🗑️ Delete User" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
@@ -71,6 +72,8 @@
                 
                 <Button onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
                 <Button fx:id="btnCurrentInfo" onAction="#showCurrentInfo" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📊 Current Info" />
+                <Button onAction="#generateClearanceCertificates" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📄 Generate Certificates" />
+                <Button onAction="#verifyCertificate" style="-fx-background-color: #f39c12; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔍 Verify Certificate" />
             </children>
         </VBox>
     </left>
@@ -221,6 +224,8 @@
                                     <TableColumn fx:id="colAllUserRole" prefWidth="120" text="Role" />
                                     <TableColumn fx:id="colAllUserDepartment" prefWidth="150" text="Department" />
                                     <TableColumn fx:id="colAllUserStatus" prefWidth="100" text="Status" />
+                                    <!-- Delete button column -->
+                                    <TableColumn prefWidth="100" text="Actions" />
                                 </columns>
                             </TableView>
                         </VBox>
@@ -368,6 +373,8 @@
                                     <TableColumn fx:id="colOfficerRole" prefWidth="120" text="Role" />
                                     <TableColumn fx:id="colOfficerDepartment" prefWidth="150" text="Department" />
                                     <TableColumn fx:id="colOfficerStatus" prefWidth="100" text="Status" />
+                                    <!-- Delete button column -->
+                                    <TableColumn prefWidth="100" text="Actions" />
                                 </columns>
                             </TableView>
                         </VBox>
@@ -397,6 +404,8 @@
                                     <TableColumn fx:id="colRequestStatus" prefWidth="120" text="Status" />
                                     <TableColumn fx:id="colRequestDate" prefWidth="150" text="Request Date" />
                                     <TableColumn fx:id="colRequestApproved" prefWidth="100" text="Approved" />
+                                    <!-- NEW: Allow Resubmission button column -->
+                                    <TableColumn prefWidth="150" text="Resubmission" />
                                 </columns>
                             </TableView>
                         </VBox>
@@ -419,7 +428,42 @@
                                         <Label style="-fx-font-weight: bold;" text="• 📚 Student Clearance History" />
                                         <Label style="-fx-font-weight: bold;" text="• 🏫 Department-wise Clearance Statistics" />
                                         <Label style="-fx-font-weight: bold;" text="• 📝 Registration Audit Logs" />
+                                        <Label style="-fx-font-weight: bold;" text="• 🗑️ User Deletion Audit Logs" />
                                     </VBox>
+                                </VBox>
+                                
+                                <VBox spacing="15" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-background-radius: 10;">
+                                    <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Quick Statistics" />
+                                    <GridPane hgap="20" vgap="10">
+                                        <columnConstraints>
+                                            <ColumnConstraints percentWidth="50" />
+                                            <ColumnConstraints percentWidth="50" />
+                                        </columnConstraints>
+                                        <rowConstraints>
+                                            <RowConstraints prefHeight="40" />
+                                            <RowConstraints prefHeight="40" />
+                                        </rowConstraints>
+                                        
+                                        <VBox GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                            <Label style="-fx-font-weight: bold;" text="Total Users Deleted Today:" />
+                                            <Label fx:id="lblDeletedToday" style="-fx-font-size: 24px; -fx-text-fill: #e74c3c;" text="0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                            <Label style="-fx-font-weight: bold;" text="Resubmissions Allowed:" />
+                                            <Label fx:id="lblResubmissionsAllowed" style="-fx-font-size: 24px; -fx-text-fill: #27ae60;" text="0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1">
+                                            <Label style="-fx-font-weight: bold;" text="Pending Resubmissions:" />
+                                            <Label fx:id="lblPendingResubmissions" style="-fx-font-size: 24px; -fx-text-fill: #f39c12;" text="0" />
+                                        </VBox>
+                                        
+                                        <VBox GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                            <Label style="-fx-font-weight: bold;" text="Expired Requests:" />
+                                            <Label fx:id="lblExpiredRequests" style="-fx-font-size: 24px; -fx-text-fill: #95a5a6;" text="0" />
+                                        </VBox>
+                                    </GridPane>
                                 </VBox>
                             </VBox>
                         </ScrollPane>

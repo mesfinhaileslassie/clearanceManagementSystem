@@ -227,11 +227,6 @@ public class LibrarianDashboardController implements Initializable {
         return 2;
     }
     
-    
-    
-    
-    
-    
     private String getCurrentUserName() {
         try {
             String query = "SELECT full_name FROM users WHERE id = ?";

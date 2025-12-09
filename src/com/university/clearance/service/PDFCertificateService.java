@@ -14,11 +14,13 @@ import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.property.HorizontalAlignment;
 import com.itextpdf.layout.property.TextAlignment;
+import com.itextpdf.layout.property.VerticalAlignment;
 
 import java.io.InputStream;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.io.ByteArrayOutputStream;
 
 public class PDFCertificateService {
 
@@ -31,6 +33,15 @@ public class PDFCertificateService {
     
     // Debug logging
     private static final boolean DEBUG_MODE = true;
+    
+    // Signature mapping - maps officer roles to your sig1.png, sig2.png, etc.
+    private static final String[] SIGNATURE_FILES = {
+        "sig1.png",  // REGISTRAR
+        "sig2.png",  // DEPARTMENT_HEAD
+        "sig3.png",  // LIBRARIAN
+        "sig4.png",  // CAFETERIA
+        "sig5.png"   // DORMITORY
+    };
 
     public String generatePDFCertificate(int studentId, int requestId) {
         logDebug("=== START CERTIFICATE GENERATION ===");
@@ -131,7 +142,7 @@ public class PDFCertificateService {
                                     }
                                 }
                             } else if (!allApproved) {
-                                logError("❌ Cannot generate certificate - not all approvals are APPROVED");
+                                logError("❌ Cannot generate certificate - not all approvals are approved");
                                 return null;
                             } else {
                                 logError("❌ No approval records found for this request");
@@ -587,6 +598,18 @@ public class PDFCertificateService {
             Div signaturesSection = new Div();
             signaturesSection.setMarginTop(40);
             
+            // Signatures header
+            Div signaturesHeader = new Div();
+            signaturesHeader.setMarginBottom(20);
+            
+            Paragraph approvalNote = new Paragraph("The following officers have reviewed and approved this clearance:")
+                    .setFontSize(10)
+                    .setFontColor(ColorConstants.DARK_GRAY)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setItalic();
+            signaturesHeader.add(approvalNote);
+            signaturesSection.add(signaturesHeader);
+            
             Paragraph sigTitle = new Paragraph("AUTHORIZED APPROVALS")
                     .setBold()
                     .setFontSize(16)
@@ -595,16 +618,29 @@ public class PDFCertificateService {
                     .setMarginBottom(25);
             signaturesSection.add(sigTitle);
             
+            // Create signatures table with 5 columns (one for each department)
             float[] sigWidths = {1, 1, 1, 1, 1};
             Table signaturesTable = new Table(sigWidths);
+            signaturesTable.setHorizontalAlignment(HorizontalAlignment.CENTER);
+            signaturesTable.setWidth(500);
             
-            addSignatureColumn(signaturesTable, "University Registrar", currentDate);
-            addSignatureColumn(signaturesTable, "Department Head", currentDate);
-            addSignatureColumn(signaturesTable, "Librarian Head", currentDate);
-            addSignatureColumn(signaturesTable, "Cafeteria Head", currentDate);
-            addSignatureColumn(signaturesTable, "Dormitory", currentDate);
+            // Add signature columns with your sig1.png to sig5.png files
+            addSignatureColumn(signaturesTable, "University Registrar", currentDate, 0);  // sig1.png
+            addSignatureColumn(signaturesTable, "Department Head", currentDate, 1);       // sig2.png
+            addSignatureColumn(signaturesTable, "Librarian", currentDate, 2);            // sig3.png
+            addSignatureColumn(signaturesTable, "Cafeteria", currentDate, 3);            // sig4.png
+            addSignatureColumn(signaturesTable, "Dormitory", currentDate, 4);            // sig5.png
             
             signaturesSection.add(signaturesTable);
+            
+            // Add a footer note
+            Paragraph footerNote = new Paragraph("Each signature confirms clearance from the respective department/office")
+                    .setFontSize(8)
+                    .setFontColor(ColorConstants.GRAY)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setMarginTop(10);
+            signaturesSection.add(footerNote);
+            
             mainContainer.add(signaturesSection);
             
             // 9. VERIFICATION FOOTER
@@ -646,6 +682,228 @@ public class PDFCertificateService {
             return null;
         }
     }
+    
+    // ==================== SIGNATURE METHODS ====================
+    
+    private void addSignatureColumn(Table table, String title, String date, int signatureIndex) {
+        Cell cell = new Cell();
+        cell.setBorder(Border.NO_BORDER);
+        cell.setTextAlignment(TextAlignment.CENTER);
+        cell.setVerticalAlignment(VerticalAlignment.MIDDLE);
+        cell.setPadding(5);
+        
+        // Add title
+        cell.add(new Paragraph(title)
+                .setBold()
+                .setFontSize(9)
+                .setFontColor(UNIVERSITY_BLUE)
+                .setMarginBottom(8));
+        
+        // Load signature image (sig1.png, sig2.png, etc.)
+        Image signature = loadSignature(signatureIndex);
+        if (signature != null) {
+            signature.setWidth(70);
+            signature.setHeight(35);
+            signature.setHorizontalAlignment(HorizontalAlignment.CENTER);
+            signature.setMarginBottom(5);
+            cell.add(signature);
+        } else {
+            // If no image, use a signature line
+            cell.add(new Paragraph("________________________")
+                    .setFontSize(8)
+                    .setFontColor(ColorConstants.GRAY)
+                    .setMarginBottom(8));
+            
+            // Create a text-based signature as fallback
+            String officerName = getOfficerNameByIndex(signatureIndex);
+            Image generatedSignature = createTextSignature(officerName);
+            if (generatedSignature != null) {
+                generatedSignature.setWidth(70);
+                generatedSignature.setHeight(35);
+                generatedSignature.setHorizontalAlignment(HorizontalAlignment.CENTER);
+                generatedSignature.setMarginBottom(5);
+                cell.add(generatedSignature);
+            }
+        }
+        
+        // Add officer name
+        cell.add(new Paragraph(getOfficerNameByIndex(signatureIndex))
+                .setFontSize(8)
+                .setFontColor(ColorConstants.DARK_GRAY)
+                .setMarginBottom(2));
+        
+        // Add position/title
+        cell.add(new Paragraph(getOfficerPositionByIndex(signatureIndex))
+                .setFontSize(7)
+                .setFontColor(ColorConstants.GRAY)
+                .setMarginBottom(2));
+        
+        // Add date
+        cell.add(new Paragraph("Date: " + date)
+                .setFontSize(7)
+                .setFontColor(ColorConstants.GRAY));
+        
+        // Add official seal/icon
+        cell.add(new Paragraph("•")
+                .setFontSize(16)
+                .setFontColor(ACCENT_GOLD)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setMarginTop(3));
+        
+        table.addCell(cell);
+    }
+    
+    // Helper method to load signature images from resources
+    private Image loadSignature(int index) {
+        if (index < 0 || index >= SIGNATURE_FILES.length) {
+            logDebug("⚠️ Invalid signature index: " + index);
+            return null;
+        }
+        
+        try {
+            String signatureFile = SIGNATURE_FILES[index];
+            String imagePath = "/com/university/clearance/resources/images/signatures/" + signatureFile;
+            
+            logDebug("Loading signature: " + signatureFile + " from path: " + imagePath);
+            
+            InputStream stream = getClass().getResourceAsStream(imagePath);
+            if (stream != null) {
+                byte[] bytes = stream.readAllBytes();
+                stream.close();
+                
+                if (bytes.length > 0) {
+                    ImageData imageData = ImageDataFactory.create(bytes);
+                    Image signature = new Image(imageData);
+                    logDebug("✅ Successfully loaded signature: " + signatureFile);
+                    return signature;
+                } else {
+                    logDebug("⚠️ Signature file is empty: " + signatureFile);
+                }
+            } else {
+                // Try alternative paths
+                String[] alternativePaths = {
+                    "resources/images/signatures/" + signatureFile,
+                    "images/signatures/" + signatureFile,
+                    "src/main/resources/com/university/clearance/resources/images/signatures/" + signatureFile,
+                    "C:/Users/A&A COMPUTER/eclipse-workspace/ClearanceManagementSystem/src/com/university/clearance/resources/images/signatures/" + signatureFile
+                };
+                
+                for (String altPath : alternativePaths) {
+                    logDebug("Trying alternative path: " + altPath);
+                    java.io.File file = new java.io.File(altPath);
+                    if (file.exists()) {
+                        ImageData imageData = ImageDataFactory.create(altPath);
+                        logDebug("✅ Found signature at alternative path: " + altPath);
+                        return new Image(imageData);
+                    }
+                }
+                
+                logDebug("⚠️ Signature file not found: " + signatureFile);
+            }
+            
+        } catch (Exception e) {
+            logError("❌ Error loading signature index " + index + " (" + SIGNATURE_FILES[index] + "): " + e.getMessage());
+        }
+        return null;
+    }
+    
+    // Get officer name based on signature index
+    private String getOfficerNameByIndex(int index) {
+        switch(index) {
+            case 0: // sig1.png - Registrar
+                return "Dr. Samuel Tekle";
+            case 1: // sig2.png - Department Head
+                return "Prof. Michael Asrat";
+            case 2: // sig3.png - Librarian
+                return "Mrs. Sarah Mulugeta";
+            case 3: // sig4.png - Cafeteria
+                return "Mr. Daniel Wolde";
+            case 4: // sig5.png - Dormitory
+                return "Mrs. Ruth Bekele";
+            default:
+                return "Authorized Signatory";
+        }
+    }
+    
+    // Get officer position based on signature index
+    private String getOfficerPositionByIndex(int index) {
+        switch(index) {
+            case 0: // sig1.png - Registrar
+                return "University Registrar";
+            case 1: // sig2.png - Department Head
+                return "Head of Department";
+            case 2: // sig3.png - Librarian
+                return "Chief Librarian";
+            case 3: // sig4.png - Cafeteria
+                return "Cafeteria Manager";
+            case 4: // sig5.png - Dormitory
+                return "Dormitory Supervisor";
+            default:
+                return "Official";
+        }
+    }
+    
+    // Generate a text-based signature image (fallback)
+    private Image createTextSignature(String name) {
+        try {
+            // Create a simple image with cursive text
+            java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
+                150, 40, java.awt.image.BufferedImage.TYPE_INT_ARGB
+            );
+            java.awt.Graphics2D g2d = image.createGraphics();
+            
+            // Set rendering hints for better quality
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
+                               java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
+                               java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            
+            // Clear background (transparent)
+            g2d.setComposite(java.awt.AlphaComposite.Clear);
+            g2d.fillRect(0, 0, 150, 40);
+            g2d.setComposite(java.awt.AlphaComposite.SrcOver);
+            
+            // Set font (try cursive font, fallback to italic)
+            java.awt.Font font;
+            try {
+                font = new java.awt.Font("Brush Script MT", java.awt.Font.PLAIN, 20);
+            } catch (Exception e) {
+                font = new java.awt.Font("Serif", java.awt.Font.ITALIC, 18);
+            }
+            g2d.setFont(font);
+            
+            // Draw name in dark blue
+            g2d.setColor(new java.awt.Color(0, 51, 102)); // University blue
+            
+            // Center the text
+            java.awt.FontMetrics metrics = g2d.getFontMetrics(font);
+            int x = (150 - metrics.stringWidth(name)) / 2;
+            int y = ((40 - metrics.getHeight()) / 2) + metrics.getAscent();
+            
+            g2d.drawString(name, x, y);
+            
+            // Draw a simple underline
+            g2d.setStroke(new java.awt.BasicStroke(1.0f));
+            int underlineY = y + 3;
+            for (int i = 0; i < metrics.stringWidth(name); i += 4) {
+                g2d.drawLine(x + i, underlineY, x + i + 2, underlineY + 2);
+            }
+            
+            g2d.dispose();
+            
+            // Convert to iText Image
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(image, "PNG", baos);
+            ImageData imageData = ImageDataFactory.create(baos.toByteArray());
+            return new Image(imageData);
+            
+        } catch (Exception e) {
+            logDebug("⚠️ Could not create text signature: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    // ==================== UTILITY METHODS ====================
     
     private Image loadUniversityLogo() {
         try {
@@ -706,31 +964,6 @@ public class PDFCertificateService {
         cell.setTextAlignment(TextAlignment.CENTER);
         cell.setPadding(10);
         return cell;
-    }
-    
-    private void addSignatureColumn(Table table, String title, String date) {
-        Cell cell = new Cell();
-        cell.setBorder(Border.NO_BORDER);
-        cell.setTextAlignment(TextAlignment.CENTER);
-        cell.setPadding(15);
-        
-        cell.add(new Paragraph(title)
-                .setFontSize(11)
-                .setFontColor(UNIVERSITY_BLUE));
-        
-        cell.add(new Paragraph("\n\n________________________")
-                .setFontSize(10));
-        
-        cell.add(new Paragraph("\nDate: " + date)
-                .setFontSize(9)
-                .setFontColor(ColorConstants.GRAY));
-        
-        cell.add(new Paragraph("•")
-                .setFontSize(20)
-                .setFontColor(ACCENT_GOLD)
-                .setTextAlignment(TextAlignment.CENTER));
-        
-        table.addCell(cell);
     }
     
     private String getFacultyName(String department) {
@@ -964,5 +1197,58 @@ public class PDFCertificateService {
             e.printStackTrace();
             return false;
         }
+    }
+    
+    // ==================== SIGNATURE FILE CHECK METHOD ====================
+    
+    /**
+     * Method to verify all signature files exist
+     * Call this at application startup
+     */
+    public void checkSignatureFiles() {
+        logDebug("=== CHECKING SIGNATURE FILES ===");
+        
+        for (int i = 0; i < SIGNATURE_FILES.length; i++) {
+            String signatureFile = SIGNATURE_FILES[i];
+            String[] possiblePaths = {
+                "/com/university/clearance/resources/images/signatures/" + signatureFile,
+                "resources/images/signatures/" + signatureFile,
+                "images/signatures/" + signatureFile,
+                "src/main/resources/com/university/clearance/resources/images/signatures/" + signatureFile,
+                "C:/Users/A&A COMPUTER/eclipse-workspace/ClearanceManagementSystem/src/com/university/clearance/resources/images/signatures/" + signatureFile
+            };
+            
+            boolean found = false;
+            for (String path : possiblePaths) {
+                try {
+                    if (path.startsWith("/")) {
+                        // Try as resource
+                        InputStream stream = getClass().getResourceAsStream(path);
+                        if (stream != null) {
+                            stream.close();
+                            found = true;
+                            logDebug("✅ Found " + signatureFile + " at: " + path);
+                            break;
+                        }
+                    } else {
+                        // Try as file path
+                        java.io.File file = new java.io.File(path);
+                        if (file.exists()) {
+                            found = true;
+                            logDebug("✅ Found " + signatureFile + " at: " + path);
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore and try next path
+                }
+            }
+            
+            if (!found) {
+                logDebug("⚠️ WARNING: Signature file not found: " + signatureFile);
+                logDebug("   Will use text-based signature as fallback");
+            }
+        }
+        logDebug("=== SIGNATURE CHECK COMPLETE ===");
     }
 }

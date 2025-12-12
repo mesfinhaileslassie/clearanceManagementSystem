@@ -56,7 +56,7 @@ public class AdminDashboardController {
     @FXML private TableView<User> tableRejectedStudents;
     @FXML private TableView<User> tablePendingStudents;
     @FXML private TableView<User> tableInProgressStudents;
-    
+    @FXML private TableView<User> tableExpiredStudents;
     // Students Table Columns
     @FXML private TableColumn<User, String> colStudentId;
     @FXML private TableColumn<User, String> colStudentName;
@@ -178,6 +178,133 @@ public class AdminDashboardController {
         });
     }
     
+    
+    
+    private void setupAllTables() {
+        // This method should call the DataManagementService methods
+        
+        // Setup All Students table
+        dataManagementService.setupStudentTable(tableAllStudents, colStudentId, colStudentName, 
+                                               colStudentDepartment, colStudentYear, 
+                                               colClearanceStatus);
+        
+        // Setup categorized tables using the simple setup method
+        dataManagementService.setupSimpleStudentTable(tableApprovedStudents);
+        dataManagementService.setupSimpleStudentTable(tableRejectedStudents);
+        dataManagementService.setupSimpleStudentTable(tableExpiredStudents);
+        dataManagementService.setupSimpleStudentTable(tablePendingStudents);
+        dataManagementService.setupSimpleStudentTable(tableInProgressStudents);
+        
+        // Setup All Users table columns
+        if (colAllUserId != null && colAllUserName != null && colAllUserRole != null && 
+            colAllUserDepartment != null && colAllUserStatus != null) {
+            
+            colAllUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
+            colAllUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+            colAllUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
+            colAllUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+            colAllUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+            
+            // Status column styling for All Users table
+            colAllUserStatus.setCellFactory(column -> new TableCell<User, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        if ("ACTIVE".equals(item)) {
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        } else if ("INACTIVE".equals(item)) {
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Setup Officers table columns
+        if (colOfficerId != null && colOfficerName != null && colOfficerRole != null && 
+            colOfficerDepartment != null && colOfficerStatus != null) {
+            
+            colOfficerId.setCellValueFactory(new PropertyValueFactory<>("username"));
+            colOfficerName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+            colOfficerRole.setCellValueFactory(new PropertyValueFactory<>("role"));
+            colOfficerDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+            colOfficerStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+            
+            // Status column styling for Officers table
+            colOfficerStatus.setCellFactory(column -> new TableCell<User, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        if ("ACTIVE".equals(item)) {
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        } else if ("INACTIVE".equals(item)) {
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Setup Clearance Requests table columns
+        if (colRequestStudentId != null && colRequestName != null && colRequestDepartment != null && 
+            colRequestStatus != null && colRequestDate != null && colRequestApproved != null) {
+            
+            colRequestStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
+            colRequestName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
+            colRequestDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
+            colRequestStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+            colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
+            colRequestApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
+            
+            // Status column styling for Clearance Requests table
+            colRequestStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(item);
+                        if (item.equals("FULLY_CLEARED") || item.equals("APPROVED")) {
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        } else if (item.equals("REJECTED")) {
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        } else if (item.equals("IN_PROGRESS")) {
+                            setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                        } else if (item.equals("PENDING")) {
+                            setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                        } else if (item.equals("EXPIRED")) {
+                            setStyle("-fx-text-fill: #95a5a6; -fx-font-weight: bold;");
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
+            });
+        }
+        
+        setupAllowResubmitButtons();
+    }
+    
+    
+    
+    private ObservableList<User> expiredStudentsData = FXCollections.observableArrayList();
+    
     private void setupAllowResubmitButtons() {
         if (tableRequests == null || colResubmission == null) {
             return;
@@ -242,6 +369,392 @@ public class AdminDashboardController {
         });
     }
     
+    
+    
+    
+    @FXML
+    private void handleAllowResubmission() {
+        // Get selected student based on active tab
+        User selectedStudent = getSelectedStudentFromActiveTab();
+        
+        if (selectedStudent == null) {
+            showAlert("Selection Required", "Please select a student from the students tab first!");
+            return;
+        }
+        
+        // Check if the selected user is actually a student
+        if (!"STUDENT".equals(selectedStudent.getRole())) {
+            showAlert("Invalid Selection", "Please select a student, not an officer or admin!");
+            return;
+        }
+        
+        // Check if student is eligible for resubmission
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String checkSql = """
+                SELECT cr.status, cr.can_reapply, cr.request_date,
+                       DATEDIFF(NOW(), cr.request_date) as days_since_request
+                FROM clearance_requests cr 
+                WHERE cr.student_id = ? 
+                ORDER BY cr.id DESC 
+                LIMIT 1
+                """;
+            
+            PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+            checkStmt.setInt(1, selectedStudent.getId());
+            ResultSet rs = checkStmt.executeQuery();
+            
+            if (rs.next()) {
+                String status = rs.getString("status");
+                boolean canReapply = rs.getBoolean("can_reapply");
+                Date requestDate = rs.getDate("request_date");
+                int daysSinceRequest = rs.getInt("days_since_request");
+                
+                // Check if status is eligible for resubmission
+                boolean isEligibleStatus = "REJECTED".equals(status) || "EXPIRED".equals(status);
+                
+                if (!isEligibleStatus) {
+                    showAlert("Not Eligible", 
+                        "This student's request is not rejected or expired.\n" +
+                        "Current status: " + status + "\n\n" +
+                        "Only rejected or expired students can be allowed to resubmit.");
+                    return;
+                }
+                
+                if (canReapply) {
+                    showAlert("Already Allowed", 
+                        "This student has already been allowed to resubmit.\n" +
+                        "They should be able to submit a new clearance request.");
+                    return;
+                }
+                
+                // For expired requests, show additional info
+                String additionalInfo = "";
+                if ("EXPIRED".equals(status)) {
+                    additionalInfo = "\n\nThis request expired " + daysSinceRequest + " days ago.";
+                }
+                
+                // Show confirmation dialog
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                confirm.setTitle("Allow Clearance Resubmission");
+                confirm.setHeaderText("Allow Student to Resubmit");
+                confirm.setContentText("Allow " + selectedStudent.getFullName() + 
+                                     " (" + selectedStudent.getUsername() + ") to submit a new clearance request?\n\n" +
+                                     "Current Status: " + status + 
+                                     additionalInfo + "\n\n" +
+                                     "This will:\n" +
+                                     "• Reset their clearance status to 'IN_PROGRESS'\n" +
+                                     "• Clear previous approval records\n" +
+                                     "• Enable them to submit a new request\n" +
+                                     "• Update all relevant records");
+                
+                Optional<ButtonType> result = confirm.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    allowStudentResubmit(selectedStudent, status);
+                }
+                
+            } else {
+                showAlert("No Request Found", 
+                    "This student has no clearance request to resubmit.\n" +
+                    "They need to submit their first clearance request.");
+                return;
+            }
+        } catch (Exception e) {
+            showAlert("Error", "Failed to check student eligibility: " + e.getMessage());
+            return;
+        }
+    }
+
+    private void allowStudentResubmit(User student, String originalStatus) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // Get the latest request for this student (could be rejected or expired)
+                String getLatestIdSql = """
+                    SELECT id FROM clearance_requests 
+                    WHERE student_id = ? AND (status = 'REJECTED' OR status = 'EXPIRED')
+                    ORDER BY id DESC 
+                    LIMIT 1
+                    """;
+                
+                PreparedStatement getStmt = conn.prepareStatement(getLatestIdSql);
+                getStmt.setInt(1, student.getId());
+                ResultSet rs = getStmt.executeQuery();
+                
+                if (rs.next()) {
+                    int latestRequestId = rs.getInt("id");
+                    
+                    // Update the clearance request to allow resubmission (removed updated_at)
+                    String updateRequestSql = """
+                        UPDATE clearance_requests 
+                        SET can_reapply = TRUE, 
+                            status = 'IN_PROGRESS',
+                            request_date = NOW(),
+                            previous_status = ?
+                        WHERE id = ?
+                        """;
+                    
+                    PreparedStatement updateRequestStmt = conn.prepareStatement(updateRequestSql);
+                    updateRequestStmt.setString(1, originalStatus);
+                    updateRequestStmt.setInt(2, latestRequestId);
+                    int requestUpdated = updateRequestStmt.executeUpdate();
+                    
+                    if (requestUpdated > 0) {
+                        // Clear previous approvals
+                        String clearApprovalsSql = "DELETE FROM clearance_approvals WHERE request_id = ?";
+                        PreparedStatement clearApprovalsStmt = conn.prepareStatement(clearApprovalsSql);
+                        clearApprovalsStmt.setInt(1, latestRequestId);
+                        clearApprovalsStmt.executeUpdate();
+                        
+                        // Get current workflow configuration
+                        String workflowSql = "SELECT role FROM workflow_config ORDER BY sequence_order";
+                        PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
+                        ResultSet workflowRs = workflowStmt.executeQuery();
+                        
+                        // Create new pending approvals based on workflow
+                        String insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, status)
+                            VALUES (?, ?, 'PENDING')
+                            """;
+                        
+                        PreparedStatement insertApprovalStmt = conn.prepareStatement(insertApprovalSql);
+                        
+                        while (workflowRs.next()) {
+                            insertApprovalStmt.setInt(1, latestRequestId);
+                            insertApprovalStmt.setString(2, workflowRs.getString("role"));
+                            insertApprovalStmt.addBatch();
+                        }
+                        
+                        insertApprovalStmt.executeBatch();
+                        
+                        // Update dormitory clearance status if applicable
+                        String updateDormSql = """
+                            UPDATE student_dormitory_credentials 
+                            SET clearance_status = 'PENDING'
+                            WHERE student_id = ?
+                            """;
+                        
+                        PreparedStatement updateDormStmt = conn.prepareStatement(updateDormSql);
+                        updateDormStmt.setInt(1, student.getId());
+                        updateDormStmt.executeUpdate();
+                        
+                        // Log the action with original status
+                        String auditSql = """
+                            INSERT INTO audit_logs (user_id, action, details, timestamp)
+                            VALUES (?, 'ALLOW_RESUBMISSION', ?, NOW())
+                            """;
+                        
+                        PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                        auditStmt.setInt(1, currentUser.getId());
+                        auditStmt.setString(2, "Allowed resubmission for student: " + 
+                            student.getUsername() + " - " + student.getFullName() + 
+                            " (Previous status: " + originalStatus + ")");
+                        auditStmt.executeUpdate();
+                        
+                        conn.commit();
+                        
+                        // Refresh UI
+                        refreshAllDataAfterResubmission();
+                        
+                        // Different success message based on original status
+                        String statusMessage = "EXPIRED".equals(originalStatus) ? 
+                            "expired request" : "rejected request";
+                        
+                        showNotification("Resubmission Allowed", 
+                            "✅ " + student.getFullName() + " can now resubmit their clearance request!\n\n" +
+                            "Previous Status: " + originalStatus + "\n" +
+                            "New Status: 🔄 IN PROGRESS\n\n" +
+                            "The student can now proceed with their clearance request.", 
+                            "success");
+                    } else {
+                        conn.rollback();
+                        showAlert("Error", "Failed to update clearance request.");
+                    }
+                } else {
+                    showAlert("Error", "No rejected or expired request found for this student.");
+                }
+                
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to allow resubmission: " + e.getMessage());
+        }
+    }
+    
+    
+    
+    
+
+    private User getSelectedStudentFromActiveTab() {
+        Tab selectedTab = mainTabPane.getSelectionModel().getSelectedItem();
+        
+        if (selectedTab != null && selectedTab.getText().contains("Students")) {
+            Node content = selectedTab.getContent();
+            if (content instanceof TabPane) {
+                TabPane studentTabs = (TabPane) content;
+                Tab selectedStudentTab = studentTabs.getSelectionModel().getSelectedItem();
+                
+                if (selectedStudentTab != null) {
+                    String tabText = selectedStudentTab.getText();
+                    
+                    if (tabText.contains("All Students")) {
+                        return tableAllStudents.getSelectionModel().getSelectedItem();
+                    } else if (tabText.contains("Approved")) {
+                        return tableApprovedStudents.getSelectionModel().getSelectedItem();
+                    } else if (tabText.contains("Rejected")) {
+                        return tableRejectedStudents.getSelectionModel().getSelectedItem();
+                    } else if (tabText.contains("Expired")) {
+                        return tableExpiredStudents.getSelectionModel().getSelectedItem();
+                    } else if (tabText.contains("Pending")) {
+                        return tablePendingStudents.getSelectionModel().getSelectedItem();
+                    } else if (tabText.contains("In Progress")) {
+                        return tableInProgressStudents.getSelectionModel().getSelectedItem();
+                    }
+                }
+            }
+        }
+        
+        // Also check if user is selected from All Users tab
+        Tab allUsersTab = mainTabPane.getTabs().stream()
+            .filter(tab -> tab.getText().contains("All Users"))
+            .findFirst()
+            .orElse(null);
+        
+        if (allUsersTab != null && allUsersTab.isSelected()) {
+            User selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
+            if (selectedUser != null && "STUDENT".equals(selectedUser.getRole())) {
+                return selectedUser;
+            }
+        }
+        
+        return null;
+    }
+
+    private void allowStudentResubmit(User student) {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            
+            try {
+                // Get the latest rejected request for this student
+                String getLatestIdSql = """
+                    SELECT id FROM clearance_requests 
+                    WHERE student_id = ? AND status = 'REJECTED'
+                    ORDER BY id DESC 
+                    LIMIT 1
+                    """;
+                
+                PreparedStatement getStmt = conn.prepareStatement(getLatestIdSql);
+                getStmt.setInt(1, student.getId());
+                ResultSet rs = getStmt.executeQuery();
+                
+                if (rs.next()) {
+                    int latestRequestId = rs.getInt("id");
+                    
+                    // Update the clearance request to allow resubmission
+                    String updateRequestSql = """
+                        UPDATE clearance_requests 
+                        SET can_reapply = TRUE, 
+                            status = 'IN_PROGRESS',
+                            request_date = NOW(),
+                            updated_at = NOW()
+                        WHERE id = ?
+                        """;
+                    
+                    PreparedStatement updateRequestStmt = conn.prepareStatement(updateRequestSql);
+                    updateRequestStmt.setInt(1, latestRequestId);
+                    int requestUpdated = updateRequestStmt.executeUpdate();
+                    
+                    if (requestUpdated > 0) {
+                        // Clear previous approvals
+                        String clearApprovalsSql = "DELETE FROM clearance_approvals WHERE request_id = ?";
+                        PreparedStatement clearApprovalsStmt = conn.prepareStatement(clearApprovalsSql);
+                        clearApprovalsStmt.setInt(1, latestRequestId);
+                        clearApprovalsStmt.executeUpdate();
+                        
+                        // Get current workflow configuration
+                        String workflowSql = "SELECT role FROM workflow_config ORDER BY sequence_order";
+                        PreparedStatement workflowStmt = conn.prepareStatement(workflowSql);
+                        ResultSet workflowRs = workflowStmt.executeQuery();
+                        
+                        // Create new pending approvals based on workflow
+                        String insertApprovalSql = """
+                            INSERT INTO clearance_approvals (request_id, officer_role, status)
+                            VALUES (?, ?, 'PENDING')
+                            """;
+                        
+                        PreparedStatement insertApprovalStmt = conn.prepareStatement(insertApprovalSql);
+                        
+                        while (workflowRs.next()) {
+                            insertApprovalStmt.setInt(1, latestRequestId);
+                            insertApprovalStmt.setString(2, workflowRs.getString("role"));
+                            insertApprovalStmt.addBatch();
+                        }
+                        
+                        insertApprovalStmt.executeBatch();
+                        
+                        // Update dormitory clearance status if applicable
+                        String updateDormSql = """
+                            UPDATE student_dormitory_credentials 
+                            SET clearance_status = 'PENDING'
+                            WHERE student_id = ?
+                            """;
+                        
+                        PreparedStatement updateDormStmt = conn.prepareStatement(updateDormSql);
+                        updateDormStmt.setInt(1, student.getId());
+                        updateDormStmt.executeUpdate();
+                        
+                        // Log the action
+                        String auditSql = """
+                            INSERT INTO audit_logs (user_id, action, details, timestamp)
+                            VALUES (?, 'ALLOW_RESUBMISSION', ?, NOW())
+                            """;
+                        
+                        PreparedStatement auditStmt = conn.prepareStatement(auditSql);
+                        auditStmt.setInt(1, currentUser.getId());
+                        auditStmt.setString(2, "Allowed resubmission for student: " + 
+                            student.getUsername() + " - " + student.getFullName());
+                        auditStmt.executeUpdate();
+                        
+                        conn.commit();
+                        
+                        // Refresh UI
+                        refreshAllDataAfterResubmission();
+                        
+                        showNotification("Resubmission Allowed", 
+                            "✅ " + student.getFullName() + " can now resubmit their clearance request!\n\n" +
+                            "Status updated to: 🔄 IN PROGRESS\n" +
+                            "The student can now proceed with their clearance request.", 
+                            "success");
+                    } else {
+                        conn.rollback();
+                        showAlert("Error", "Failed to update clearance request.");
+                    }
+                } else {
+                    showAlert("Error", "No rejected request found for this student.");
+                }
+                
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to allow resubmission: " + e.getMessage());
+        }
+    }
+    
+    
+    
+    
+    
+    
     private void updateReportStatistics() {
         dataManagementService.updateReportStatistics(lblDeletedToday, lblResubmissionsAllowed, 
                                                     lblPendingResubmissions, lblExpiredRequests);
@@ -303,6 +816,7 @@ public class AdminDashboardController {
         
         Platform.runLater(() -> {
             dataManagementService.loadAllData();
+            updateCategorizedStudentTables();  // Add this line
             updateReportStatistics();
         });
     }
@@ -337,61 +851,26 @@ public class AdminDashboardController {
         lblRateStatus.setText("This week");
     }
         
-    private void setupAllTables() {
-        dataManagementService.setupStudentTable(tableAllStudents, colStudentId, colStudentName, 
-                                               colStudentDepartment, colStudentYear, 
-                                               colClearanceStatus);
-        
-        dataManagementService.setupSimpleStudentTable(tableApprovedStudents);
-        dataManagementService.setupSimpleStudentTable(tableRejectedStudents);
-        dataManagementService.setupSimpleStudentTable(tablePendingStudents);
-        dataManagementService.setupSimpleStudentTable(tableInProgressStudents);
-        
-        colOfficerId.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colOfficerName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colOfficerRole.setCellValueFactory(new PropertyValueFactory<>("role"));
-        colOfficerDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colOfficerStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        
-        colAllUserId.setCellValueFactory(new PropertyValueFactory<>("username"));
-        colAllUserName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colAllUserRole.setCellValueFactory(new PropertyValueFactory<>("role"));
-        colAllUserDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colAllUserStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        
-        colRequestStudentId.setCellValueFactory(new PropertyValueFactory<>("studentId"));
-        colRequestName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
-        colRequestDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
-        colRequestStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
-        colRequestApproved.setCellValueFactory(new PropertyValueFactory<>("approvedCount"));
-        
-        colRequestStatus.setCellFactory(column -> new TableCell<ClearanceRequest, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item);
-                    if (item.equals("FULLY_CLEARED") || item.equals("APPROVED")) {
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    } else if (item.equals("REJECTED")) {
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                    } else if (item.equals("IN_PROGRESS")) {
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                    } else if (item.equals("PENDING")) {
-                        setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
-                    } else if (item.equals("EXPIRED")) {
-                        setStyle("-fx-text-fill: #95a5a6; -fx-font-weight: bold;");
-                    } else {
-                        setStyle("");
-                    }
-                }
-            }
-        });
+    
+    public void updateCategorizedStudentTables() {
+        if (tableApprovedStudents != null) {
+            tableApprovedStudents.setItems(dataManagementService.getApprovedStudentsData());
+        }
+        if (tableRejectedStudents != null) {
+            tableRejectedStudents.setItems(dataManagementService.getRejectedStudentsData());
+        }
+        if (tableExpiredStudents != null) {
+            tableExpiredStudents.setItems(dataManagementService.getExpiredStudentsData());
+        }
+        if (tablePendingStudents != null) {
+            tablePendingStudents.setItems(dataManagementService.getPendingStudentsData());
+        }
+        if (tableInProgressStudents != null) {
+            tableInProgressStudents.setItems(dataManagementService.getInProgressStudentsData());
+        }
     }
+    
+    
     
     private void setupSearchFunctionality() {
         cmbSearchType.setItems(FXCollections.observableArrayList(
@@ -536,6 +1015,15 @@ public class AdminDashboardController {
         }
     }
     
+    
+    @FXML
+    private void testLoadUsers() {
+        System.out.println("=== TEST LOAD USERS ===");
+        dataManagementService.loadAllUsers();
+        debugTableStatus();
+    }
+    
+    
     @FXML
     private void handleUserSearch() {
         String searchText = txtSearchUsers.getText().trim();
@@ -598,8 +1086,28 @@ public class AdminDashboardController {
     
     @FXML
     private void handleRefresh() {
+        System.out.println("DEBUG: Refresh button clicked");
+        
+        // Load all data
         dataManagementService.loadAllData();
         updateReportStatistics();
+        
+        // Force refresh specific tables
+        if (tableAllUsers != null) {
+            System.out.println("DEBUG: Refreshing tableAllUsers");
+            tableAllUsers.refresh();
+            // If refresh doesn't work, try re-setting items
+            tableAllUsers.setItems(dataManagementService.getAllUsersData());
+        }
+        
+        if (tableAllStudents != null) {
+            System.out.println("DEBUG: Refreshing tableAllStudents");
+            tableAllStudents.refresh();
+        }
+        
+        // Refresh categorized tables
+        updateCategorizedStudentTables();
+        
         showNotification("Refreshed", "All data has been refreshed successfully!", "info");
     }
     
@@ -644,6 +1152,19 @@ public class AdminDashboardController {
             dataManagementService.loadAllStudents();
         });
     }
+    
+    
+    private void debugTableStatus() {
+        System.out.println("=== DEBUG TABLE STATUS ===");
+        System.out.println("tableAllUsers is null: " + (tableAllUsers == null));
+        System.out.println("tableAllStudents is null: " + (tableAllStudents == null));
+        
+        if (tableAllUsers != null) {
+            System.out.println("tableAllUsers columns: " + tableAllUsers.getColumns().size());
+            System.out.println("tableAllUsers items: " + tableAllUsers.getItems().size());
+        }
+    }
+    
     
     
     @FXML
@@ -768,11 +1289,22 @@ public class AdminDashboardController {
     }
 
     private void refreshAllDataAfterResubmission() {
-        dataManagementService.loadClearanceRequests();
-        dataManagementService.loadAllStudents();
+        dataManagementService.loadAllData();
         updateDashboardStats();
         updateReportStatistics();
+        
+        // Refresh all tables
+        tableAllStudents.refresh();
+        tableRejectedStudents.refresh();
+        tableExpiredStudents.refresh();
+        tableInProgressStudents.refresh();
+        tablePendingStudents.refresh();
+        tableApprovedStudents.refresh();
+        tableAllUsers.refresh();
         tableRequests.refresh();
+        
+        // Update categorized tables
+        updateCategorizedStudentTables();
     }
     
     private void showAlert(String title, String message) {

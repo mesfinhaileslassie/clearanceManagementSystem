@@ -1221,24 +1221,7 @@ public class UserManagementService {
         }
     }
     
-    public void allowStudentReapply(User student) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Allow Student to Reapply");
-        confirm.setHeaderText("Allow Clearance Reapplication");
-        confirm.setContentText("Allow " + student.getFullName() + " (" + student.getUsername() + 
-                             ") to submit a new clearance request?\n\n" +
-                             "This student's previous request was rejected.\n" +
-                             "Allowing reapplication will:\n" +
-                             "• Reset their clearance status to 'IN_PROGRESS'\n" +
-                             "• Enable them to submit a new request\n" +
-                             "• Update all UI elements in real-time");
-        
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                enableStudentReapply(student);
-            }
-        });
-    }
+   
     
     private void enableStudentReapply(User student) {
         try (Connection conn = DatabaseConnection.getConnection()) {

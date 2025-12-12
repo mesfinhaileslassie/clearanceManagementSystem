@@ -72,6 +72,29 @@
     -fx-font-weight: bold !important;
 }
 
+
+/* admin-dashboard.css */
+.button-resubmit {
+    -fx-background-color: linear-gradient(to bottom, #f39c12, #e67e22);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0.3, 0, 2);
+}
+
+.button-resubmit:hover {
+    -fx-background-color: linear-gradient(to bottom, #e67e22, #d35400);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 7, 0.5, 0, 3);
+}
+
+.button-resubmit:pressed {
+    -fx-background-color: linear-gradient(to bottom, #d35400, #c0392b);
+}
+
+/* Style for expired status text */
+.expired-status {
+    -fx-text-fill: #95a5a6;  /* Gray color for expired */
+    -fx-font-weight: bold;
+}
 /* ==================== TEXT FIELD FOCUS ==================== */
 .text-field:focused, .password-field:focused {
     -fx-border-color: #4aaced !important;  /* Changed to match tabs */

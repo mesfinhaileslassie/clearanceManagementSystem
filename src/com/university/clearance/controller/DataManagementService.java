@@ -49,6 +49,7 @@ public class DataManagementService {
         allStudentsData.clear();
         approvedStudentsData.clear();
         rejectedStudentsData.clear();
+        expiredStudentsData.clear();  // Clear expired list
         pendingStudentsData.clear();
         inProgressStudentsData.clear();
         
@@ -96,10 +97,13 @@ public class DataManagementService {
                 
                 allStudentsData.add(student);
                 
+                // Categorize students based on clearance status
                 if (clearanceStatus.equals("FULLY_CLEARED") || clearanceStatus.equals("APPROVED")) {
                     approvedStudentsData.add(student);
                 } else if (clearanceStatus.equals("REJECTED") && !canReapply) {
                     rejectedStudentsData.add(student);
+                } else if (clearanceStatus.equals("EXPIRED") && !canReapply) {
+                    expiredStudentsData.add(student);  // Add to expired
                 } else if (clearanceStatus.equals("PENDING")) {
                     pendingStudentsData.add(student);
                 } else if (clearanceStatus.equals("IN_PROGRESS")) {
@@ -107,12 +111,31 @@ public class DataManagementService {
                 }
             }
             
+            // Set items to tables
             controller.getTableAllStudents().setItems(allStudentsData);
+            
+            // Set items to categorized tables
+            setCategorizedStudentTables();
             
         } catch (Exception e) {
             showAlert("Error", "Failed to load students: " + e.getMessage());
         }
     }
+
+    private void setCategorizedStudentTables() {
+        // You'll need to add getters for these tables in AdminDashboardController
+        // Or better, pass the table references to this method
+        
+        // For now, print counts to verify data is being categorized
+        System.out.println("Approved students: " + approvedStudentsData.size());
+        System.out.println("Rejected students: " + rejectedStudentsData.size());
+        System.out.println("Expired students: " + expiredStudentsData.size());
+        System.out.println("Pending students: " + pendingStudentsData.size());
+        System.out.println("In Progress students: " + inProgressStudentsData.size());
+    }
+    
+    private ObservableList<User> expiredStudentsData = FXCollections.observableArrayList();
+    public ObservableList<User> getExpiredStudentsData() { return expiredStudentsData; }
     
     public void loadOfficers() {
         officersData.clear();
@@ -150,7 +173,9 @@ public class DataManagementService {
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             
+            int count = 0;
             while (rs.next()) {
+                count++;
                 User user = new User(
                     rs.getInt("id"),
                     rs.getString("username"),
@@ -163,9 +188,18 @@ public class DataManagementService {
                 allUsersData.add(user);
             }
             
-            controller.getTableAllUsers().setItems(allUsersData);
+            System.out.println("DEBUG: Loaded " + count + " users from database");
+            
+            if (controller != null && controller.getTableAllUsers() != null) {
+                controller.getTableAllUsers().setItems(allUsersData);
+                System.out.println("DEBUG: Set items to tableAllUsers, items count: " + allUsersData.size());
+            } else {
+                System.out.println("DEBUG: controller or tableAllUsers is null!");
+            }
             
         } catch (Exception e) {
+            System.err.println("ERROR loading users: " + e.getMessage());
+            e.printStackTrace();
             showAlert("Error", "Failed to load users: " + e.getMessage());
         }
     }
@@ -207,6 +241,10 @@ public class DataManagementService {
             showAlert("Error", "Failed to load requests: " + e.getMessage());
         }
     }
+    
+    
+    
+    
     
     private String formatClearanceStatus(String status, boolean canReapply) {
         if (status == null) status = "NO_REQUEST";
@@ -584,4 +622,7 @@ public class DataManagementService {
     public ObservableList<User> getOfficersData() { return officersData; }
     public ObservableList<User> getAllUsersData() { return allUsersData; }
     public ObservableList<ClearanceRequest> getRequestData() { return requestData; }
+    
+
+
 }

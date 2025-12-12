@@ -20,7 +20,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="mainBorderPane" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
+<!-- FIXED: Changed xmlns from 25 to 21 -->
+<BorderPane fx:id="mainBorderPane" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.AdminDashboardController">
     
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
@@ -55,6 +56,9 @@
                 <Button onAction="#openManageOfficers" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
                 <Button onAction="#resetUserPassword" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
                 <Button onAction="#toggleUserStatus" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
+                <!-- FIXED: Removed problematic tooltip attribute -->
+                <Button onAction="#handleAllowResubmission" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Allow Resubmission" />
+                
                 <!-- DELETE USER BUTTON -->
                 <Button fx:id="btnDeleteUser" onAction="#handleDeleteUser" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🗑️ Delete User" />
                 
@@ -301,6 +305,31 @@
                                             <!-- ScrollPane for Rejected Students Table -->
                                             <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="ALWAYS">
                                                 <TableView fx:id="tableRejectedStudents" prefHeight="500">
+                                                    <columns>
+                                                        <TableColumn prefWidth="120" text="Student ID" />
+                                                        <TableColumn prefWidth="200" text="Full Name" />
+                                                        <TableColumn prefWidth="150" text="Department" />
+                                                        <TableColumn prefWidth="120" text="Status" />
+                                                    </columns>
+                                                </TableView>
+                                            </ScrollPane>
+                                        </VBox>
+                                    </content>
+                                </Tab>
+                                
+                                <Tab style="-fx-background-color: #3498db;" text="⌛ Expired">
+                                    <content>
+                                        <VBox spacing="15">
+                                            <padding>
+                                                <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+                                            </padding>
+                                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <Label style="-fx-font-weight: bold; -fx-font-size: 16px;" text="Expired Students" />
+                                                <Region HBox.hgrow="ALWAYS" />
+                                            </HBox>
+                                            <!-- ScrollPane for Expired Students Table -->
+                                            <ScrollPane fitToHeight="true" fitToWidth="true" hbarPolicy="AS_NEEDED" vbarPolicy="ALWAYS">
+                                                <TableView fx:id="tableExpiredStudents" prefHeight="500">
                                                     <columns>
                                                         <TableColumn prefWidth="120" text="Student ID" />
                                                         <TableColumn prefWidth="200" text="Full Name" />

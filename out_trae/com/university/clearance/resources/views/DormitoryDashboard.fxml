@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.university.clearance.controller.DormitoryDashboardController">
+    
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
+            <Label text="Dormitory Dashboard" textFill="WHITE">
+                <font>
+                    <Font name="System Bold" size="18.0" />
+                </font>
+            </Label>
+            <Label fx:id="lblWelcome" textFill="WHITE" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="lblPendingCount" text="Pending: 0" 
+                   style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;"/>
+            <Button onAction="#logout" text="Logout" 
+                    style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15 5 15;">
+                <graphic>
+                    <Label text="🚪" />
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+    
+    <left>
+        <VBox spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;" minWidth="200">
+            <children>
+                <Label text="ACTIONS" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <Button onAction="#refreshRequests" text="Refresh Requests" 
+                        style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 180;" />
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <Label text="APPROVAL CRITERIA" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" />
+                <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 5;">
+                    <HBox spacing="5">
+                        <Label text="✓" style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" />
+                        <Label text="Approve if:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                    </HBox>
+                    <Label text="• Key returned" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
+                    <Label text="• No damage or paid" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
+                    <HBox spacing="5">
+                        <Label text="✗" style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" />
+                        <Label text="Reject if:" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" />
+                    </HBox>
+                    <Label text="• Key not returned" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
+                    <Label text="• Damage not paid" style="-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-padding: 0 0 0 15;" />
+                </VBox>
+                
+                <Separator style="-fx-padding: 10 0 10 0;" />
+                
+                <Button onAction="#logout" text="Logout" 
+                        style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 180;">
+                    <graphic>
+                        <Label text="🚪" />
+                    </graphic>
+                </Button>
+            </children>
+        </VBox>
+    </left>
+    
+    <center>
+        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" style="-fx-padding: 10;">
+            
+            <!-- Clearance Requests Tab -->
+            <Tab text="Clearance Requests">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="Pending Dormitory Clearances" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button onAction="#refreshRequests" text="Refresh" 
+                                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" />
+                    </HBox>
+                    
+                    <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #e8f4f8; -fx-background-radius: 5;">
+                        <Label text="Instructions:" style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" />
+                        <Label text="1. Review student status (double-click or click 'Details')" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="2. Check key return and damage status in Dorm Details tab" 
+                               style="-fx-text-fill: #2c3e50;" />
+                        <Label text="3. Click Approve/Reject based on criteria" 
+                               style="-fx-text-fill: #2c3e50;" />
+                    </VBox>
+                    
+                    <TableView fx:id="tableRequests" prefHeight="400">
+                        <columns>
+                            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
+                            <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
+                            <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
+                            <TableColumn fx:id="colDormitoryStatus" text="Dormitory Status" prefWidth="200"/>
+                            <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
+                            <TableColumn fx:id="colActions" text="Actions" prefWidth="180"/>
+                        </columns>
+                        <!-- FIXED: Removed incorrect columnResizePolicy syntax -->
+                    </TableView>
+                </VBox>
+            </Tab>
+            
+            <!-- Dorm Details Tab (NEW) -->
+            <Tab fx:id="tabDormDetails" text="Dorm Details">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="Student Dormitory Details" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Label text="Select a student from Clearance Requests tab" 
+                               style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" />
+                    </HBox>
+                    
+                    <!-- Student Information Card -->
+                    <VBox spacing="10" style="-fx-padding: 15; -fx-background-color: #f8f9fa; -fx-background-radius: 5; -fx-border-color: #dee2e6; -fx-border-radius: 5;">
+                        <Label fx:id="lblDetailStudentId" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+                        <Label fx:id="lblDetailStudentName" style="-fx-font-size: 14px;" />
+                        <Label fx:id="lblDetailBlockRoom" style="-fx-font-size: 14px; -fx-text-fill: #6c757d;" />
+                        <Separator />
+                        <HBox spacing="20">
+                            <VBox spacing="5">
+                                <Label text="Key Status:" style="-fx-font-weight: bold;" />
+                                <HBox spacing="10">
+                                    <Label fx:id="lblDetailKeyReturned" />
+                                    <Button text="Update" onAction="#updateKeyReturnStatus" 
+                                            style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
+                                </HBox>
+                            </VBox>
+                            <VBox spacing="5">
+                                <Label text="Damage Status:" style="-fx-font-weight: bold;" />
+                                <HBox spacing="10">
+                                    <Label fx:id="lblDetailDamageStatus" />
+                                    <Button text="Update" onAction="#updateDamageStatus" 
+                                            style="-fx-background-color: #6c757d; -fx-text-fill: white;" />
+                                </HBox>
+                            </VBox>
+                        </HBox>
+                        <Separator />
+                        <Label fx:id="lblDetailOverallStatus" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+                    </VBox>
+                    
+                    <!-- Remarks Section -->
+                    <VBox spacing="5">
+                        <Label text="Remarks:" style="-fx-font-weight: bold;" />
+                        <TextArea fx:id="txtDetailRemarks" prefHeight="80" promptText="Enter any remarks here..." />
+                        <HBox spacing="10">
+                            <Button fx:id="btnSaveDetails" text="Save Remarks" onAction="#saveDormitoryDetails" 
+                                    style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                            <Button fx:id="btnApproveFromDetails" text="✅ Approve" onAction="#approveFromDetails" 
+                                    style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                            <Button fx:id="btnRejectFromDetails" text="❌ Reject" onAction="#rejectFromDetails" 
+                                    style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                        </HBox>
+                    </VBox>
+                    
+                    <!-- Financial Records -->
+                    <VBox spacing="10">
+                        <Label text="Financial Records:" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+                        <TableView fx:id="tableDormitoryRecords" prefHeight="200">
+                            <columns>
+                                <TableColumn fx:id="colRecordType" text="Record Type" prefWidth="150"/>
+                                <TableColumn fx:id="colDescription" text="Description" prefWidth="250"/>
+                                <TableColumn fx:id="colAmount" text="Amount" prefWidth="100"/>
+                                <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
+                                <TableColumn fx:id="colRecordStatus" text="Status" prefWidth="100"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </VBox>
+            </Tab>
+            
+            <!-- Dormitory Records Tab -->
+            <Tab text="Dormitory Records">
+                <VBox spacing="15">
+                    <padding>
+                        <Insets top="15.0" right="15.0" bottom="15.0" left="15.0"/>
+                    </padding>
+                    
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Label text="Student Dormitory Records" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Label fx:id="lblDormitoryStatus" text="Select a student from Clearance Requests tab" 
+                               style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" />
+                    </HBox>
+                    
+                    <TableView fx:id="tableDormitoryRecords" prefHeight="450">
+                        <columns>
+                            <TableColumn fx:id="colRecordType" text="Record Type" prefWidth="150"/>
+                            <TableColumn fx:id="colDescription" text="Description" prefWidth="250"/>
+                            <TableColumn fx:id="colAmount" text="Amount" prefWidth="100"/>
+                            <TableColumn fx:id="colDueDate" text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colRecordStatus" text="Status" prefWidth="100"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+            
+        </TabPane>
+    </center>
+    
+</BorderPane>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.effect.DropShadow?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.paint.Color?>
+
+<VBox alignment="CENTER"
+      spacing="0"
+      maxWidth="Infinity"
+      maxHeight="Infinity"
+      styleClass="login-background"
+      xmlns="http://javafx.com/javafx/25"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.university.clearance.controller.LoginController"
+      stylesheets="@../CSS/style.css">
+
+    <padding>
+        <Insets top="0" right="0" bottom="0" left="0"/>
+    </padding>
+
+    <!-- Title -->
+    <Label text="UNIVERSITY CLEARANCE SYSTEM" styleClass="login-title" style="-fx-text-fill: white; -fx-font-size: 36px; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 10, 0, 0, 0);">
+        <VBox.margin>
+            <Insets bottom="40"/>
+        </VBox.margin>
+    </Label>
+
+    <!-- Main Container -->
+    <VBox alignment="CENTER"
+          spacing="20"
+          maxWidth="450"
+          styleClass="login-container">
+
+        <Label text="WELCOME BACK" styleClass="login-title"/>
+
+        <Label text="Sign in to continue" styleClass="login-subtitle"/>
+
+        <!-- Username -->
+        <VBox spacing="5" alignment="CENTER_LEFT">
+             <Label text="Username" style="-fx-font-weight: bold;"/>
+             <TextField fx:id="txtUsername"
+                       maxWidth="Infinity"
+                       promptText="Enter your username"
+                       styleClass="text-field"/>
+        </VBox>
+
+        <!-- Password + Show -->
+        <VBox spacing="5" alignment="CENTER_LEFT">
+            <Label text="Password" style="-fx-font-weight: bold;"/>
+            <StackPane alignment="CENTER_LEFT" maxWidth="Infinity">
+                <PasswordField fx:id="txtPassword"
+                               maxWidth="Infinity"
+                               promptText="Enter your password"
+                               styleClass="password-field"/>
+
+                <TextField fx:id="txtPasswordVisible"
+                           maxWidth="Infinity"
+                           promptText="Enter your password"
+                           visible="false" managed="false"
+                           styleClass="text-field"/>
+            </StackPane>
+            <CheckBox fx:id="chkShowPassword"
+                      text="Show Password"/>
+        </VBox>
+
+        <!-- Role Dropdown -->
+        <VBox spacing="5" alignment="CENTER_LEFT">
+             <Label text="Role" style="-fx-font-weight: bold;"/>
+             <ComboBox fx:id="cmbRole"
+                  maxWidth="Infinity"
+                  promptText="Select Role"
+                  styleClass="combo-box"/>
+        </VBox>
+
+        <!-- Login Button -->
+        <Button fx:id="loginbtn"
+                maxWidth="Infinity"
+                onAction="#handleLogin"
+                text="LOGIN"
+                styleClass="login-button"/>
+
+        <Label fx:id="lblMessage"
+               alignment="CENTER"
+               styleClass="error-label"/>
+
+    </VBox>
+
+</VBox>

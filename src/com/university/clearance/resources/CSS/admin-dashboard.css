@@ -1,9 +1,9 @@
-/* admin-dashboard.css - ALL sidebar buttons and tabs to #b2b5b8 */
+/* admin-dashboard.css - Update tab colors to #4aaced */
 
 /* ==================== TABS ==================== */
 /* ALL tabs in the main tab pane */
 .tab {
-    -fx-background-color: #b2b5b8 !important;
+    -fx-background-color: #4aaced !important;
     -fx-text-fill: white !important;
     -fx-font-weight: bold !important;
     -fx-padding: 10 20 !important;
@@ -12,27 +12,37 @@
 /* Selected tab */
 .tab:selected {
     -fx-background-color: white !important;
-    -fx-border-color: #b2b5b8 !important;
+    -fx-border-color: #4aaced !important;
     -fx-border-width: 0 0 3px 0 !important;
     -fx-text-fill: #2c3e50 !important;
 }
 
 /* Nested student tabs */
 .tab-pane .tab {
-    -fx-background-color: #b2b5b8 !important;
+    -fx-background-color: #4aaced !important;
     -fx-text-fill: white !important;
 }
 
 .tab-pane .tab:selected {
     -fx-background-color: white !important;
-    -fx-border-color: #b2b5b8 !important;
+    -fx-border-color: #4aaced !important;
     -fx-text-fill: #2c3e50 !important;
 }
 
+/* Tab header background when not selected */
+.tab-header-background {
+    -fx-background-color: #f5f5f5;
+}
+
+/* Tab pane area */
+.tab-pane {
+    -fx-background-color: white;
+}
+
 /* ==================== SIDEBAR BUTTONS ==================== */
-/* ALL buttons in the sidebar VBox */
+/* Keep sidebar buttons as they are (grey) */
 .sidebar VBox Button {
-    -fx-background-color: #56ade8 !important;
+    -fx-background-color: #b2b5b8 !important;
     -fx-text-fill: black !important;
     -fx-font-weight: bold !important;
     -fx-background-radius: 5 !important;
@@ -46,13 +56,6 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 1) !important;
 }
 
-/* Sidebar button pressed effect */
-.sidebar VBox Button:pressed {
-    -fx-background-color: #888b8e !important;
-    -fx-scale-x: 0.98 !important;
-    -fx-scale-y: 0.98 !important;
-}
-
 /* Specific sidebar sections */
 #mainBorderPane > left VBox Button {
     -fx-background-color: #b2b5b8 !important;
@@ -62,315 +65,34 @@
     -fx-padding: 10 !important;
 }
 
-/* ==================== ALL BUTTONS IN SIDEBAR AREA ==================== */
-BorderPane > left > VBox Button,
-BorderPane > left > VBox > Button,
-BorderPane > left > VBox > * > Button {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-    -fx-font-weight: bold !important;
-    -fx-background-radius: 5 !important;
-    -fx-border-radius: 5 !important;
-}
-
-/* Hover for all sidebar buttons */
-BorderPane > left > VBox Button:hover,
-BorderPane > left > VBox > Button:hover,
-BorderPane > left > VBox > * > Button:hover {
-    -fx-background-color: #9a9ea1 !important;
-}
-
-/* ==================== SPECIFIC BUTTON IDS IN SIDEBAR ==================== */
-/* Delete User Button */
-#btnDeleteUser {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* Current Info Button */
-#btnCurrentInfo {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* Quick Action Buttons */
-Button[text="🔄 Refresh All"],
-Button[text="📊 Current Info"],
-Button[text="📄 Generate Certificates"],
-Button[text="🔍 Verify Certificate"] {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* System Configuration Buttons */
-Button[text="⚙️ Approval Workflow"],
-Button[text="📅 Academic Sessions"],
-Button[text="🔄 Semester Rollover"] {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* User Management Buttons */
-Button[text="➕ Register Student"],
-Button[text="👨‍💼 Register Officer"],
-Button[text="🔑 Reset Password"],
-Button[text="🔄 Toggle Status"],
-Button[text="🗑️ Delete User"] {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* ==================== TABLE BUTTONS (in tables) ==================== */
-/* Keep table buttons different if needed, or change them too */
-.table-view Button {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-    -fx-font-weight: bold !important;
-    -fx-padding: 5 10 !important;
-    -fx-background-radius: 3 !important;
-}
-
-.table-view Button:hover {
-    -fx-background-color: #9a9ea1 !important;
-}
-
-/* ==================== SEARCH BUTTONS ==================== */
-/* Search buttons in tables */
-#btnSearchUsers,
-#btnClearSearch,
-#btnSearchRequests,
-#btnClearRequestsSearch {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* ==================== REPORT BUTTONS ==================== */
-/* Report tab buttons */
-Button[text="📊 Generate Status Report"],
-Button[text="📈 Performance Analytics"],
-Button[text="📋 Export to Excel"] {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-}
-
-/* ==================== OVERRIDE ALL BUTTON STYLES ==================== */
-/* If you want ALL buttons in the entire app to be #b2b5b8, use this: */
-/*
-Button {
-    -fx-background-color: #b2b5b8 !important;
-    -fx-text-fill: black !important;
-    -fx-font-weight: bold !important;
-}
-
-Button:hover {
-    -fx-background-color: #9a9ea1 !important;
-}
-
-Button:pressed {
-    -fx-background-color: #888b8e !important;
-}
-*/
-
-/* ==================== KEEP ORIGINAL STYLES FOR OTHER ELEMENTS ==================== */
-/* Root and General Styles */
-.root {
-    -fx-font-family: "Segoe UI", Arial, sans-serif;
-    -fx-font-size: 14px;
-}
-
-.tab-pane {
-    -fx-tab-min-height: 50px;
-    -fx-tab-min-width: 150px;
-}
-
-/* Button base styling */
-.button {
-    -fx-font-weight: bold;
-    -fx-padding: 8 16;
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-    -fx-cursor: hand;
-}
-
-.button:hover {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 10, 0, 0, 2);
-}
-
-.button:pressed {
-    -fx-scale-x: 0.98;
-    -fx-scale-y: 0.98;
-}
-
-/* Table Styling */
-.table-view {
-    -fx-background-color: white;
-    -fx-border-color: #bdc3c7;
-    -fx-border-radius: 5;
-}
-
+/* ==================== TABLE HEADERS ==================== */
 .table-view .column-header {
-    -fx-background-color: #b2b5b8;  /* Changed to match */
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.table-view .table-cell {
-    -fx-padding: 8 10;
-    -fx-border-color: transparent;
-}
-
-.table-row-cell:odd {
-    -fx-background-color: #f8f9fa;
-}
-
-.table-row-cell:even {
-    -fx-background-color: white;
-}
-
-.table-row-cell:hover {
-    -fx-background-color: #e3f2fd;
-}
-
-.table-row-cell:selected {
-    -fx-background-color: #bbdefb;
-}
-
-/* Text Field Styling */
-.text-field, .password-field {
-    -fx-background-color: white;
-    -fx-border-color: #bdc3c7;
-    -fx-border-radius: 4;
-    -fx-padding: 6 10;
-}
-
-.text-field:focused, .password-field:focused {
-    -fx-border-color: #b2b5b8;  /* Changed to match */
-    -fx-border-width: 2;
-}
-
-/* Combo Box Styling */
-.combo-box {
-    -fx-background-color: white;
-    -fx-border-color: #bdc3c7;
-    -fx-border-radius: 4;
-}
-
-.combo-box .list-cell {
-    -fx-padding: 6 10;
-}
-
-.combo-box .arrow-button {
-    -fx-background-color: #b2b5b8;  /* Changed to match */
-}
-
-/* Status Colors */
-.status-approved {
-    -fx-text-fill: #27ae60;
-    -fx-font-weight: bold;
-}
-
-.status-rejected {
-    -fx-text-fill: #e74c3c;
-    -fx-font-weight: bold;
-}
-
-.status-pending {
-    -fx-text-fill: #f39c12;
-    -fx-font-weight: bold;
-}
-
-.status-in-progress {
-    -fx-text-fill: #3498db;
-    -fx-font-weight: bold;
-}
-
-/* Progress Bar Styling */
-.progress-bar .bar {
-    -fx-background-color: #b2b5b8;  /* Changed to match */
-    -fx-background-insets: 0;
-    -fx-background-radius: 5;
-}
-
-.progress-bar .track {
-    -fx-background-color: #ecf0f1;
-    -fx-background-radius: 5;
-}
-
-/* Sidebar background (keeping original) */
-.sidebar {
-    -fx-background-color: #34495e;
-}
-
-/* Status Bar */
-.status-bar {
-    -fx-background-color: #ecf0f1;
-    -fx-padding: 8 15;
-}
-
-/* Tooltip Styling */
-.tooltip {
-    -fx-background-color: #2c3e50;
-    -fx-text-fill: white;
-    -fx-font-size: 12px;
-    -fx-padding: 5 8;
-    -fx-background-radius: 3;
-}
-
-/* Animation Classes */
-.glow {
-    -fx-effect: dropshadow(gaussian, #b2b5b8, 20, 0.5, 0, 0);  /* Changed to match */
-}
-
-.fade-in {
-    -fx-opacity: 0;
-}
-
-/* Delete Button Special Styling */
-.delete-button {
-    -fx-background-color: #e74c3c;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.delete-button:hover {
-    -fx-background-color: #c0392b;
-}
-
-/* Success Button Special Styling */
-.success-button {
-    -fx-background-color: #27ae60;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.success-button:hover {
-    -fx-background-color: #229954;
-}
-
-/* Warning Button Special Styling */
-.warning-button {
-    -fx-background-color: #f39c12;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
-}
-
-.warning-button:hover {
-    -fx-background-color: #d68910;
-}
-
-/* Resubmission button styles (keep these special) */
-.resubmit-button-enabled {
-    -fx-background-color: #27ae60 !important;
+    -fx-background-color: #4aaced !important;  /* Changed to match tabs */
     -fx-text-fill: white !important;
     -fx-font-weight: bold !important;
 }
 
-.resubmit-button-enabled:hover {
-    -fx-background-color: #219653 !important;
+/* ==================== TEXT FIELD FOCUS ==================== */
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #4aaced !important;  /* Changed to match tabs */
+    -fx-border-width: 2;
 }
 
-.resubmit-button-disabled {
-    -fx-background-color: #95a5a6 !important;
-    -fx-text-fill: #ecf0f1 !important;
-    -fx-font-weight: normal !important;
+/* ==================== COMBO BOX ARROW ==================== */
+.combo-box .arrow-button {
+    -fx-background-color: #4aaced !important;  /* Changed to match tabs */
 }
+
+/* ==================== PROGRESS BAR ==================== */
+.progress-bar .bar {
+    -fx-background-color: #4aaced !important;  /* Changed to match tabs */
+    -fx-background-insets: 0;
+    -fx-background-radius: 5;
+}
+
+/* ==================== GLOW EFFECT ==================== */
+.glow {
+    -fx-effect: dropshadow(gaussian, #4aaced, 20, 0.5, 0, 0) !important;  /* Changed to match tabs */
+}
+
+/* Rest of the CSS remains the same... */

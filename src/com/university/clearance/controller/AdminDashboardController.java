@@ -1,6 +1,7 @@
 package com.university.clearance.controller;
 
 import com.university.clearance.model.User;
+import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.ClearanceRequest;
 import com.university.clearance.utils.PhoneInputField;
 import com.university.clearance.utils.ValidationHelper;
@@ -524,6 +525,10 @@ public class AdminDashboardController {
         });
     }
     
+   
+
+    
+    
     private void setupSearchFunctionality() {
         cmbSearchType.setItems(FXCollections.observableArrayList(
             "All Users",
@@ -531,6 +536,18 @@ public class AdminDashboardController {
             "Officers Only"
         ));
         cmbSearchType.setValue("All Users");
+        
+        // Add listener to ComboBox selection changes
+        cmbSearchType.valueProperty().addListener((obs, oldValue, newValue) -> {
+            String searchText = txtSearchUsers.getText().trim();
+            if (!searchText.isEmpty()) {
+                // Trigger search when ComboBox selection changes and there's search text
+                dataManagementService.handleUserSearch(searchText, newValue);
+            } else {
+                // If no search text, just reload all users based on the new filter
+                handleFilterOnly(newValue);
+            }
+        });
         
         if (lblSearchStatus != null) {
             lblSearchStatus.setText("");
@@ -554,11 +571,132 @@ public class AdminDashboardController {
             txtSearchRequests.setOnAction(e -> handleRequestsSearch());
         }
     }
+
+    // Add this new method to handle filtering only (without search text)
+    private void handleFilterOnly(String filterType) {
+        // If there's no search text, just show all users filtered by type
+        if (txtSearchUsers.getText().trim().isEmpty()) {
+            switch (filterType) {
+                case "Students Only":
+                    loadFilteredStudents();
+                    break;
+                case "Officers Only":
+                    loadFilteredOfficers();
+                    break;
+                default: // "All Users"
+                    dataManagementService.loadAllUsers();
+                    break;
+            }
+        }
+    }
+
+    private void loadFilteredStudents() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT * FROM users 
+                WHERE role = 'STUDENT'
+                ORDER BY username
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            ObservableList<User> filteredStudents = FXCollections.observableArrayList();
+            while (rs.next()) {
+                User user = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("role"),
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                user.setStatus(rs.getString("status"));
+                if ("STUDENT".equals(user.getRole())) {
+                    user.setYearLevel(rs.getString("year_level"));
+                    user.setPhone(rs.getString("phone"));
+                }
+                filteredStudents.add(user);
+            }
+            
+            // Use the local tableAllUsers reference
+            tableAllUsers.setItems(filteredStudents);
+            
+            if (lblSearchStatus != null) {
+                lblSearchStatus.setText("Showing only students (" + filteredStudents.size() + " users)");
+                lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                lblSearchStatus.setVisible(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load students: " + e.getMessage());
+        }
+    }
+
+    private void loadFilteredOfficers() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT * FROM users 
+                WHERE role IN ('LIBRARIAN', 'CAFETERIA', 'DORMITORY', 'REGISTRAR', 'DEPARTMENT_HEAD', 'ADMIN') 
+                ORDER BY role, username
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            
+            ObservableList<User> filteredOfficers = FXCollections.observableArrayList();
+            while (rs.next()) {
+                User user = new User(
+                    rs.getInt("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("role"),
+                    rs.getString("email"),
+                    rs.getString("department")
+                );
+                user.setStatus(rs.getString("status"));
+                filteredOfficers.add(user);
+            }
+            
+            // Use the local tableAllUsers reference
+            tableAllUsers.setItems(filteredOfficers);
+            
+            if (lblSearchStatus != null) {
+                lblSearchStatus.setText("Showing only officers (" + filteredOfficers.size() + " users)");
+                lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                lblSearchStatus.setVisible(true);
+            }
+            
+        } catch (Exception e) {
+            showAlert("Error", "Failed to load officers: " + e.getMessage());
+        }
+    }
+  
+    
+
+    
     
     @FXML
     private void handleUserSearch() {
-        dataManagementService.handleUserSearch(txtSearchUsers.getText().trim(), cmbSearchType.getValue());
+        String searchText = txtSearchUsers.getText().trim();
+        String searchType = cmbSearchType.getValue();
+        
+        if (searchText.isEmpty()) {
+            // If search is empty, just show filtered users based on ComboBox selection
+            if ("Students Only".equals(searchType)) {
+                loadFilteredStudents();
+            } else if ("Officers Only".equals(searchType)) {
+                loadFilteredOfficers();
+            } else {
+                dataManagementService.loadAllUsers();
+            }
+        } else {
+            // Perform search with both search text and filter
+            dataManagementService.handleUserSearch(searchText, searchType);
+        }
     }
+    
+    
+    
+    
     
     @FXML
     private void handleClearSearch() {

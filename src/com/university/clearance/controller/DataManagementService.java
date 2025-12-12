@@ -322,7 +322,8 @@ public class DataManagementService {
     }
     
     private void performSearch(String searchQuery, String searchType) {
-        allUsersData.clear();
+        // Clear the list first
+        ObservableList<User> searchResults = FXCollections.observableArrayList();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql;
@@ -339,9 +340,11 @@ public class DataManagementService {
                         """;
                     ps = conn.prepareStatement(sql);
                     String pattern = "%" + searchQuery + "%";
-                    for (int i = 1; i <= 5; i++) {
-                        ps.setString(i, pattern);
-                    }
+                    ps.setString(1, pattern);
+                    ps.setString(2, pattern);
+                    ps.setString(3, pattern);
+                    ps.setString(4, pattern);
+                    ps.setString(5, pattern);
                     break;
                     
                 case "Officers Only":
@@ -353,12 +356,13 @@ public class DataManagementService {
                         """;
                     ps = conn.prepareStatement(sql);
                     pattern = "%" + searchQuery + "%";
-                    for (int i = 1; i <= 4; i++) {
-                        ps.setString(i, pattern);
-                    }
+                    ps.setString(1, pattern);
+                    ps.setString(2, pattern);
+                    ps.setString(3, pattern);
+                    ps.setString(4, pattern);
                     break;
                     
-                default:
+                default: // "All Users"
                     sql = """
                         SELECT * FROM users 
                         WHERE (username LIKE ? OR full_name LIKE ? OR department LIKE ? OR email LIKE ?)
@@ -366,9 +370,10 @@ public class DataManagementService {
                         """;
                     ps = conn.prepareStatement(sql);
                     pattern = "%" + searchQuery + "%";
-                    for (int i = 1; i <= 4; i++) {
-                        ps.setString(i, pattern);
-                    }
+                    ps.setString(1, pattern);
+                    ps.setString(2, pattern);
+                    ps.setString(3, pattern);
+                    ps.setString(4, pattern);
                     break;
             }
             
@@ -392,10 +397,12 @@ public class DataManagementService {
                     user.setPhone(rs.getString("phone"));
                 }
                 
-                allUsersData.add(user);
+                searchResults.add(user);
             }
             
-            controller.getTableAllUsers().setItems(allUsersData);
+            // Instead of trying to access controller's table directly, 
+            // we'll return the results and let the controller handle it
+            allUsersData = searchResults;
             
             if (count > 0) {
                 updateSearchStatus("Found " + count + " " + 

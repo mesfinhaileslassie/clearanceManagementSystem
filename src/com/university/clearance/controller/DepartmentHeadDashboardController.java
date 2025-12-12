@@ -30,12 +30,7 @@ public class DepartmentHeadDashboardController implements Initializable {
     @FXML private Label lblStudentInfo;
     @FXML private Label lblDepartmentRequirements;
     @FXML private TabPane mainTabPane;
-    
-    
-    
-    
-    
-    
+   
     @FXML private Label lblPendingCard;
     @FXML private Label lblApprovedCard;
     @FXML private Label lblRequirementsCard;
@@ -194,10 +189,7 @@ public class DepartmentHeadDashboardController implements Initializable {
             e.printStackTrace();
             showAlert("Error", "Failed to logout: " + e.getMessage());
         }
-    }
-    
-    
-    
+    }    
 
     private void setupTableColumns() {
         System.out.println("=== DEBUG: Setting up table columns ===");

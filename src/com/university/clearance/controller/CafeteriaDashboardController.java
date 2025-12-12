@@ -5,12 +5,18 @@ import com.university.clearance.model.User;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
+import java.io.IOException;
 import java.net.URL;
 import java.sql.*;
 import java.util.Optional;
@@ -22,6 +28,10 @@ public class CafeteriaDashboardController implements Initializable {
     @FXML private Label lblPendingCount;
     @FXML private Label lblStudentInfo;
     @FXML private Label lblCafeteriaStatus;
+    
+    @FXML private Label lblPendingCountCard;
+    @FXML private Label lblClearedStudentsCard;
+    @FXML private Label lblOutstandingBalancesCard;
     
     @FXML private TableView<ClearanceRequest> tableRequests;
     @FXML private TableColumn<ClearanceRequest, String> colStudentId;
@@ -50,6 +60,25 @@ public class CafeteriaDashboardController implements Initializable {
         System.out.println("=== DEBUG: CafeteriaDashboardController initialized ===");
         setupTableColumns();
         setupCafeteriaTableColumns();
+        
+        // Initialize dashboard cards with placeholder values
+        if (lblPendingCountCard != null) lblPendingCountCard.setText("0");
+        if (lblClearedStudentsCard != null) lblClearedStudentsCard.setText("0");
+        if (lblOutstandingBalancesCard != null) lblOutstandingBalancesCard.setText("0");
+        
+        // Add tooltips to cards
+        if (lblPendingCountCard != null) {
+            Tooltip pendingTooltip = new Tooltip("Students awaiting cafeteria clearance");
+            lblPendingCountCard.setTooltip(pendingTooltip);
+        }
+        if (lblClearedStudentsCard != null) {
+            Tooltip clearedTooltip = new Tooltip("Students with approved cafeteria clearance");
+            lblClearedStudentsCard.setTooltip(clearedTooltip);
+        }
+        if (lblOutstandingBalancesCard != null) {
+            Tooltip balanceTooltip = new Tooltip("Students with unpaid cafeteria balances");
+            lblOutstandingBalancesCard.setTooltip(balanceTooltip);
+        }
     }
 
     public void setCurrentUser(User user) {
@@ -159,7 +188,7 @@ public class CafeteriaDashboardController implements Initializable {
                     setStyle("");
                 } else {
                     setText(item);
-                    if (!item.equals("$0.00") && !item.equals("-") && !item.startsWith("+")) {
+                    if (!item.equals("$0.00") && !item.equals("-") && !item.startsWith("+") && !item.contains("meals")) {
                         setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
                     } else if (item.startsWith("+")) {
                         setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
@@ -176,6 +205,132 @@ public class CafeteriaDashboardController implements Initializable {
         System.out.println("=== DEBUG: Refresh button clicked ===");
         loadPendingRequests();
         showAlert("Refreshed", "Cafeteria clearance requests refreshed successfully!");
+    }
+
+    @FXML
+    private void refreshDashboard() {
+        System.out.println("=== DEBUG: Refresh Dashboard button clicked ===");
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            System.out.println("✅ Database connection established for dashboard refresh");
+            
+            // Get pending count
+            String pendingSql = """
+                SELECT COUNT(*) as pending_count
+                FROM clearance_requests cr
+                JOIN users u ON cr.student_id = u.id
+                LEFT JOIN clearance_approvals ca ON cr.id = ca.request_id 
+                    AND ca.officer_role = 'CAFETERIA'
+                WHERE cr.status IN ('PENDING', 'IN_PROGRESS')
+                AND (ca.status IS NULL OR ca.status = 'PENDING')
+                """;
+            
+            PreparedStatement pendingPs = conn.prepareStatement(pendingSql);
+            ResultSet pendingRs = pendingPs.executeQuery();
+            
+            int pendingCount = 0;
+            if (pendingRs.next()) {
+                pendingCount = pendingRs.getInt("pending_count");
+                
+                // Update dashboard cards
+                updateDashboardCards(conn, pendingCount);
+                
+                // Also update the label in the top bar
+                if (lblPendingCount != null) {
+                    lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
+                }
+                
+                System.out.println("✅ Dashboard refreshed. Pending count: " + pendingCount);
+            }
+            
+            showAlert("Dashboard Refreshed", "Dashboard statistics updated successfully!");
+            
+        } catch (Exception e) {
+            System.err.println("❌ ERROR in refreshDashboard:");
+            System.err.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            showAlert("Error", "Failed to refresh dashboard: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleLogout() {
+        System.out.println("=== DEBUG: Logout button clicked ===");
+        
+        Alert confirmLogout = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmLogout.setTitle("Confirm Logout");
+        confirmLogout.setHeaderText("Logout from Cafeteria Dashboard");
+        confirmLogout.setContentText("Are you sure you want to logout?\n\n" +
+                                   "User: " + currentUser.getFullName() + "\n" +
+                                   "Role: " + currentUser.getRole());
+        
+        confirmLogout.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+        
+        Optional<ButtonType> result = confirmLogout.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            System.out.println("User confirmed logout. Returning to login screen...");
+            
+            try {
+                // Try to log logout activity (ignore if table doesn't exist)
+                try (Connection conn = DatabaseConnection.getConnection()) {
+                    String sql = """
+                        INSERT INTO user_activity_log (user_id, activity_type, activity_details, timestamp)
+                        VALUES (?, 'LOGOUT', ?, NOW())
+                        """;
+                    
+                    PreparedStatement ps = conn.prepareStatement(sql);
+                    ps.setInt(1, currentUser.getId());
+                    ps.setString(2, "Cafeteria officer logged out from dashboard");
+                    ps.executeUpdate();
+                    
+                    System.out.println("✅ Logged logout activity for user: " + currentUser.getUsername());
+                } catch (SQLException e) {
+                    System.err.println("⚠️ Could not log logout activity (table may not exist): " + e.getMessage());
+                    // Continue with logout even if logging fails
+                }
+                
+                // Load the Login.fxml - try different possible paths
+                FXMLLoader loader = null;
+                URL loginUrl = null;
+                
+                // Try the most likely path first
+                loginUrl = getClass().getResource("/com/university/clearance/resources/views/Login.fxml");
+                if (loginUrl == null) {
+                    // Try alternative path
+                    loginUrl = getClass().getResource("/com/university/clearance/view/Login.fxml");
+                }
+                if (loginUrl == null) {
+                    // Try relative path
+                    loginUrl = getClass().getResource("../../resources/views/Login.fxml");
+                }
+                
+                if (loginUrl == null) {
+                    throw new IOException("Login.fxml not found in any of the searched locations");
+                }
+                
+                System.out.println("Found Login.fxml at: " + loginUrl);
+                loader = new FXMLLoader(loginUrl);
+                Parent loginRoot = loader.load();
+                
+                // Get current stage
+                Stage stage = (Stage) lblWelcome.getScene().getWindow();
+                
+                // Preserve current window size
+                Scene currentScene = lblWelcome.getScene();
+                Scene newScene = new Scene(loginRoot, currentScene.getWidth(), currentScene.getHeight());
+                stage.setScene(newScene);
+                stage.setTitle("University Clearance System - Login");
+                stage.centerOnScreen();
+                
+                System.out.println("✅ Successfully logged out and returned to login screen");
+                
+            } catch (Exception e) {
+                System.err.println("❌ ERROR during logout:");
+                e.printStackTrace();
+                showAlert("Logout Error", "Failed to logout: " + e.getMessage());
+            }
+        } else {
+            System.out.println("Logout cancelled by user");
+        }
     }
 
     private void loadPendingRequests() {
@@ -244,7 +399,14 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("Total records found: " + pendingCount);
             
             tableRequests.setItems(requestData);
-            lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
+            
+            // Update top bar label
+            if (lblPendingCount != null) {
+                lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
+            }
+            
+            // Update dashboard cards with the current data
+            updateDashboardCards(conn, pendingCount);
             
             if (pendingCount == 0) {
                 System.out.println("⚠️ WARNING: No cafeteria clearance requests found!");
@@ -256,6 +418,103 @@ public class CafeteriaDashboardController implements Initializable {
             System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
+        }
+    }
+    
+    private void updateDashboardCards(Connection conn, int pendingCount) {
+        try {
+            System.out.println("\n=== DEBUG: Updating Dashboard Cards ===");
+            
+            // 1. Pending Clearances card
+            if (lblPendingCountCard != null) {
+                lblPendingCountCard.setText(String.valueOf(pendingCount));
+                System.out.println("Updated Pending Clearances card: " + pendingCount);
+                
+                // Update card color based on count
+                VBox pendingCard = (VBox) lblPendingCountCard.getParent();
+                if (pendingCount > 5) {
+                    pendingCard.setStyle("-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (pendingCount > 0) {
+                    pendingCard.setStyle("-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    pendingCard.setStyle("-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+            }
+            
+            // 2. Cleared Students card
+            String clearedSql = """
+                SELECT COUNT(DISTINCT u.username) as cleared_count
+                FROM clearance_approvals ca
+                JOIN clearance_requests cr ON ca.request_id = cr.id
+                JOIN users u ON cr.student_id = u.id
+                WHERE ca.officer_role = 'CAFETERIA'
+                AND ca.status = 'APPROVED'
+                AND cr.status != 'REJECTED'
+                """;
+            
+            PreparedStatement clearedPs = conn.prepareStatement(clearedSql);
+            ResultSet clearedRs = clearedPs.executeQuery();
+            if (clearedRs.next() && lblClearedStudentsCard != null) {
+                int clearedCount = clearedRs.getInt("cleared_count");
+                lblClearedStudentsCard.setText(String.valueOf(clearedCount));
+                System.out.println("Updated Cleared Students card: " + clearedCount);
+                
+                // Update card color based on count
+                VBox clearedCard = (VBox) lblClearedStudentsCard.getParent();
+                if (clearedCount > 10) {
+                    clearedCard.setStyle("-fx-background-color: #27ae60; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (clearedCount > 0) {
+                    clearedCard.setStyle("-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    clearedCard.setStyle("-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+            }
+            
+            // 3. Outstanding Balances card
+            String balanceSql = """
+                SELECT COUNT(DISTINCT u.username) as students_with_balance,
+                       SUM(CASE WHEN cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') 
+                               AND cr.status != 'Paid' 
+                               THEN cr.amount ELSE 0 END) as total_balance
+                FROM cafeteria_records cr
+                JOIN users u ON cr.student_id = u.id
+                WHERE cr.status IN ('Pending', 'Active')
+                AND cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE')
+                """;
+            
+            PreparedStatement balancePs = conn.prepareStatement(balanceSql);
+            ResultSet balanceRs = balancePs.executeQuery();
+            if (balanceRs.next() && lblOutstandingBalancesCard != null) {
+                int studentsWithBalance = balanceRs.getInt("students_with_balance");
+                double totalBalance = balanceRs.getDouble("total_balance");
+                
+                lblOutstandingBalancesCard.setText(String.valueOf(studentsWithBalance));
+                System.out.println("Updated Outstanding Balances card: " + studentsWithBalance + 
+                                 " students, Total: $" + totalBalance);
+                
+                // Update card color based on count
+                VBox balanceCard = (VBox) lblOutstandingBalancesCard.getParent();
+                if (studentsWithBalance > 5) {
+                    balanceCard.setStyle("-fx-background-color: #c0392b; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (studentsWithBalance > 0) {
+                    balanceCard.setStyle("-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    balanceCard.setStyle("-fx-background-color: #95a5a6; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+                
+                // Update tooltip with total amount
+                Tooltip balanceTooltip = new Tooltip(
+                    String.format("%d students with outstanding balances\nTotal amount: $%.2f", 
+                        studentsWithBalance, totalBalance)
+                );
+                lblOutstandingBalancesCard.setTooltip(balanceTooltip);
+            }
+            
+            System.out.println("✅ Dashboard cards updated successfully");
+            
+        } catch (SQLException e) {
+            System.err.println("❌ ERROR updating dashboard cards: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -417,6 +676,7 @@ public class CafeteriaDashboardController implements Initializable {
             }
         }
     }
+    
     private void checkAndCreateTestData() {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("\n=== DEBUG: Checking if we need test data ===");
@@ -520,15 +780,6 @@ public class CafeteriaDashboardController implements Initializable {
             System.err.println("Error creating test clearance requests: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private double getMealPlanPrice(String mealPlan) {
-        return switch (mealPlan) {
-            case "Gold Plan (21 meals/week)" -> 2500.00;
-            case "Silver Plan (14 meals/week)" -> 1800.00;
-            case "Bronze Plan (7 meals/week)" -> 1200.00;
-            default -> 1500.00;
-        };
     }
 
     private void viewStudentCafeteriaRecords(ClearanceRequest request) {

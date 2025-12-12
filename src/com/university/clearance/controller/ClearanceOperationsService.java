@@ -24,19 +24,19 @@ public class ClearanceOperationsService {
     }
     
     public boolean isResubmissionAllowed(ClearanceRequest request) {
+        if (request == null) return false;
         return "REJECTED".equals(request.getStatus()) || 
-               "EXPIRED".equals(request.getStatus()) && 
-               !request.isCanReapply();
+               "EXPIRED".equals(request.getStatus());
     }
-
+    
     public String getDisableReason(ClearanceRequest request) {
+        if (request == null) return "No request data";
+        
         if (!"REJECTED".equals(request.getStatus()) && !"EXPIRED".equals(request.getStatus())) {
-            return "Only rejected or expired requests can be resubmitted";
+            return "Only rejected or expired requests can be resubmitted\nCurrent status: " + request.getStatus();
         }
-        if (request.isCanReapply()) {
-            return "Resubmission already allowed";
-        }
-        return "Click to allow this student to resubmit their clearance request";
+        
+        return "Click to allow resubmission";
     }
     
     public void handleAllowResubmission(ClearanceRequest request, User currentUser, Runnable onSuccess) {

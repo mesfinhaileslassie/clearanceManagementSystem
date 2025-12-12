@@ -2,6 +2,7 @@ package com.university.clearance.controller;
 
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
+import com.university.clearance.model.SelectableUser;
 import com.university.clearance.model.ClearanceRequest;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,6 +23,7 @@ public class DataManagementService {
     private ObservableList<User> rejectedStudentsData = FXCollections.observableArrayList();
     private ObservableList<User> pendingStudentsData = FXCollections.observableArrayList();
     private ObservableList<User> inProgressStudentsData = FXCollections.observableArrayList();
+    private ObservableList<User> expiredStudentsData = FXCollections.observableArrayList();
     private ObservableList<User> officersData = FXCollections.observableArrayList();
     private ObservableList<User> allUsersData = FXCollections.observableArrayList();
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
@@ -49,7 +51,7 @@ public class DataManagementService {
         allStudentsData.clear();
         approvedStudentsData.clear();
         rejectedStudentsData.clear();
-        expiredStudentsData.clear();  // Clear expired list
+        expiredStudentsData.clear();
         pendingStudentsData.clear();
         inProgressStudentsData.clear();
         
@@ -103,7 +105,7 @@ public class DataManagementService {
                 } else if (clearanceStatus.equals("REJECTED") && !canReapply) {
                     rejectedStudentsData.add(student);
                 } else if (clearanceStatus.equals("EXPIRED") && !canReapply) {
-                    expiredStudentsData.add(student);  // Add to expired
+                    expiredStudentsData.add(student);
                 } else if (clearanceStatus.equals("PENDING")) {
                     pendingStudentsData.add(student);
                 } else if (clearanceStatus.equals("IN_PROGRESS")) {
@@ -111,31 +113,36 @@ public class DataManagementService {
                 }
             }
             
-            // Set items to tables
-            controller.getTableAllStudents().setItems(allStudentsData);
-            
-            // Set items to categorized tables
-            setCategorizedStudentTables();
+            // Note: The controller will handle setting items to SelectableUser tables
             
         } catch (Exception e) {
             showAlert("Error", "Failed to load students: " + e.getMessage());
         }
     }
-
-    private void setCategorizedStudentTables() {
-        // You'll need to add getters for these tables in AdminDashboardController
-        // Or better, pass the table references to this method
-        
-        // For now, print counts to verify data is being categorized
-        System.out.println("Approved students: " + approvedStudentsData.size());
-        System.out.println("Rejected students: " + rejectedStudentsData.size());
-        System.out.println("Expired students: " + expiredStudentsData.size());
-        System.out.println("Pending students: " + pendingStudentsData.size());
-        System.out.println("In Progress students: " + inProgressStudentsData.size());
+    
+    public ObservableList<SelectableUser> getAllUsersDataAsSelectable() {
+        ObservableList<SelectableUser> selectableUsers = FXCollections.observableArrayList();
+        for (User user : allUsersData) {
+            SelectableUser selectableUser = new SelectableUser(user);
+            selectableUser.setStatus(user.getStatus());
+            selectableUsers.add(selectableUser);
+        }
+        return selectableUsers;
     }
     
-    private ObservableList<User> expiredStudentsData = FXCollections.observableArrayList();
-    public ObservableList<User> getExpiredStudentsData() { return expiredStudentsData; }
+    public ObservableList<SelectableUser> getAllStudentsDataAsSelectable() {
+        ObservableList<SelectableUser> selectableStudents = FXCollections.observableArrayList();
+        for (User student : allStudentsData) {
+            SelectableUser selectableStudent = new SelectableUser(student);
+            selectableStudent.setStatus(student.getStatus());
+            selectableStudent.setClearanceStatus(student.getClearanceStatus());
+            selectableStudent.setYearLevel(student.getYearLevel());
+            selectableStudent.setPhone(student.getPhone());
+            selectableStudent.setCanReapply(student.isCanReapply());
+            selectableStudents.add(selectableStudent);
+        }
+        return selectableStudents;
+    }
     
     public void loadOfficers() {
         officersData.clear();
@@ -190,13 +197,6 @@ public class DataManagementService {
             
             System.out.println("DEBUG: Loaded " + count + " users from database");
             
-            if (controller != null && controller.getTableAllUsers() != null) {
-                controller.getTableAllUsers().setItems(allUsersData);
-                System.out.println("DEBUG: Set items to tableAllUsers, items count: " + allUsersData.size());
-            } else {
-                System.out.println("DEBUG: controller or tableAllUsers is null!");
-            }
-            
         } catch (Exception e) {
             System.err.println("ERROR loading users: " + e.getMessage());
             e.printStackTrace();
@@ -235,16 +235,14 @@ public class DataManagementService {
                 requestData.add(req);
             }
 
-            controller.getTableRequests().setItems(requestData);
+            if (controller != null && controller.getTableRequests() != null) {
+                controller.getTableRequests().setItems(requestData);
+            }
 
         } catch (Exception e) {
             showAlert("Error", "Failed to load requests: " + e.getMessage());
         }
     }
-    
-    
-    
-    
     
     private String formatClearanceStatus(String status, boolean canReapply) {
         if (status == null) status = "NO_REQUEST";
@@ -308,7 +306,9 @@ public class DataManagementService {
             PreparedStatement deletedStmt = conn.prepareStatement(deletedSql);
             ResultSet deletedRs = deletedStmt.executeQuery();
             if (deletedRs.next()) {
-                lblDeletedToday.setText(String.valueOf(deletedRs.getInt("count")));
+                if (lblDeletedToday != null) {
+                    lblDeletedToday.setText(String.valueOf(deletedRs.getInt("count")));
+                }
             }
             
             String resubmitSql = """
@@ -319,7 +319,9 @@ public class DataManagementService {
             PreparedStatement resubmitStmt = conn.prepareStatement(resubmitSql);
             ResultSet resubmitRs = resubmitStmt.executeQuery();
             if (resubmitRs.next()) {
-                lblResubmissionsAllowed.setText(String.valueOf(resubmitRs.getInt("count")));
+                if (lblResubmissionsAllowed != null) {
+                    lblResubmissionsAllowed.setText(String.valueOf(resubmitRs.getInt("count")));
+                }
             }
             
             String pendingSql = """
@@ -332,7 +334,9 @@ public class DataManagementService {
             PreparedStatement pendingStmt = conn.prepareStatement(pendingSql);
             ResultSet pendingRs = pendingStmt.executeQuery();
             if (pendingRs.next()) {
-                lblPendingResubmissions.setText(String.valueOf(pendingRs.getInt("count")));
+                if (lblPendingResubmissions != null) {
+                    lblPendingResubmissions.setText(String.valueOf(pendingRs.getInt("count")));
+                }
             }
             
             String expiredSql = """
@@ -342,7 +346,9 @@ public class DataManagementService {
             PreparedStatement expiredStmt = conn.prepareStatement(expiredSql);
             ResultSet expiredRs = expiredStmt.executeQuery();
             if (expiredRs.next()) {
-                lblExpiredRequests.setText(String.valueOf(expiredRs.getInt("count")));
+                if (lblExpiredRequests != null) {
+                    lblExpiredRequests.setText(String.valueOf(expiredRs.getInt("count")));
+                }
             }
             
         } catch (Exception e) {
@@ -360,7 +366,6 @@ public class DataManagementService {
     }
     
     private void performSearch(String searchQuery, String searchType) {
-        // Clear the list first
         ObservableList<User> searchResults = FXCollections.observableArrayList();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
@@ -438,8 +443,7 @@ public class DataManagementService {
                 searchResults.add(user);
             }
             
-            // Instead of trying to access controller's table directly, 
-            // we'll return the results and let the controller handle it
+            // Store the search results
             allUsersData = searchResults;
             
             if (count > 0) {
@@ -497,7 +501,9 @@ public class DataManagementService {
                 requestData.add(req);
             }
             
-            controller.getTableRequests().setItems(requestData);
+            if (controller != null && controller.getTableRequests() != null) {
+                controller.getTableRequests().setItems(requestData);
+            }
             
             showAlert("Search Results", "Found " + count + " clearance requests matching: '" + searchQuery + "'");
             
@@ -528,6 +534,7 @@ public class DataManagementService {
         }
     }
     
+    // This method is kept for compatibility but the controller handles SelectableUser tables differently
     public void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
             TableColumn<User, String> colName, TableColumn<User, String> colDept,
             TableColumn<User, String> colYear, TableColumn<User, String> colStatus) {
@@ -537,8 +544,6 @@ public class DataManagementService {
         colDept.setCellValueFactory(new PropertyValueFactory<>("department"));
         colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
-        
-        // REMOVED: All the actions column cell factory code
         
         colStatus.setCellFactory(column -> new TableCell<User, String>() {
             @Override
@@ -566,7 +571,7 @@ public class DataManagementService {
     }
     
     public void setupSimpleStudentTable(TableView<User> tableView) {
-        if (tableView.getColumns().size() < 4) return;
+        if (tableView == null || tableView.getColumns().size() < 4) return;
         
         tableView.getColumns().get(0).setCellValueFactory(new PropertyValueFactory<>("username"));
         tableView.getColumns().get(1).setCellValueFactory(new PropertyValueFactory<>("fullName"));
@@ -607,6 +612,7 @@ public class DataManagementService {
         alert.showAndWait();
     }
     
+    // Getters
     public int getTotalStudents() { return totalStudents; }
     public int getTotalOfficers() { return totalOfficers; }
     public int getTotalRequests() { return totalRequests; }
@@ -617,12 +623,10 @@ public class DataManagementService {
     public ObservableList<User> getAllStudentsData() { return allStudentsData; }
     public ObservableList<User> getApprovedStudentsData() { return approvedStudentsData; }
     public ObservableList<User> getRejectedStudentsData() { return rejectedStudentsData; }
+    public ObservableList<User> getExpiredStudentsData() { return expiredStudentsData; }
     public ObservableList<User> getPendingStudentsData() { return pendingStudentsData; }
     public ObservableList<User> getInProgressStudentsData() { return inProgressStudentsData; }
     public ObservableList<User> getOfficersData() { return officersData; }
     public ObservableList<User> getAllUsersData() { return allUsersData; }
     public ObservableList<ClearanceRequest> getRequestData() { return requestData; }
-    
-
-
 }

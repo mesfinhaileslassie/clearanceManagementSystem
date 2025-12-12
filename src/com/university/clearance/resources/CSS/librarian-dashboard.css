@@ -1,6 +1,6 @@
 /* librarian-dashboard.css - Modern Library Dashboard */
 
-.root {
+/* .root {
     -fx-font-family: "Segoe UI", "Roboto", sans-serif;
     -fx-font-size: 14px;
     -fx-background-color: #f5f7fa;
@@ -558,3 +558,5 @@
 .small-screen .stat-label-issue {
     -fx-font-size: 20px;
 }
+
+

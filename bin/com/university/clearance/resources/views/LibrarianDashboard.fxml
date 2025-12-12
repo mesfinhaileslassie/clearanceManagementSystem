@@ -1,691 +1,366 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
-<?import javafx.scene.shape.*?>
-<?import javafx.scene.effect.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21.0.1" 
-            xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.university.clearance.controller.LibrarianDashboardController"
-            style="-fx-background-color: #f5f7fa;">
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.LibrarianDashboardController">
     
     <top>
-        <!-- Modern Header with Gradient -->
-        <VBox spacing="0">
-            <!-- Top Header -->
-            <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: linear-gradient(to right, #1a237e, #283593); -fx-padding: 15 25;">
-                <children>
-                    <HBox spacing="10" alignment="CENTER_LEFT">
-                        <Rectangle width="40" height="40" arcWidth="10" arcHeight="10" fill="#3949ab" stroke="#5c6bc0" strokeWidth="2">
-                            <effect>
-                                <DropShadow color="rgba(0,0,0,0.3)" radius="5" offsetX="2" offsetY="2"/>
-                            </effect>
-                        </Rectangle>
-                        <VBox spacing="2">
-                            <Label text="DEBRE BIRHAN UNIVERSITY" 
-                                   style="-fx-text-fill: #e8eaf6; -fx-font-size: 16px; -fx-font-weight: bold;"/>
-                            <Label text="Library Clearance System" 
-                                   style="-fx-text-fill: #c5cae9; -fx-font-size: 13px;"/>
-                        </VBox>
-                    </HBox>
-                    <Region HBox.hgrow="ALWAYS" />
-                    <HBox spacing="15" alignment="CENTER">
-                        <VBox spacing="2" alignment="CENTER_RIGHT">
-                            <Label text="Librarian" style="-fx-text-fill: #c5cae9; -fx-font-size: 12px;"/>
-                            <Label fx:id="lblWelcome" text="Welcome, Librarian" 
-                                   style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;"/>
-                        </VBox>
-                        <Separator orientation="VERTICAL" style="-fx-padding: 0 10;" />
-                        <VBox spacing="2" alignment="CENTER_RIGHT">
-                            <Label text="Pending Requests" style="-fx-text-fill: #c5cae9; -fx-font-size: 12px;"/>
-                            <HBox spacing="5" alignment="CENTER">
-                                <Circle radius="6" fill="#ff9800"/>
-                                <Label fx:id="lblPendingCount" text="0" 
-                                       style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;"/>
-                            </HBox>
-                        </VBox>
-                    </HBox>
-                </children>
+        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
+            <Label text="University Clearance System" textFill="WHITE">
+                <font>
+                    <Font name="System Bold" size="18.0" />
+                </font>
+            </Label>
+            
+            <!-- Status Message Banner -->
+            <HBox fx:id="statusBanner" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #3498db; -fx-padding: 5 15; -fx-background-radius: 0 0 5 5;" visible="false">
+                <Label fx:id="lblStatusMessage" style="-fx-text-fill: white; -fx-font-weight: bold;" text="" />
             </HBox>
             
-            <!-- Quick Stats Bar -->
-            <HBox spacing="20" alignment="CENTER" style="-fx-background-color: white; -fx-padding: 12 25; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
-                <children>
-                    <HBox spacing="10" alignment="CENTER">
-                        <Circle radius="4" fill="#4caf50"/>
-                        <Label text="Clear:" style="-fx-text-fill: #616161;"/>
-                        <Label fx:id="lblClearCount" text="0" style="-fx-text-fill: #4caf50; -fx-font-weight: bold;"/>
-                    </HBox>
-                    <Separator orientation="VERTICAL" />
-                    <HBox spacing="10" alignment="CENTER">
-                        <Circle radius="4" fill="#ff9800"/>
-                        <Label text="Warning:" style="-fx-text-fill: #616161;"/>
-                        <Label fx:id="lblWarningCount" text="0" style="-fx-text-fill: #ff9800; -fx-font-weight: bold;"/>
-                    </HBox>
-                    <Separator orientation="VERTICAL" />
-                    <HBox spacing="10" alignment="CENTER">
-                        <Circle radius="4" fill="#f44336"/>
-                        <Label text="Issue:" style="-fx-text-fill: #616161;"/>
-                        <Label fx:id="lblIssueCount" text="0" style="-fx-text-fill: #f44336; -fx-font-weight: bold;"/>
-                    </HBox>
-                    <Region HBox.hgrow="ALWAYS" />
-                    <Button fx:id="btnLogout" onAction="#handleLogout" text="🚪 Logout" 
-                            style="-fx-background-color: linear-gradient(to right, #f44336, #d32f2f); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-padding: 8 20;">
-                        <effect>
-                            <DropShadow color="rgba(244,67,54,0.3)" radius="3" offsetX="1" offsetY="1"/>
-                        </effect>
-                    </Button>
-                </children>
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <HBox alignment="CENTER_RIGHT" spacing="10">
+                <VBox alignment="CENTER_RIGHT" spacing="2">
+                    <Label fx:id="lblUserName" style="-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;" text="Librarian" />
+                    <Label fx:id="lblUserRole" style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" text="Library Department" />
+                </VBox>
+                <!-- FIXED: Added fx:id="btnLogout" to the logout button -->
+                <Button fx:id="btnLogout" onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15; -fx-cursor: hand;" text="Logout">
+                    <tooltip>
+                        <Tooltip text="Logout from the system" />
+                    </tooltip>
+                </Button>
             </HBox>
-        </VBox>
+        </HBox>
     </top>
     
     <left>
-        <!-- Modern Sidebar -->
-        <VBox spacing="0" style="-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-width: 0 1 0 0;" minWidth="240">
-            <children>
-                <!-- Dashboard Title -->
-                <VBox spacing="5" style="-fx-padding: 25 20 20 20; -fx-background-color: #fafafa; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
-                    <children>
-                        <Label text="📊 LIBRARY DASHBOARD" 
-                               style="-fx-text-fill: #1a237e; -fx-font-weight: bold; -fx-font-size: 16px;"/>
-                        <Label text="Manage clearance requests and borrowing records" 
-                               style="-fx-text-fill: #757575; -fx-font-size: 12px;"/>
-                    </children>
-                </VBox>
-                
-                <!-- Quick Actions -->
-                <VBox spacing="15" style="-fx-padding: 20;">
-                    <children>
-                        <Button onAction="#refreshRequests" text="🔄 Refresh Dashboard" 
-                                style="-fx-background-color: linear-gradient(to right, #2196f3, #1976d2); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-height: 40; -fx-pref-width: 200;">
-                            <effect>
-                                <DropShadow color="rgba(33,150,243,0.3)" radius="3" offsetX="1" offsetY="1"/>
-                            </effect>
-                        </Button>
-                        
-                        <!-- Status Indicators -->
-                        <VBox spacing="10">
-                            <children>
-                                <Label text="📋 Status Indicators" style="-fx-text-fill: #424242; -fx-font-weight: bold; -fx-font-size: 14px;"/>
-                                <VBox spacing="8" style="-fx-padding: 12; -fx-background-color: #f8f9fa; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 1;">
-                                    <children>
-                                        <HBox spacing="10" alignment="CENTER_LEFT">
-                                            <Rectangle width="12" height="12" arcWidth="3" arcHeight="3" fill="#4caf50"/>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Clear" style="-fx-text-fill: #424242; -fx-font-weight: bold;"/>
-                                                    <Label text="No borrowed books" style="-fx-text-fill: #757575; -fx-font-size: 11px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                        <HBox spacing="10" alignment="CENTER_LEFT">
-                                            <Rectangle width="12" height="12" arcWidth="3" arcHeight="3" fill="#ff9800"/>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Warning" style="-fx-text-fill: #424242; -fx-font-weight: bold;"/>
-                                                    <Label text="Has borrowed books" style="-fx-text-fill: #757575; -fx-font-size: 11px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                        <HBox spacing="10" alignment="CENTER_LEFT">
-                                            <Rectangle width="12" height="12" arcWidth="3" arcHeight="3" fill="#f44336"/>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Issue" style="-fx-text-fill: #424242; -fx-font-weight: bold;"/>
-                                                    <Label text="Overdue books/fines" style="-fx-text-fill: #757575; -fx-font-size: 11px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                    </children>
-                                </VBox>
-                            </children>
-                        </VBox>
-                        
-                        <!-- Library Statistics -->
-                        <VBox spacing="10">
-                            <children>
-                                <Label text="📈 Library Statistics" style="-fx-text-fill: #424242; -fx-font-weight: bold; -fx-font-size: 14px;"/>
-                                <VBox spacing="8" style="-fx-padding: 12; -fx-background-color: #f8f9fa; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 1;">
-                                    <children>
-                                        <HBox spacing="15" alignment="CENTER_LEFT">
-                                            <Rectangle width="30" height="30" arcWidth="8" arcHeight="8" fill="#e3f2fd" stroke="#2196f3" strokeWidth="1">
-                                                <effect>
-                                                    <InnerShadow color="rgba(33,150,243,0.2)" radius="3"/>
-                                                </effect>
-                                            </Rectangle>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Total Borrowings" style="-fx-text-fill: #757575; -fx-font-size: 12px;"/>
-                                                    <Label fx:id="lblTotalBooks" text="0" style="-fx-text-fill: #2196f3; -fx-font-weight: bold; -fx-font-size: 18px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                        <HBox spacing="15" alignment="CENTER_LEFT">
-                                            <Rectangle width="30" height="30" arcWidth="8" arcHeight="8" fill="#fff3e0" stroke="#ff9800" strokeWidth="1">
-                                                <effect>
-                                                    <InnerShadow color="rgba(255,152,0,0.2)" radius="3"/>
-                                                </effect>
-                                            </Rectangle>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Active Borrowers" style="-fx-text-fill: #757575; -fx-font-size: 12px;"/>
-                                                    <Label fx:id="lblActiveBorrowers" text="0" style="-fx-text-fill: #ff9800; -fx-font-weight: bold; -fx-font-size: 18px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                        <HBox spacing="15" alignment="CENTER_LEFT">
-                                            <Rectangle width="30" height="30" arcWidth="8" arcHeight="8" fill="#ffebee" stroke="#f44336" strokeWidth="1">
-                                                <effect>
-                                                    <InnerShadow color="rgba(244,67,54,0.2)" radius="3"/>
-                                                </effect>
-                                            </Rectangle>
-                                            <VBox spacing="2">
-                                                <children>
-                                                    <Label text="Overdue Books" style="-fx-text-fill: #757575; -fx-font-size: 12px;"/>
-                                                    <Label fx:id="lblOverdueCount" text="0" style="-fx-text-fill: #f44336; -fx-font-weight: bold; -fx-font-size: 18px;"/>
-                                                </children>
-                                            </VBox>
-                                        </HBox>
-                                    </children>
-                                </VBox>
-                            </children>
-                        </VBox>
-                    </children>
-                </VBox>
-                
-                <!-- Footer Note -->
-                <Region VBox.vgrow="ALWAYS"/>
-                <VBox spacing="5" style="-fx-padding: 15; -fx-background-color: #f5f5f5; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;">
-                    <children>
-                        <Label text="📌 Quick Tips:" style="-fx-text-fill: #616161; -fx-font-weight: bold; -fx-font-size: 12px;"/>
-                        <Label text="• Review all records before approval" 
-                               style="-fx-text-fill: #757575; -fx-font-size: 11px; -fx-wrap-text: true;"/>
-                        <Label text="• Check for overdue books and fines" 
-                               style="-fx-text-fill: #757575; -fx-font-size: 11px; -fx-wrap-text: true;"/>
-                    </children>
-                </VBox>
-            </children>
+        <VBox minWidth="200" spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;">
+            <!-- User Info Section -->
+            <VBox spacing="5" style="-fx-padding: 0 0 15 0; -fx-border-color: #2c3e50; -fx-border-width: 0 0 1 0;">
+                <Label fx:id="lblUserNameSidebar" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-font-size: 14px;" text="Librarian" wrapText="true" />
+                <Label fx:id="lblUserRoleSidebar" style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Library Department" />
+            </VBox>
+            
+            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="LIBRARY ACTIONS" />
+            
+            <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Refresh Dashboard">
+                <tooltip>
+                    <Tooltip text="Refresh all clearance requests and statistics" />
+                </tooltip>
+            </Button>
+            
+            <Button onAction="#refreshBorrowingHistory" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="View History">
+                <tooltip>
+                    <Tooltip text="View borrowing history and records" />
+                </tooltip>
+            </Button>
+            
+            <Separator style="-fx-padding: 10 0;" />
+            
+            <!-- Library Statistics Section -->
+            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="LIBRARY STATISTICS" />
+            
+            <VBox spacing="8" style="-fx-background-color: #2c3e50; -fx-padding: 10; -fx-background-radius: 5;">
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #4caf50; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Clear: " />
+                    <Label fx:id="lblClearCount" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #ff9800; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Warning: " />
+                    <Label fx:id="lblWarningCount" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Issue: " />
+                    <Label fx:id="lblIssueCount" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+            </VBox>
+            
+            <VBox spacing="8" style="-fx-background-color: #2c3e50; -fx-padding: 10; -fx-background-radius: 5;">
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #3498db; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Total Books: " />
+                    <Label fx:id="lblTotalBooks" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Active Borrowers: " />
+                    <Label fx:id="lblActiveBorrowers" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Overdue: " />
+                    <Label fx:id="lblOverdueCount" style="-fx-text-fill: white; -fx-font-weight: bold;" text="0" />
+                </HBox>
+            </VBox>
+            
+            <Separator style="-fx-padding: 10 0;" />
         </VBox>
     </left>
     
     <center>
-        <!-- Modern TabPane -->
-        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" 
-                 style="-fx-background-color: transparent; -fx-padding: 0;">
-            <tabs>
-                
-                <!-- Clearance Requests Tab -->
-                <Tab text="📋 Clearance Requests">
-                    <VBox spacing="20" style="-fx-background-color: #f5f7fa; -fx-padding: 25;">
-                        <children>
-                            <!-- Header with Stats -->
-                            <VBox spacing="15">
-                                <children>
-                                    <HBox spacing="15" alignment="CENTER_LEFT">
-                                        <Rectangle width="4" height="24" fill="#2196f3" arcWidth="2" arcHeight="2"/>
-                                        <VBox spacing="2">
-                                            <children>
-                                                <Label text="Pending Clearance Requests" 
-                                                       style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a237e;"/>
-                                                <Label text="Review and process library clearance applications" 
-                                                       style="-fx-text-fill: #757575; -fx-font-size: 13px;"/>
-                                            </children>
-                                        </VBox>
-                                        <Region HBox.hgrow="ALWAYS" />
-                                        <Button onAction="#refreshRequests" text="🔄 Refresh" 
-                                                style="-fx-background-color: white; -fx-text-fill: #2196f3; -fx-font-weight: bold; -fx-background-radius: 6; -fx-border-color: #2196f3; -fx-border-width: 1; -fx-pref-height: 35; -fx-padding: 8 20;">
-                                            <effect>
-                                                <DropShadow color="rgba(33,150,243,0.2)" radius="2" offsetX="1" offsetY="1"/>
-                                            </effect>
-                                        </Button>
-                                    </HBox>
-                                    
-                                    <!-- Stats Cards -->
-                                    <HBox spacing="15" alignment="CENTER">
-                                        <children>
-                                            <HBox spacing="15">
-                                                <!-- Total Requests Card -->
-                                                <VBox spacing="8" alignment="CENTER" 
-                                                      style="-fx-padding: 15; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 120;">
-                                                    <effect>
-                                                        <DropShadow color="rgba(0,0,0,0.05)" radius="5" offsetX="0" offsetY="2"/>
-                                                    </effect>
-                                                    <children>
-                                                        <Label text="📄 Total" style="-fx-text-fill: #757575; -fx-font-size: 12px;"/>
-                                                        <Label fx:id="lblTotalRequests" text="0" 
-                                                               style="-fx-text-fill: #1a237e; -fx-font-size: 28px; -fx-font-weight: bold;"/>
-                                                    </children>
-                                                </VBox>
-                                                
-                                                <!-- Clear Card -->
-                                                <VBox spacing="8" alignment="CENTER" 
-                                                      style="-fx-padding: 15; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 120;">
-                                                    <effect>
-                                                        <DropShadow color="rgba(76,175,80,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                                    </effect>
-                                                    <children>
-                                                        <HBox spacing="5" alignment="CENTER">
-                                                            <children>
-                                                                <Circle radius="4" fill="#4caf50"/>
-                                                                <Label text="Clear" style="-fx-text-fill: #4caf50; -fx-font-weight: bold;"/>
-                                                            </children>
-                                                        </HBox>
-                                                        <Label fx:id="lblClearCount" text="0" 
-                                                               style="-fx-text-fill: #4caf50; -fx-font-size: 24px; -fx-font-weight: bold;"/>
-                                                    </children>
-                                                </VBox>
-                                                
-                                                <!-- Warning Card -->
-                                                <VBox spacing="8" alignment="CENTER" 
-                                                      style="-fx-padding: 15; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 120;">
-                                                    <effect>
-                                                        <DropShadow color="rgba(255,152,0,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                                    </effect>
-                                                    <children>
-                                                        <HBox spacing="5" alignment="CENTER">
-                                                            <children>
-                                                                <Circle radius="4" fill="#ff9800"/>
-                                                                <Label text="Warning" style="-fx-text-fill: #ff9800; -fx-font-weight: bold;"/>
-                                                            </children>
-                                                        </HBox>
-                                                        <Label fx:id="lblWarningCount" text="0" 
-                                                               style="-fx-text-fill: #ff9800; -fx-font-size: 24px; -fx-font-weight: bold;"/>
-                                                    </children>
-                                                </VBox>
-                                                
-                                                <!-- Issue Card -->
-                                                <VBox spacing="8" alignment="CENTER" 
-                                                      style="-fx-padding: 15; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 120;">
-                                                    <effect>
-                                                        <DropShadow color="rgba(244,67,54,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                                    </effect>
-                                                    <children>
-                                                        <HBox spacing="5" alignment="CENTER">
-                                                            <children>
-                                                                <Circle radius="4" fill="#f44336"/>
-                                                                <Label text="Issue" style="-fx-text-fill: #f44336; -fx-font-weight: bold;"/>
-                                                            </children>
-                                                        </HBox>
-                                                        <Label fx:id="lblIssueCount" text="0" 
-                                                               style="-fx-text-fill: #f44336; -fx-font-size: 24px; -fx-font-weight: bold;"/>
-                                                    </children>
-                                                </VBox>
-                                            </HBox>
-                                        </children>
-                                    </HBox>
-                                </children>
+        <TabPane fx:id="mainTabPane" style="-fx-padding: 20; -fx-background-color: #3498db;" tabClosingPolicy="UNAVAILABLE">
+            
+            <!-- Clearance Requests Tab -->
+            <Tab style="-fx-background-color: #3498db; -fx-font-weight: bold; -fx-pref-width: 100; -fx-pref-height: 30; -fx-text-fill: white;" text="Clearance Requests">
+                <ScrollPane fitToWidth="true">
+                    <VBox spacing="15" style="-fx-padding: 20;">
+                        <!-- Request Statistics -->
+                        <HBox prefHeight="83.0" prefWidth="748.0" spacing="15" style="-fx-background-color: white;">
+                            <VBox prefWidth="180" style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Total Requests" />
+                                <Label fx:id="lblTotalRequests" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
                             </VBox>
                             
-                            <!-- Requests Table -->
-                            <VBox spacing="10">
-                                <children>
-                                    <Label text="👥 Student Requests" style="-fx-text-fill: #424242; -fx-font-weight: bold; -fx-font-size: 16px;"/>
-                                    <TableView fx:id="tableRequests" prefHeight="400" 
-                                               style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #e0e0e0; -fx-border-radius: 10;">
-                                        <effect>
-                                            <DropShadow color="rgba(0,0,0,0.05)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <columns>
-                                            <TableColumn fx:id="colStudentId" text="Student ID" prefWidth="100"/>
-                                            <TableColumn fx:id="colStudentName" text="Student Name" prefWidth="150"/>
-                                            <TableColumn fx:id="colDepartment" text="Department" prefWidth="120"/>
-                                            <TableColumn fx:id="colRequestDate" text="Request Date" prefWidth="120"/>
-                                            <TableColumn fx:id="colBookStatus" text="Status" prefWidth="100"/>
-                                            <TableColumn fx:id="colActions" text="Actions" prefWidth="200"/>
-                                        </columns>
-                                        <columnResizePolicy>
-                                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                        </columnResizePolicy>
-                                    </TableView>
-                                </children>
+                            <VBox prefWidth="180.0" style="-fx-background-color: #4caf50; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Clear" />
+                                <Label fx:id="lblClearCountMain" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
                             </VBox>
                             
-                            <!-- Instructions Card -->
-                            <VBox spacing="10" style="-fx-padding: 20; -fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #e3f2fd; -fx-border-width: 1;">
-                                <effect>
-                                    <DropShadow color="rgba(33,150,243,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                </effect>
-                                <children>
-                                    <HBox spacing="10" alignment="CENTER_LEFT">
-                                        <Rectangle width="24" height="24" arcWidth="6" arcHeight="6" fill="#e3f2fd"/>
-                                        <Label text="ℹ" style="-fx-text-fill: #2196f3; -fx-font-weight: bold;" alignment="CENTER"/>
-                                        <Label text="Approval Guidelines" style="-fx-text-fill: #2196f3; -fx-font-weight: bold; -fx-font-size: 16px;"/>
-                                    </HBox>
-                                    <GridPane hgap="15" vgap="10">
-                                        <columnConstraints>
-                                            <ColumnConstraints prefWidth="300" />
-                                            <ColumnConstraints prefWidth="300" />
-                                        </columnConstraints>
-                                        <children>
-                                            <HBox spacing="10" GridPane.rowIndex="0" GridPane.columnIndex="0">
-                                                <children>
-                                                    <Label text="1." style="-fx-text-fill: #2196f3; -fx-font-weight: bold;"/>
-                                                    <Label text="Review student's borrowing status" style="-fx-text-fill: #424242;"/>
-                                                </children>
-                                            </HBox>
-                                            <HBox spacing="10" GridPane.rowIndex="0" GridPane.columnIndex="1">
-                                                <children>
-                                                    <Label text="2." style="-fx-text-fill: #2196f3; -fx-font-weight: bold;"/>
-                                                    <Label text="Click 'Details' for full records" style="-fx-text-fill: #424242;"/>
-                                                </children>
-                                            </HBox>
-                                            <HBox spacing="10" GridPane.rowIndex="1" GridPane.columnIndex="0">
-                                                <children>
-                                                    <Label text="3." style="-fx-text-fill: #2196f3; -fx-font-weight: bold;"/>
-                                                    <Label text="Approve if no overdue/fines" style="-fx-text-fill: #424242;"/>
-                                                </children>
-                                            </HBox>
-                                            <HBox spacing="10" GridPane.rowIndex="1" GridPane.columnIndex="1">
-                                                <children>
-                                                    <Label text="4." style="-fx-text-fill: #2196f3; -fx-font-weight: bold;"/>
-                                                    <Label text="Reject if outstanding issues" style="-fx-text-fill: #424242;"/>
-                                                </children>
-                                            </HBox>
-                                        </children>
-                                    </GridPane>
-                                </children>
-                            </VBox>
-                        </children>
-                    </VBox>
-                </Tab>
-                
-                <!-- Borrowing History Tab -->
-                <Tab text="📚 Borrowing History">
-                    <VBox spacing="20" style="-fx-background-color: #f5f7fa; -fx-padding: 25;">
-                        <children>
-                            <!-- Header -->
-                            <VBox spacing="15">
-                                <children>
-                                    <HBox spacing="15" alignment="CENTER_LEFT">
-                                        <Rectangle width="4" height="24" fill="#4caf50" arcWidth="2" arcHeight="2"/>
-                                        <VBox spacing="2">
-                                            <children>
-                                                <Label text="Borrowing History" 
-                                                       style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a237e;"/>
-                                                <Label text="View all library borrowing records" 
-                                                       style="-fx-text-fill: #757575; -fx-font-size: 13px;"/>
-                                            </children>
-                                        </VBox>
-                                        <Region HBox.hgrow="ALWAYS" />
-                                        <Button onAction="#refreshBorrowingHistory" text="🔄 Refresh History" 
-                                                style="-fx-background-color: white; -fx-text-fill: #4caf50; -fx-font-weight: bold; -fx-background-radius: 6; -fx-border-color: #4caf50; -fx-border-width: 1; -fx-pref-height: 35; -fx-padding: 8 20;">
-                                            <effect>
-                                                <DropShadow color="rgba(76,175,80,0.2)" radius="2" offsetX="1" offsetY="1"/>
-                                            </effect>
-                                        </Button>
-                                    </HBox>
-                                    
-                                    <!-- Search and Filter -->
-                                    <HBox spacing="15" alignment="CENTER_LEFT" 
-                                          style="-fx-padding: 15; -fx-background-color: white; -fx-background-radius: 10;">
-                                        <children>
-                                            <TextField fx:id="txtSearchStudent" promptText="🔍 Search by name, ID, or book title..." 
-                                                       style="-fx-pref-width: 300; -fx-pref-height: 40; -fx-background-radius: 6; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 0 10;"/>
-                                            <ComboBox fx:id="cmbStatusFilter" promptText="📊 Filter by Status" 
-                                                      style="-fx-pref-width: 180; -fx-pref-height: 40;"/>
-                                            <Button onAction="#clearFilters" text="Clear Filters" 
-                                                    style="-fx-background-color: #f5f5f5; -fx-text-fill: #757575; -fx-background-radius: 6; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-pref-height: 40; -fx-padding: 0 20;">
-                                                <effect>
-                                                    <InnerShadow color="rgba(0,0,0,0.1)" radius="2" offsetX="1" offsetY="1"/>
-                                                </effect>
-                                            </Button>
-                                        </children>
-                                    </HBox>
-                                </children>
+                            <VBox prefWidth="180.0" style="-fx-background-color: #f39c12; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Warning" />
+                                <Label fx:id="lblWarningCountMain" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
                             </VBox>
                             
-                            <!-- History Table -->
-                            <TableView fx:id="tableBorrowingHistory" prefHeight="450" 
-                                       style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #e0e0e0; -fx-border-radius: 10;">
-                                <effect>
-                                    <DropShadow color="rgba(0,0,0,0.05)" radius="5" offsetX="0" offsetY="2"/>
-                                </effect>
+                            <VBox prefWidth="180.0" style="-fx-background-color: #e74c3c; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Issue" />
+                                <Label fx:id="lblIssueCountMain" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
+                            </VBox>
+                        </HBox>
+                        
+                        <!-- Search and Filter Section -->
+                        <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                            <TextField fx:id="txtSearchStudent" promptText="Search by name or ID..." style="-fx-pref-width: 300;" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh">
+                                <tooltip>
+                                    <Tooltip text="Refresh requests list" />
+                                </tooltip>
+                            </Button>
+                        </HBox>
+                        
+                        <!-- Requests Table -->
+                        <VBox spacing="10" VBox.vgrow="ALWAYS">
+                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Pending Clearance Requests" />
+                            
+                            <TableView fx:id="tableRequests" VBox.vgrow="ALWAYS">
                                 <columns>
-                                    <TableColumn fx:id="colHistoryStudentId" text="Student ID" prefWidth="100"/>
-                                    <TableColumn fx:id="colHistoryStudentName" text="Student Name" prefWidth="150"/>
-                                    <TableColumn fx:id="colHistoryDepartment" text="Department" prefWidth="120"/>
-                                    <TableColumn fx:id="colHistoryBookTitle" text="Book Title" prefWidth="250"/>
-                                    <TableColumn fx:id="colHistoryBorrowDate" text="Borrow Date" prefWidth="100"/>
-                                    <TableColumn fx:id="colHistoryDueDate" text="Due Date" prefWidth="100"/>
-                                    <TableColumn fx:id="colHistoryStatus" text="Status" prefWidth="100"/>
-                                    <TableColumn fx:id="colHistoryFine" text="Fine" prefWidth="80"/>
+                                    <TableColumn fx:id="colStudentId" prefWidth="100" text="Student ID" />
+                                    <TableColumn fx:id="colStudentName" prefWidth="150" text="Student Name" />
+                                    <TableColumn fx:id="colDepartment" prefWidth="120" text="Department" />
+                                    <TableColumn fx:id="colRequestDate" prefWidth="120" text="Request Date" />
+                                    <TableColumn fx:id="colBookStatus" prefWidth="100" text="Status" />
+                                    <TableColumn fx:id="colActions" prefWidth="200" text="Actions" />
                                 </columns>
-                                <columnResizePolicy>
-                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                </columnResizePolicy>
                             </TableView>
                             
-                            <!-- Summary Stats -->
-                            <HBox spacing="20" alignment="CENTER">
-                                <children>
-                                    <!-- Total Borrowed -->
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 20; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(33,150,243,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="📚 Total Books" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblTotalBorrowed" text="0" 
-                                                   style="-fx-text-fill: #2196f3; -fx-font-size: 32px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                    
-                                    <!-- Currently Borrowed -->
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 20; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(255,152,0,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="⏳ Active Loans" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblCurrentlyBorrowed" text="0" 
-                                                   style="-fx-text-fill: #ff9800; -fx-font-size: 32px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                    
-                                    <!-- Total Fines -->
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 20; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(244,67,54,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="💰 Total Fines" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblTotalFines" text="ETB 0.00" 
-                                                   style="-fx-text-fill: #f44336; -fx-font-size: 32px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                </children>
+                            <!-- Status Legend -->
+                            <HBox spacing="15" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                                <Label style="-fx-text-fill: #4caf50; -fx-font-weight: bold;" text="●" />
+                                <Label text="Clear - No borrowed books" />
+                                <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" text="●" />
+                                <Label text="Warning - Has borrowed books" />
+                                <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
+                                <Label text="Issue - Overdue books/fines" />
                             </HBox>
-                        </children>
+                        </VBox>
                     </VBox>
-                </Tab>
-                
-                <!-- Student Details Tab -->
-                <Tab fx:id="tabStudentDetails" text="👤 Student Details" closable="true" onClosed="#handleTabClosed">
-                    <VBox spacing="20" style="-fx-background-color: #f5f7fa; -fx-padding: 25;">
-                        <children>
-                            <!-- Student Info Header -->
-                            <VBox spacing="15" style="-fx-padding: 25; -fx-background-color: white; -fx-background-radius: 10;">
-                                <effect>
-                                    <DropShadow color="rgba(0,0,0,0.05)" radius="5" offsetX="0" offsetY="2"/>
-                                </effect>
-                                <children>
-                                    <HBox spacing="15" alignment="CENTER_LEFT">
-                                        <Rectangle width="50" height="50" arcWidth="10" arcHeight="10" fill="#e3f2fd" stroke="#2196f3" strokeWidth="2">
-                                            <effect>
-                                                <DropShadow color="rgba(33,150,243,0.2)" radius="3" offsetX="1" offsetY="1"/>
-                                            </effect>
-                                        </Rectangle>
-                                        <VBox spacing="5">
-                                            <children>
-                                                <Label text="Student Library Details" 
-                                                       style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a237e;"/>
-                                                <Label text="Comprehensive borrowing history and status" 
-                                                       style="-fx-text-fill: #757575; -fx-font-size: 13px;"/>
-                                            </children>
-                                        </VBox>
-                                        <Region HBox.hgrow="ALWAYS" />
-                                        <Button onAction="#goBackToRequests" text="⬅ Back to List" 
-                                                style="-fx-background-color: #f5f5f5; -fx-text-fill: #757575; -fx-background-radius: 6; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-pref-height: 40; -fx-padding: 0 20;">
-                                            <effect>
-                                                <InnerShadow color="rgba(0,0,0,0.1)" radius="2" offsetX="1" offsetY="1"/>
-                                            </effect>
-                                        </Button>
-                                    </HBox>
-                                    
-                                    <!-- Student Info Grid -->
-                                    <GridPane hgap="20" vgap="15" style="-fx-padding: 20 0 0 0;">
-                                        <columnConstraints>
-                                            <ColumnConstraints prefWidth="120" />
-                                            <ColumnConstraints prefWidth="200" />
-                                            <ColumnConstraints prefWidth="120" />
-                                            <ColumnConstraints prefWidth="200" />
-                                        </columnConstraints>
-                                        <children>
-                                            <Label text="🎫 Student ID:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="0" />
-                                            <Label fx:id="lblDetailStudentId" text="" style="-fx-text-fill: #424242; -fx-font-size: 14px;" GridPane.rowIndex="0" GridPane.columnIndex="1" />
-                                            <Label text="👤 Full Name:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="2" />
-                                            <Label fx:id="lblDetailStudentName" text="" style="-fx-text-fill: #424242; -fx-font-size: 14px;" GridPane.rowIndex="0" GridPane.columnIndex="3" />
-                                            
-                                            <Label text="🏛 Department:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="0" />
-                                            <Label fx:id="lblDetailDepartment" text="" style="-fx-text-fill: #424242; -fx-font-size: 14px;" GridPane.rowIndex="1" GridPane.columnIndex="1" />
-                                            <Label text="📊 Status:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="2" />
-                                            <Label fx:id="lblDetailStatus" text="" style="-fx-text-fill: #2196f3; -fx-font-weight: bold; -fx-font-size: 14px;" GridPane.rowIndex="1" GridPane.columnIndex="3" />
-                                            
-                                            <Label text="📧 Email:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="0" />
-                                            <Label fx:id="lblDetailEmail" text="" style="-fx-text-fill: #424242; -fx-font-size: 14px;" GridPane.rowIndex="2" GridPane.columnIndex="1" />
-                                            <Label text="📞 Phone:" style="-fx-text-fill: #757575; -fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="2" />
-                                            <Label fx:id="lblDetailPhone" text="" style="-fx-text-fill: #424242; -fx-font-size: 14px;" GridPane.rowIndex="2" GridPane.columnIndex="3" />
-                                        </children>
-                                    </GridPane>
-                                </children>
+                </ScrollPane>
+            </Tab>
+            
+            <!-- Borrowing History Tab -->
+            <Tab style="-fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 100; -fx-background-color: #3498db; -fx-pref-height: 30;" text="Borrowing History">
+                <ScrollPane fitToWidth="true">
+                    <VBox spacing="15" style="-fx-padding: 20;">
+                        <!-- History Statistics -->
+                        <HBox prefHeight="83.0" prefWidth="748.0" spacing="15" style="-fx-background-color: white;">
+                            <VBox prefWidth="180" style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Total Borrowed" />
+                                <Label fx:id="lblTotalBorrowed" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
                             </VBox>
                             
-                            <!-- Borrowing Summary Cards -->
-                            <HBox spacing="15" alignment="CENTER">
-                                <children>
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 25; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(33,150,243,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="📚 Total Borrowed" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblDetailTotalBorrowed" text="0" 
-                                                   style="-fx-text-fill: #2196f3; -fx-font-size: 36px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                    
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 25; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(255,152,0,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="⏳ Current Loans" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblDetailCurrentBorrowed" text="0" 
-                                                   style="-fx-text-fill: #ff9800; -fx-font-size: 36px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                    
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 25; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(244,67,54,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="⚠ Overdue" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblDetailOverdue" text="0" 
-                                                   style="-fx-text-fill: #f44336; -fx-font-size: 36px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                    
-                                    <VBox spacing="8" alignment="CENTER" 
-                                          style="-fx-padding: 25; -fx-background-color: white; -fx-background-radius: 10; -fx-pref-width: 180;">
-                                        <effect>
-                                            <DropShadow color="rgba(76,175,80,0.1)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <children>
-                                            <Label text="💰 Total Fines" style="-fx-text-fill: #757575; -fx-font-size: 14px;"/>
-                                            <Label fx:id="lblDetailTotalFines" text="ETB 0.00" 
-                                                   style="-fx-text-fill: #4caf50; -fx-font-size: 36px; -fx-font-weight: bold;"/>
-                                        </children>
-                                    </VBox>
-                                </children>
-                            </HBox>
-                            
-                            <!-- Book Details Table -->
-                            <VBox spacing="10">
-                                <children>
-                                    <Label text="📖 Borrowing History" style="-fx-text-fill: #424242; -fx-font-weight: bold; -fx-font-size: 18px;"/>
-                                    <TableView fx:id="tableStudentBookDetails" prefHeight="300" 
-                                               style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #e0e0e0; -fx-border-radius: 10;">
-                                        <effect>
-                                            <DropShadow color="rgba(0,0,0,0.05)" radius="5" offsetX="0" offsetY="2"/>
-                                        </effect>
-                                        <columns>
-                                            <TableColumn fx:id="colDetailBookTitle" text="Book Title" prefWidth="250"/>
-                                            <TableColumn fx:id="colDetailAuthor" text="Author" prefWidth="150"/>
-                                            <TableColumn fx:id="colDetailBorrowDate" text="Borrow Date" prefWidth="100"/>
-                                            <TableColumn fx:id="colDetailDueDate" text="Due Date" prefWidth="100"/>
-                                            <TableColumn fx:id="colDetailReturnDate" text="Return Date" prefWidth="100"/>
-                                            <TableColumn fx:id="colDetailStatus" text="Status" prefWidth="100"/>
-                                            <TableColumn fx:id="colDetailFine" text="Fine" prefWidth="80"/>
-                                        </columns>
-                                        <columnResizePolicy>
-                                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                        </columnResizePolicy>
-                                    </TableView>
-                                </children>
+                            <VBox prefWidth="180.0" style="-fx-background-color: #27ae60; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Active Loans" />
+                                <Label fx:id="lblCurrentlyBorrowed" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
                             </VBox>
                             
-                            <!-- Action Buttons -->
-                            <HBox spacing="20" alignment="CENTER" style="-fx-padding: 20 0 0 0;">
-                                <children>
-                                    <Button fx:id="btnApproveFromDetails" onAction="#approveFromDetails" text="✅ Approve Clearance" 
-                                            style="-fx-background-color: linear-gradient(to right, #4caf50, #388e3c); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-width: 200; -fx-pref-height: 45; -fx-font-size: 14px;">
-                                        <effect>
-                                            <DropShadow color="rgba(76,175,80,0.3)" radius="4" offsetX="2" offsetY="2"/>
-                                        </effect>
-                                    </Button>
-                                    <Button fx:id="btnRejectFromDetails" onAction="#rejectFromDetails" text="❌ Reject Clearance" 
-                                            style="-fx-background-color: linear-gradient(to right, #f44336, #d32f2f); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-width: 200; -fx-pref-height: 45; -fx-font-size: 14px;">
-                                        <effect>
-                                            <DropShadow color="rgba(244,67,54,0.3)" radius="4" offsetX="2" offsetY="2"/>
-                                        </effect>
-                                    </Button>
-                                </children>
-                            </HBox>
-                        </children>
+                            <VBox prefWidth="180.0" style="-fx-background-color: #f39c12; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Overdue Books" />
+                                <Label fx:id="lblOverdueCountMain" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
+                            </VBox>
+                            
+                            <VBox prefWidth="180.0" style="-fx-background-color: #e74c3c; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Total Fines" />
+                                <Label fx:id="lblTotalFines" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="ETB 0.00" />
+                            </VBox>
+                        </HBox>
+                        
+                        <!-- Search and Filter -->
+                        <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                            <TextField fx:id="txtSearchHistory" promptText="Search by name, ID, or book..." style="-fx-pref-width: 250;" />
+                            <ComboBox fx:id="cmbStatusFilter" promptText="Filter by Status" style="-fx-pref-width: 150;" />
+                            <Button onAction="#clearFilters" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" text="Clear Filters" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Button onAction="#refreshBorrowingHistory" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh History">
+                                <tooltip>
+                                    <Tooltip text="Refresh borrowing history" />
+                                </tooltip>
+                            </Button>
+                        </HBox>
+                        
+                        <!-- History Table -->
+                        <VBox spacing="10" VBox.vgrow="ALWAYS">
+                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Borrowing Records" />
+                            
+                            <TableView fx:id="tableBorrowingHistory" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="colHistoryStudentId" prefWidth="100" text="Student ID" />
+                                    <TableColumn fx:id="colHistoryStudentName" prefWidth="150" text="Student Name" />
+                                    <TableColumn fx:id="colHistoryDepartment" prefWidth="120" text="Department" />
+                                    <TableColumn fx:id="colHistoryBookTitle" prefWidth="200" text="Book Title" />
+                                    <TableColumn fx:id="colHistoryBorrowDate" prefWidth="100" text="Borrow Date" />
+                                    <TableColumn fx:id="colHistoryDueDate" prefWidth="100" text="Due Date" />
+                                    <TableColumn fx:id="colHistoryStatus" prefWidth="100" text="Status" />
+                                    <TableColumn fx:id="colHistoryFine" prefWidth="80" text="Fine" />
+                                </columns>
+                            </TableView>
+                        </VBox>
                     </VBox>
-                </Tab>
-                
-            </tabs>
+                </ScrollPane>
+            </Tab>
+            
+            <!-- Student Details Tab -->
+            <Tab fx:id="tabStudentDetails" closable="true" onClosed="#handleTabClosed" style="-fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 100; -fx-background-color: #3498db; -fx-pref-height: 30;" text="Student Details">
+                <ScrollPane fitToWidth="true">
+                    <VBox spacing="15" style="-fx-padding: 20;">
+                        <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Student Library Details" />
+                        
+                        <!-- Student Info Card -->
+                        <VBox spacing="15" style="-fx-background-color: #97b5e6; -fx-padding: 20; -fx-background-radius: 10;">
+                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Student Information" />
+                            
+                            <!-- Student Details -->
+                            <GridPane hgap="20" style="-fx-padding: 20;" vgap="15">
+                                <columnConstraints>
+                                    <ColumnConstraints />
+                                    <ColumnConstraints />
+                                    <ColumnConstraints />
+                                    <ColumnConstraints />
+                                </columnConstraints>
+                                <rowConstraints>
+                                    <RowConstraints />
+                                    <RowConstraints />
+                                    <RowConstraints />
+                                </rowConstraints>
+                                
+                                <Label style="-fx-font-weight: bold;" text="Student ID:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                <Label fx:id="lblDetailStudentId" style="-fx-font-size: 14px;" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                                
+                                <Label style="-fx-font-weight: bold;" text="Full Name:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                                <Label fx:id="lblDetailStudentName" style="-fx-font-size: 14px;" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+                                
+                                <Label style="-fx-font-weight: bold;" text="Department:" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                <Label fx:id="lblDetailDepartment" style="-fx-font-size: 14px;" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                
+                                <Label style="-fx-font-weight: bold;" text="Status:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                                <Label fx:id="lblDetailStatus" style="-fx-font-size: 14px; -fx-font-weight: bold;" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+                                
+                                <Label style="-fx-font-weight: bold;" text="Email:" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                <Label fx:id="lblDetailEmail" style="-fx-font-size: 14px;" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                
+                                <Label style="-fx-font-weight: bold;" text="Phone:" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                                <Label fx:id="lblDetailPhone" style="-fx-font-size: 14px;" GridPane.columnIndex="3" GridPane.rowIndex="2" />
+                            </GridPane>
+                            
+                            <!-- Back Button -->
+                            <HBox spacing="10">
+                                <Button onAction="#goBackToRequests" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold;" text="Back to Requests">
+                                    <tooltip>
+                                        <Tooltip text="Return to requests list" />
+                                    </tooltip>
+                                </Button>
+                            </HBox>
+                        </VBox>
+                        
+                        <!-- Student Statistics -->
+                        <HBox prefHeight="83.0" prefWidth="748.0" spacing="15">
+                            <VBox prefWidth="180" style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Total Borrowed" />
+                                <Label fx:id="lblDetailTotalBorrowed" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
+                            </VBox>
+                            
+                            <VBox prefWidth="180.0" style="-fx-background-color: #f39c12; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Current Loans" />
+                                <Label fx:id="lblDetailCurrentBorrowed" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
+                            </VBox>
+                            
+                            <VBox prefWidth="180.0" style="-fx-background-color: #e74c3c; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Overdue" />
+                                <Label fx:id="lblDetailOverdue" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
+                            </VBox>
+                            
+                            <VBox prefWidth="180.0" style="-fx-background-color: #27ae60; -fx-padding: 15; -fx-background-radius: 8;">
+                                <Label style="-fx-text-fill: white;" text="Total Fines" />
+                                <Label fx:id="lblDetailTotalFines" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="ETB 0.00" />
+                            </VBox>
+                        </HBox>
+                        
+                        <!-- Borrowing Details Table -->
+                        <VBox spacing="10" VBox.vgrow="ALWAYS">
+                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Borrowing History" />
+                            
+                            <TableView fx:id="tableStudentBookDetails" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="colDetailBookTitle" prefWidth="250" text="Book Title" />
+                                    <TableColumn fx:id="colDetailAuthor" prefWidth="150" text="Author" />
+                                    <TableColumn fx:id="colDetailBorrowDate" prefWidth="100" text="Borrow Date" />
+                                    <TableColumn fx:id="colDetailDueDate" prefWidth="100" text="Due Date" />
+                                    <TableColumn fx:id="colDetailReturnDate" prefWidth="100" text="Return Date" />
+                                    <TableColumn fx:id="colDetailStatus" prefWidth="100" text="Status" />
+                                    <TableColumn fx:id="colDetailFine" prefWidth="80" text="Fine" />
+                                </columns>
+                            </TableView>
+                        </VBox>
+                        
+                        <!-- Action Buttons -->
+                        <HBox spacing="20" alignment="CENTER" style="-fx-padding: 20;">
+                            <Button fx:id="btnApproveFromDetails" onAction="#approveFromDetails" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 200; -fx-pref-height: 40;" text="Approve Clearance">
+                                <tooltip>
+                                    <Tooltip text="Approve this student's clearance" />
+                                </tooltip>
+                            </Button>
+                            <Button fx:id="btnRejectFromDetails" onAction="#rejectFromDetails" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 200; -fx-pref-height: 40;" text="Reject Clearance">
+                                <tooltip>
+                                    <Tooltip text="Reject this student's clearance" />
+                                </tooltip>
+                            </Button>
+                        </HBox>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+            
         </TabPane>
     </center>
-    
-    <bottom>
-        <!-- Modern Footer -->
-        <HBox alignment="CENTER" style="-fx-background-color: white; -fx-padding: 15; -fx-border-color: #e0e0e0; -fx-border-width: 1 0 0 0;">
-            <children>
-                <HBox spacing="10" alignment="CENTER">
-                    <children>
-                        <Rectangle width="12" height="12" arcWidth="3" arcHeight="3" fill="#2196f3"/>
-                        <Label text="Library Clearance Management System" style="-fx-text-fill: #616161; -fx-font-weight: bold;"/>
-                        <Label text="•" style="-fx-text-fill: #bdbdbd;"/>
-                        <Label text="v1.0" style="-fx-text-fill: #9e9e9e;"/>
-                        <Label text="•" style="-fx-text-fill: #bdbdbd;"/>
-                        <Label text="Debre Birhan University" style="-fx-text-fill: #616161;"/>
-                    </children>
-                </HBox>
-            </children>
-        </HBox>
-    </bottom>
     
 </BorderPane>

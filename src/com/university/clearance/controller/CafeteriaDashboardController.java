@@ -321,7 +321,8 @@ public class CafeteriaDashboardController implements Initializable {
     private String checkStudentCafeteriaStatus(Connection conn, String studentId) throws SQLException {
         System.out.println("DEBUG: Checking cafeteria status for student: " + studentId);
         
-        createCafeteriaRecordsIfNeeded(conn, studentId);
+        // CHANGED: Only check, don't create
+        checkCafeteriaRecords(conn, studentId);
         
         // FIXED: Added table alias 'cr' to specify which table's 'status' column
         String cafeteriaSql = """
@@ -390,145 +391,29 @@ public class CafeteriaDashboardController implements Initializable {
         return "No Meal Plan";
     }
 
-    private void createCafeteriaRecordsIfNeeded(Connection conn, String studentId) throws SQLException {
-        System.out.println("DEBUG: Checking/creating cafeteria records for: " + studentId);
+    private void checkCafeteriaRecords(Connection conn, String studentId) throws SQLException {
+        System.out.println("DEBUG: Checking cafeteria records for: " + studentId);
         
-        try {
-            String checkTableSql = "SELECT 1 FROM cafeteria_records LIMIT 1";
-            PreparedStatement checkStmt = conn.prepareStatement(checkTableSql);
-            checkStmt.executeQuery();
-            System.out.println("  cafeteria_records table exists");
-        } catch (SQLException e) {
-            System.out.println("  cafeteria_records table doesn't exist, creating...");
-            String createTableSql = """
-                CREATE TABLE IF NOT EXISTS cafeteria_records (
-                    id INT PRIMARY KEY AUTO_INCREMENT,
-                    student_id INT,
-                    record_type VARCHAR(50),
-                    description TEXT,
-                    amount DECIMAL(10,2),
-                    transaction_date DATE,
-                    status VARCHAR(20),
-                    meal_plan_type VARCHAR(50),
-                    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (student_id) REFERENCES users(id)
-                )
-                """;
-            PreparedStatement createStmt = conn.prepareStatement(createTableSql);
-            createStmt.executeUpdate();
-            System.out.println("  Created cafeteria_records table");
-        }
-        
-        // Check if student has cafeteria records
         String checkRecordsSql = """
-            SELECT COUNT(*) FROM cafeteria_records cr 
-            JOIN users u ON cr.student_id = u.id 
+            SELECT COUNT(*) as record_count,
+                   MAX(CASE WHEN cr.status IN ('Pending', 'Active') THEN 1 ELSE 0 END) as has_pending_items,
+                   SUM(CASE WHEN cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') AND cr.status != 'Paid' THEN cr.amount ELSE 0 END) as total_balance
+            FROM cafeteria_records cr
+            JOIN users u ON cr.student_id = u.id
             WHERE u.username = ?
             """;
-        PreparedStatement checkRecordsStmt = conn.prepareStatement(checkRecordsSql);
-        checkRecordsStmt.setString(1, studentId);
-        ResultSet rs = checkRecordsStmt.executeQuery();
-        rs.next();
-        int existingCount = rs.getInt(1);
-        
-        System.out.println("  Existing cafeteria records: " + existingCount);
-        
-        if (existingCount == 0) {
-            System.out.println("  No records found, creating cafeteria records...");
             
-            // Get student info
-            String studentSql = "SELECT id FROM users WHERE username = ?";
-            PreparedStatement studentStmt = conn.prepareStatement(studentSql);
-            studentStmt.setString(1, studentId);
-            ResultSet studentRs = studentStmt.executeQuery();
+        PreparedStatement checkStmt = conn.prepareStatement(checkRecordsSql);
+        checkStmt.setString(1, studentId);
+        ResultSet rs = checkStmt.executeQuery();
+        
+        if (rs.next()) {
+            int recordCount = rs.getInt("record_count");
+            System.out.println("  Found " + recordCount + " cafeteria records");
             
-            if (studentRs.next()) {
-                int userId = studentRs.getInt("id");
-                
-                // Assign a meal plan
-                String[] mealPlans = {"Gold Plan (21 meals/week)", "Silver Plan (14 meals/week)", "Bronze Plan (7 meals/week)"};
-                String mealPlan = mealPlans[(int)(Math.random() * mealPlans.length)];
-                double mealPlanPrice = getMealPlanPrice(mealPlan);
-                
-                // Insert meal plan - SQL with 7 parameters
-                String insertMealPlanSql = """
-                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status, meal_plan_type)
-                    VALUES (?, 'MEAL_PLAN', ?, ?, ?, ?, ?)
-                    """;
-                
-                PreparedStatement mealPlanStmt = conn.prepareStatement(insertMealPlanSql);
-                
-                // Meal Plan
-                mealPlanStmt.setInt(1, userId);
-                mealPlanStmt.setString(2, "Semester Meal Plan - " + mealPlan);
-                mealPlanStmt.setDouble(3, mealPlanPrice);
-                mealPlanStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(2)));
-                mealPlanStmt.setString(5, Math.random() > 0.3 ? "Paid" : "Pending");
-                mealPlanStmt.setString(6, mealPlan);
-                mealPlanStmt.executeUpdate();
-                
-                System.out.println("  Assigned meal plan: " + mealPlan + " ($" + mealPlanPrice + ")");
-                
-                // Insert remaining meals - SQL with 6 parameters (no meal_plan_type)
-                String insertMealsSql = """
-                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
-                    VALUES (?, 'MEAL_SWIPES', ?, ?, ?, ?)
-                    """;
-                
-                PreparedStatement mealsStmt = conn.prepareStatement(insertMealsSql);
-                
-                int remainingMeals = (int)(Math.random() * 15);
-                if (remainingMeals > 0) {
-                    mealsStmt.setInt(1, userId);
-                    mealsStmt.setString(2, "Remaining Meal Swipes");
-                    mealsStmt.setDouble(3, remainingMeals);
-                    mealsStmt.setDate(4, Date.valueOf(java.time.LocalDate.now()));
-                    mealsStmt.setString(5, "Active");
-                    mealsStmt.executeUpdate();
-                    System.out.println("  Added " + remainingMeals + " remaining meals");
-                }
-                
-                // Insert outstanding balance (30% chance) - SQL with 6 parameters
-                String insertBalanceSql = """
-                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
-                    VALUES (?, 'OUTSTANDING_BALANCE', ?, ?, ?, ?)
-                    """;
-                
-                PreparedStatement balanceStmt = conn.prepareStatement(insertBalanceSql);
-                
-                if (Math.random() < 0.3) {
-                    double balance = 25 + (Math.random() * 100);
-                    balanceStmt.setInt(1, userId);
-                    balanceStmt.setString(2, "Cafeteria A La Carte Charges");
-                    balanceStmt.setDouble(3, balance);
-                    balanceStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusDays(15)));
-                    balanceStmt.setString(5, "Pending");
-                    balanceStmt.executeUpdate();
-                    System.out.println("  Added outstanding balance: $" + String.format("%.2f", balance));
-                }
-                
-                // Insert payment record - SQL with 6 parameters
-                String insertPaymentSql = """
-                    INSERT INTO cafeteria_records (student_id, record_type, description, amount, transaction_date, status)
-                    VALUES (?, 'PAYMENT', ?, ?, ?, ?)
-                    """;
-                
-                PreparedStatement paymentStmt = conn.prepareStatement(insertPaymentSql);
-                
-                paymentStmt.setInt(1, userId);
-                paymentStmt.setString(2, "Meal Plan Payment");
-                paymentStmt.setDouble(3, -mealPlanPrice * 0.7); // Negative for payments
-                paymentStmt.setDate(4, Date.valueOf(java.time.LocalDate.now().minusMonths(1)));
-                paymentStmt.setString(5, "Processed");
-                paymentStmt.executeUpdate();
-                
-                System.out.println("  Created cafeteria records with sample data");
-                
-                // Close all statements
-                mealPlanStmt.close();
-                mealsStmt.close();
-                balanceStmt.close();
-                paymentStmt.close();
+            if (recordCount == 0) {
+                System.out.println("  ⚠️ No cafeteria records exist for this student.");
+                System.out.println("  Cafeteria officer should manually create records if needed.");
             }
         }
     }

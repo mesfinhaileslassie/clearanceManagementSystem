@@ -492,8 +492,7 @@ public class DataManagementService {
     
     public void setupStudentTable(TableView<User> tableView, TableColumn<User, String> colId, 
             TableColumn<User, String> colName, TableColumn<User, String> colDept,
-            TableColumn<User, String> colYear, TableColumn<User, String> colStatus,
-            TableColumn<User, String> colActions) {
+            TableColumn<User, String> colYear, TableColumn<User, String> colStatus) {
         
         colId.setCellValueFactory(new PropertyValueFactory<>("username"));
         colName.setCellValueFactory(new PropertyValueFactory<>("fullName"));
@@ -501,50 +500,7 @@ public class DataManagementService {
         colYear.setCellValueFactory(new PropertyValueFactory<>("yearLevel"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("clearanceStatus"));
         
-        colActions.setCellFactory(param -> new TableCell<User, String>() {
-            private final Button btnAllowReapply = new Button("Allow Reapply");
-            private final Button btnViewDetails = new Button("View Details");
-            private final HBox buttons = new HBox(5, btnViewDetails, btnAllowReapply);
-            
-            {
-                buttons.setPadding(new Insets(5));
-                btnAllowReapply.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
-                btnViewDetails.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
-                
-                btnAllowReapply.setOnAction(event -> {
-                    User student = getTableView().getItems().get(getIndex());
-                    // This would call back to controller
-                });
-                
-                btnViewDetails.setOnAction(event -> {
-                    User student = getTableView().getItems().get(getIndex());
-                    // This would call back to controller
-                });
-            }
-            
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    User student = getTableView().getItems().get(getIndex());
-                    if (student != null) {
-                      if (student.getClearanceStatus() != null && 
-                          student.getClearanceStatus().contains("❌")) {
-                          btnAllowReapply.setVisible(true);
-                          btnAllowReapply.setManaged(true);
-                      } else {
-                          btnAllowReapply.setVisible(false);
-                          btnAllowReapply.setManaged(false);
-                      }
-                      setGraphic(buttons);
-                    } else {
-                      setGraphic(null);
-                    }
-                }
-            }
-        });
+        // REMOVED: All the actions column cell factory code
         
         colStatus.setCellFactory(column -> new TableCell<User, String>() {
             @Override

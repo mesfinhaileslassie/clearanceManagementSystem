@@ -1,18 +1,13 @@
 package com.university.clearance.controller;
 
-import com.university.clearance.model.User;
 import com.university.clearance.DatabaseConnection;
+import com.university.clearance.model.User;
 import com.university.clearance.model.ClearanceRequest;
-import com.university.clearance.utils.PhoneInputField;
-import com.university.clearance.utils.ValidationHelper;
-import com.university.clearance.utils.ValidationHelper.ValidationResult;
-import javafx.util.Callback;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -24,16 +19,15 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.net.URL;
 import java.sql.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 public class AdminDashboardController {
@@ -69,7 +63,6 @@ public class AdminDashboardController {
     @FXML private TableColumn<User, String> colStudentDepartment;
     @FXML private TableColumn<User, String> colStudentYear;
     @FXML private TableColumn<User, String> colClearanceStatus;
-    @FXML private TableColumn<User, String> colStudentActions;
     
     // Officers Table
     @FXML private TableView<User> tableOfficers;
@@ -136,6 +129,7 @@ public class AdminDashboardController {
     @FXML private Label lblConnectionStatus;
     @FXML private Label lblLastUpdate;
     @FXML private Label lblUpdateTime;
+    @FXML private Label lblResubmissionStatus;
     
     private User currentUser;
     
@@ -155,7 +149,6 @@ public class AdminDashboardController {
         setupSearchFunctionality();
         setupTabAnimations();
         setupActiveTabHighlight();
-        setupDeleteButtons();
         setupAllowResubmitButtons();
         
         Platform.runLater(() -> {
@@ -185,95 +178,9 @@ public class AdminDashboardController {
         });
     }
     
-    private void setupDeleteButtons() {
-        TableColumn<User, Void> deleteCol = new TableColumn<>("Actions");
-        deleteCol.setCellFactory(param -> new TableCell<User, Void>() {
-            private final Button deleteButton = new Button("🗑️ Delete");
-            
-            {
-                deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
-                deleteButton.setOnAction(event -> {
-                    User user = getTableView().getItems().get(getIndex());
-                    userManagementService.handleDeleteUser(user, currentUser, () -> {
-                        dataManagementService.loadAllData();
-                        updateReportStatistics();
-                    });
-                });
-            }
-            
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    User user = getTableView().getItems().get(getIndex());
-                    if (user != null && !"admin".equals(user.getUsername())) {
-                        setGraphic(deleteButton);
-                    } else {
-                        setGraphic(null);
-                    }
-                }
-            }
-        });
-        
-        if (tableAllUsers.getColumns().size() >= 6) {
-            tableAllUsers.getColumns().add(deleteCol);
-        }
-        
-        TableColumn<User, Void> deleteOfficerCol = new TableColumn<>("Actions");
-        deleteOfficerCol.setCellFactory(param -> new TableCell<User, Void>() {
-            private final Button deleteButton = new Button("🗑️ Delete");
-            
-            {
-                deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
-                deleteButton.setOnAction(event -> {
-                    User officer = getTableView().getItems().get(getIndex());
-                    userManagementService.handleDeleteUser(officer, currentUser, () -> {
-                        dataManagementService.loadAllData();
-                        updateReportStatistics();
-                    });
-                });
-            }
-            
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    User officer = getTableView().getItems().get(getIndex());
-                    if (officer != null && !"admin".equals(officer.getUsername())) {
-                        setGraphic(deleteButton);
-                    } else {
-                        setGraphic(null);
-                    }
-                }
-            }
-        });
-        
-        if (tableOfficers.getColumns().size() >= 6) {
-            tableOfficers.getColumns().add(deleteOfficerCol);
-        }
-    }
-    
     private void setupAllowResubmitButtons() {
-        if (tableRequests == null) {
+        if (tableRequests == null || colResubmission == null) {
             return;
-        }
-        
-        if (colResubmission == null) {
-            colResubmission = (TableColumn<ClearanceRequest, Void>) tableRequests.getColumns().stream()
-                .filter(col -> "Resubmission".equals(col.getText()))
-                .findFirst()
-                .orElse(null);
-                
-            if (colResubmission == null) {
-                colResubmission = new TableColumn<>("Resubmission");
-                colResubmission.setPrefWidth(150);
-                colResubmission.setMinWidth(120);
-                tableRequests.getColumns().add(colResubmission);
-            }
         }
         
         colResubmission.setCellFactory(column -> {
@@ -332,45 +239,6 @@ public class AdminDashboardController {
                     }
                 }
             };
-        });
-    }
-    
-    @FXML
-    private void handleDeleteUser() {
-        User selectedUser = null;
-        
-        Tab selectedTab = mainTabPane.getSelectionModel().getSelectedItem();
-        if (selectedTab != null) {
-            String tabText = selectedTab.getText();
-            if (tabText.contains("All Users")) {
-                selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
-            } else if (tabText.contains("Officers")) {
-                selectedUser = tableOfficers.getSelectionModel().getSelectedItem();
-            } else if (tabText.contains("Students")) {
-                Node content = selectedTab.getContent();
-                if (content instanceof TabPane) {
-                    TabPane studentTabs = (TabPane) content;
-                    Tab selectedStudentTab = studentTabs.getSelectionModel().getSelectedItem();
-                    if (selectedStudentTab != null) {
-                        String studentTabText = selectedStudentTab.getText();
-                        if (studentTabText.contains("All Students")) {
-                            selectedUser = tableAllStudents.getSelectionModel().getSelectedItem();
-                        } else if (studentTabText.contains("Rejected")) {
-                            selectedUser = tableRejectedStudents.getSelectionModel().getSelectedItem();
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (selectedUser == null) {
-            showAlert("Error", "Please select a user to delete!");
-            return;
-        }
-        
-        userManagementService.handleDeleteUser(selectedUser, currentUser, () -> {
-            dataManagementService.loadAllData();
-            updateReportStatistics();
         });
     }
     
@@ -472,7 +340,7 @@ public class AdminDashboardController {
     private void setupAllTables() {
         dataManagementService.setupStudentTable(tableAllStudents, colStudentId, colStudentName, 
                                                colStudentDepartment, colStudentYear, 
-                                               colClearanceStatus, colStudentActions);
+                                               colClearanceStatus);
         
         dataManagementService.setupSimpleStudentTable(tableApprovedStudents);
         dataManagementService.setupSimpleStudentTable(tableRejectedStudents);
@@ -525,10 +393,6 @@ public class AdminDashboardController {
         });
     }
     
-   
-
-    
-    
     private void setupSearchFunctionality() {
         cmbSearchType.setItems(FXCollections.observableArrayList(
             "All Users",
@@ -542,7 +406,7 @@ public class AdminDashboardController {
             String searchText = txtSearchUsers.getText().trim();
             if (!searchText.isEmpty()) {
                 // Trigger search when ComboBox selection changes and there's search text
-                dataManagementService.handleUserSearch(searchText, newValue);
+                handleUserSearchWithFilter(searchText, newValue);
             } else {
                 // If no search text, just reload all users based on the new filter
                 handleFilterOnly(newValue);
@@ -571,8 +435,7 @@ public class AdminDashboardController {
             txtSearchRequests.setOnAction(e -> handleRequestsSearch());
         }
     }
-
-    // Add this new method to handle filtering only (without search text)
+    
     private void handleFilterOnly(String filterType) {
         // If there's no search text, just show all users filtered by type
         if (txtSearchUsers.getText().trim().isEmpty()) {
@@ -585,11 +448,16 @@ public class AdminDashboardController {
                     break;
                 default: // "All Users"
                     dataManagementService.loadAllUsers();
+                    if (lblSearchStatus != null) {
+                        lblSearchStatus.setText("Showing all users");
+                        lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                        lblSearchStatus.setVisible(true);
+                    }
                     break;
             }
         }
     }
-
+    
     private void loadFilteredStudents() {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
@@ -618,7 +486,6 @@ public class AdminDashboardController {
                 filteredStudents.add(user);
             }
             
-            // Use the local tableAllUsers reference
             tableAllUsers.setItems(filteredStudents);
             
             if (lblSearchStatus != null) {
@@ -631,7 +498,7 @@ public class AdminDashboardController {
             showAlert("Error", "Failed to load students: " + e.getMessage());
         }
     }
-
+    
     private void loadFilteredOfficers() {
         try (Connection conn = DatabaseConnection.getConnection()) {
             String sql = """
@@ -656,7 +523,6 @@ public class AdminDashboardController {
                 filteredOfficers.add(user);
             }
             
-            // Use the local tableAllUsers reference
             tableAllUsers.setItems(filteredOfficers);
             
             if (lblSearchStatus != null) {
@@ -669,16 +535,16 @@ public class AdminDashboardController {
             showAlert("Error", "Failed to load officers: " + e.getMessage());
         }
     }
-  
-    
-
-    
     
     @FXML
     private void handleUserSearch() {
         String searchText = txtSearchUsers.getText().trim();
         String searchType = cmbSearchType.getValue();
         
+        handleUserSearchWithFilter(searchText, searchType);
+    }
+    
+    private void handleUserSearchWithFilter(String searchText, String searchType) {
         if (searchText.isEmpty()) {
             // If search is empty, just show filtered users based on ComboBox selection
             if ("Students Only".equals(searchType)) {
@@ -687,16 +553,17 @@ public class AdminDashboardController {
                 loadFilteredOfficers();
             } else {
                 dataManagementService.loadAllUsers();
+                if (lblSearchStatus != null) {
+                    lblSearchStatus.setText("Showing all users");
+                    lblSearchStatus.setStyle("-fx-text-fill: #3498db; -fx-font-weight: bold;");
+                    lblSearchStatus.setVisible(true);
+                }
             }
         } else {
             // Perform search with both search text and filter
             dataManagementService.handleUserSearch(searchText, searchType);
         }
     }
-    
-    
-    
-    
     
     @FXML
     private void handleClearSearch() {
@@ -778,6 +645,50 @@ public class AdminDashboardController {
         });
     }
     
+    
+    @FXML
+    private void handleDeleteUser() {
+        User selectedUser = null;
+        
+        Tab selectedTab = mainTabPane.getSelectionModel().getSelectedItem();
+        if (selectedTab != null) {
+            String tabText = selectedTab.getText();
+            if (tabText.contains("All Users")) {
+                selectedUser = tableAllUsers.getSelectionModel().getSelectedItem();
+            } else if (tabText.contains("Officers")) {
+                selectedUser = tableOfficers.getSelectionModel().getSelectedItem();
+            } else if (tabText.contains("Students")) {
+                Node content = selectedTab.getContent();
+                if (content instanceof TabPane) {
+                    TabPane studentTabs = (TabPane) content;
+                    Tab selectedStudentTab = studentTabs.getSelectionModel().getSelectedItem();
+                    if (selectedStudentTab != null) {
+                        String studentTabText = selectedStudentTab.getText();
+                        if (studentTabText.contains("All Students")) {
+                            selectedUser = tableAllStudents.getSelectionModel().getSelectedItem();
+                        } else if (studentTabText.contains("Rejected")) {
+                            selectedUser = tableRejectedStudents.getSelectionModel().getSelectedItem();
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (selectedUser == null) {
+            showAlert("Error", "Please select a user first!");
+            return;
+        }
+        
+        userManagementService.handleDeleteUser(selectedUser, currentUser, () -> {
+            dataManagementService.loadAllData();
+            updateReportStatistics();
+        });
+    }
+    
+   
+    
+    
+    
     @FXML
     private void openManageOfficers() {
         userManagementService.openManageOfficers(currentUser, () -> {
@@ -794,14 +705,6 @@ public class AdminDashboardController {
     @FXML
     private void toggleUserStatus() {
         userManagementService.toggleUserStatus(tableAllUsers.getSelectionModel().getSelectedItem());
-    }
-    
-    private void allowStudentReapply(User student) {
-        userManagementService.allowStudentReapply(student);
-    }
-    
-    private void viewStudentDetails(User student) {
-        userManagementService.viewStudentDetails(student);
     }
     
     @FXML
@@ -910,12 +813,4 @@ public class AdminDashboardController {
     public Label getLblSearchStatus() { return lblSearchStatus; }
     public TextField getTxtSearchUsers() { return txtSearchUsers; }
     public ComboBox<String> getCmbSearchType() { return cmbSearchType; }
-    public ObservableList<User> getAllStudentsData() { return dataManagementService.getAllStudentsData(); }
-    public ObservableList<User> getApprovedStudentsData() { return dataManagementService.getApprovedStudentsData(); }
-    public ObservableList<User> getRejectedStudentsData() { return dataManagementService.getRejectedStudentsData(); }
-    public ObservableList<User> getPendingStudentsData() { return dataManagementService.getPendingStudentsData(); }
-    public ObservableList<User> getInProgressStudentsData() { return dataManagementService.getInProgressStudentsData(); }
-    public ObservableList<User> getOfficersData() { return dataManagementService.getOfficersData(); }
-    public ObservableList<User> getAllUsersData() { return dataManagementService.getAllUsersData(); }
-    public ObservableList<ClearanceRequest> getRequestData() { return dataManagementService.getRequestData(); }
 }

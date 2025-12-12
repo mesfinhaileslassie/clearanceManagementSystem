@@ -52,17 +52,17 @@
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="USER MANAGEMENT" />
                 
                 <Button onAction="#openRegisterStudent" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="➕ Register Student" />
-                <Button onAction="#openManageOfficers" style="-fx-background-color: #4aaced; -fx-text-fill: wblackhite; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
+                <Button onAction="#openManageOfficers" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="👨‍💼 Register Officer" />
                 <Button onAction="#resetUserPassword" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔑 Reset Password" />
-                <Button onAction="#toggleUserStatus" style="-fx-background-color: #4aaced; -fx-text-fill: whiblackte; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
-                <!-- NEW DELETE USER BUTTON -->
+                <Button onAction="#toggleUserStatus" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="🔄 Toggle Status" />
+                <!-- DELETE USER BUTTON -->
                 <Button fx:id="btnDeleteUser" onAction="#handleDeleteUser" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🗑️ Delete User" />
                 
                 <Separator style="-fx-padding: 10 0;" />
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="SYSTEM CONFIGURATION" />
                 
-                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #4aaced; -fx-text-fill: whblackite; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="⚙️ Approval Workflow" />
+                <Button onAction="#openWorkflowManagement" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="⚙️ Approval Workflow" />
                 <Button onAction="#openSessionManagement" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-padding: 10; -fx-font-weight: bold;" text="📅 Academic Sessions" />
                 <Button onAction="#processSemesterRollover" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Semester Rollover" />
                 
@@ -70,7 +70,7 @@
                 
                 <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-padding: 0 0 5 0;" text="QUICK ACTIONS" />
                 
-                <Button onAction="#handleRefresh" style="-fx-background-color: #4aaced; -fx-text-fill: whitblacke; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
+                <Button onAction="#handleRefresh" style="-fx-background-color: #4aaced; -fx-text-fill: white; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="🔄 Refresh All" />
                 <Button fx:id="btnCurrentInfo" onAction="#showCurrentInfo" style="-fx-background-color: #4aaced; -fx-text-fill: black; -fx-pref-width: 200; -fx-font-weight: bold; -fx-padding: 10;" text="📊 Current Info" />
             </children>
         </VBox>
@@ -224,8 +224,6 @@
                                         <TableColumn fx:id="colAllUserRole" prefWidth="120" text="Role" />
                                         <TableColumn fx:id="colAllUserDepartment" prefWidth="150" text="Department" />
                                         <TableColumn fx:id="colAllUserStatus" prefWidth="100" text="Status" />
-                                        <!-- Delete button column -->
-                                        <TableColumn fx:id="colAllUserActions" prefWidth="100" text="Actions" />
                                     </columns>
                                 </TableView>
                             </ScrollPane>
@@ -258,7 +256,6 @@
                                                         <TableColumn fx:id="colStudentDepartment" prefWidth="150" text="Department" />
                                                         <TableColumn fx:id="colStudentYear" prefWidth="100" text="Year" />
                                                         <TableColumn fx:id="colClearanceStatus" prefWidth="120" text="Status" />
-                                                        <TableColumn fx:id="colStudentActions" prefWidth="200" text="Actions" />
                                                     </columns>
                                                 </TableView>
                                             </ScrollPane>
@@ -309,7 +306,6 @@
                                                         <TableColumn prefWidth="200" text="Full Name" />
                                                         <TableColumn prefWidth="150" text="Department" />
                                                         <TableColumn prefWidth="120" text="Status" />
-                                                        <TableColumn prefWidth="200" text="Actions" />
                                                     </columns>
                                                 </TableView>
                                             </ScrollPane>
@@ -391,8 +387,6 @@
                                         <TableColumn fx:id="colOfficerRole" prefWidth="120" text="Role" />
                                         <TableColumn fx:id="colOfficerDepartment" prefWidth="150" text="Department" />
                                         <TableColumn fx:id="colOfficerStatus" prefWidth="100" text="Status" />
-                                        <!-- Delete button column -->
-                                        <TableColumn fx:id="colOfficerActions" prefWidth="100" text="Actions" />
                                     </columns>
                                 </TableView>
                             </ScrollPane>
@@ -425,7 +419,7 @@
                                         <TableColumn fx:id="colRequestStatus" prefWidth="120" text="Status" />
                                         <TableColumn fx:id="colRequestDate" prefWidth="150" text="Request Date" />
                                         <TableColumn fx:id="colRequestApproved" prefWidth="100" text="Approved" />
-                                        <!-- NEW: Allow Resubmission button column with fx:id -->
+                                        <!-- Allow Resubmission button column with fx:id -->
                                         <TableColumn fx:id="colResubmission" prefWidth="150" text="Resubmission" />
                                     </columns>
                                 </TableView>

@@ -2,6 +2,8 @@ package com.university.clearance.controller;
 
 import com.university.clearance.DatabaseConnection;
 import com.university.clearance.model.User;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -51,6 +53,11 @@ public class CafeteriaDashboardController implements Initializable {
 
     @FXML private TabPane mainTabPane;
     
+    @FXML private CheckBox checkSelectAll;
+    @FXML private Button btnBulkApprove;
+    @FXML private Button btnBulkReject;
+    @FXML private Label lblSelectedCount;
+    
     private User currentUser;
     private ObservableList<ClearanceRequest> requestData = FXCollections.observableArrayList();
     private ObservableList<CafeteriaRecord> cafeteriaData = FXCollections.observableArrayList();
@@ -60,13 +67,12 @@ public class CafeteriaDashboardController implements Initializable {
         System.out.println("=== DEBUG: CafeteriaDashboardController initialized ===");
         setupTableColumns();
         setupCafeteriaTableColumns();
+        setupBulkOperations();
         
-        // Initialize dashboard cards with placeholder values
         if (lblPendingCountCard != null) lblPendingCountCard.setText("0");
         if (lblClearedStudentsCard != null) lblClearedStudentsCard.setText("0");
         if (lblOutstandingBalancesCard != null) lblOutstandingBalancesCard.setText("0");
         
-        // Add tooltips to cards
         if (lblPendingCountCard != null) {
             Tooltip pendingTooltip = new Tooltip("Students awaiting cafeteria clearance");
             lblPendingCountCard.setTooltip(pendingTooltip);
@@ -81,6 +87,207 @@ public class CafeteriaDashboardController implements Initializable {
         }
     }
 
+    private void setupBulkOperations() {
+        if (btnBulkApprove != null) {
+            btnBulkApprove.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnBulkApprove.setOnAction(event -> handleBulkApprove());
+            btnBulkApprove.setTooltip(new Tooltip("Approve all selected students"));
+        }
+        
+        if (btnBulkReject != null) {
+            btnBulkReject.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnBulkReject.setOnAction(event -> handleBulkReject());
+            btnBulkReject.setTooltip(new Tooltip("Reject all selected students"));
+        }
+        
+        if (checkSelectAll != null) {
+            checkSelectAll.setOnAction(event -> {
+                boolean selected = checkSelectAll.isSelected();
+                for (ClearanceRequest request : requestData) {
+                    request.setSelected(selected);
+                }
+                tableRequests.refresh();
+                updateSelectedCount();
+            });
+        }
+        
+        if (lblSelectedCount != null) {
+            lblSelectedCount.setText("Selected: 0");
+        }
+    }
+
+    @FXML
+    private void handleBulkApprove() {
+        System.out.println("\n=== DEBUG: Handling bulk approval ===");
+        
+        ObservableList<ClearanceRequest> selectedRequests = getSelectedRequests();
+        if (selectedRequests.isEmpty()) {
+            showAlert("No Selection", "Please select at least one student to approve.");
+            return;
+        }
+        
+        boolean hasIssues = false;
+        StringBuilder issueDetails = new StringBuilder();
+        for (ClearanceRequest request : selectedRequests) {
+            if (request.getCafeteriaStatus().contains("❌") || request.getCafeteriaStatus().contains("⚠️")) {
+                hasIssues = true;
+                issueDetails.append("• ").append(request.getStudentName())
+                           .append(" (").append(request.getStudentId()).append("): ")
+                           .append(request.getCafeteriaStatus()).append("\n");
+            }
+        }
+        
+        if (hasIssues) {
+            Alert warning = new Alert(Alert.AlertType.WARNING);
+            warning.setTitle("Bulk Approval - Cafeteria Issues Detected");
+            warning.setHeaderText("Some selected students have cafeteria issues:");
+            warning.setContentText(issueDetails.toString() + 
+                                 "\nAre you sure you want to approve all selected students anyway?\n" +
+                                 "This will override cafeteria checks for these students.");
+            
+            warning.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            
+            Optional<ButtonType> result = warning.showAndWait();
+            if (result.isPresent() && result.get() != ButtonType.YES) {
+                System.out.println("Bulk approval cancelled due to cafeteria issues");
+                return;
+            }
+        }
+        
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Bulk Approval Confirmation");
+        confirmation.setHeaderText("Approve Multiple Students");
+        confirmation.setContentText("Are you sure you want to approve cafeteria clearance for " + 
+                                  selectedRequests.size() + " selected student(s)?\n\n" +
+                                  "This action will:\n" +
+                                  "• Mark all selected students as 'APPROVED'\n" +
+                                  "• Set approval remarks for each student\n" +
+                                  "• Cannot be undone");
+        
+        confirmation.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+        
+        Optional<ButtonType> result = confirmation.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            System.out.println("Starting bulk approval for " + selectedRequests.size() + " students");
+            
+            int successCount = 0;
+            int failCount = 0;
+            
+            for (ClearanceRequest request : selectedRequests) {
+                try {
+                    updateClearanceStatus(request.getRequestId(), "APPROVED", 
+                                        "Cafeteria clearance approved via bulk operation. All charges cleared.");
+                    successCount++;
+                    System.out.println("✅ Approved: " + request.getStudentId());
+                } catch (Exception e) {
+                    failCount++;
+                    System.err.println("❌ Failed to approve " + request.getStudentId() + ": " + e.getMessage());
+                }
+            }
+            
+            loadPendingRequests();
+            checkSelectAll.setSelected(false);
+            updateSelectedCount();
+            
+            showAlert("Bulk Approval Complete", 
+                     "Successfully approved: " + successCount + " student(s)\n" +
+                     "Failed: " + failCount + " student(s)\n\n" +
+                     (failCount > 0 ? "Check console for error details." : "All selected students have been approved."));
+        } else {
+            System.out.println("Bulk approval cancelled by user");
+        }
+    }
+
+    @FXML
+    private void handleBulkReject() {
+        System.out.println("\n=== DEBUG: Handling bulk rejection ===");
+        
+        ObservableList<ClearanceRequest> selectedRequests = getSelectedRequests();
+        if (selectedRequests.isEmpty()) {
+            showAlert("No Selection", "Please select at least one student to reject.");
+            return;
+        }
+        
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Bulk Rejection Reason");
+        dialog.setHeaderText("Reject Multiple Students");
+        dialog.setContentText("Enter reason for rejecting " + selectedRequests.size() + " selected student(s):\n\n" +
+                            "(This reason will apply to all selected students)");
+        
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent() && !result.get().trim().isEmpty()) {
+            String rejectionReason = result.get().trim();
+            System.out.println("Bulk rejection reason: " + rejectionReason);
+            
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Confirm Bulk Rejection");
+            confirmation.setHeaderText("Reject " + selectedRequests.size() + " Students");
+            confirmation.setContentText("Are you sure you want to reject cafeteria clearance for " + 
+                                      selectedRequests.size() + " selected student(s)?\n\n" +
+                                      "Reason: " + rejectionReason + "\n\n" +
+                                      "This action cannot be undone.");
+            
+            confirmation.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+            
+            Optional<ButtonType> confirmResult = confirmation.showAndWait();
+            if (confirmResult.isPresent() && confirmResult.get() == ButtonType.YES) {
+                System.out.println("Starting bulk rejection for " + selectedRequests.size() + " students");
+                
+                int successCount = 0;
+                int failCount = 0;
+                
+                for (ClearanceRequest request : selectedRequests) {
+                    try {
+                        updateClearanceStatus(request.getRequestId(), "REJECTED", 
+                                            "Cafeteria clearance rejected via bulk operation: " + rejectionReason);
+                        successCount++;
+                        System.out.println("✅ Rejected: " + request.getStudentId());
+                    } catch (Exception e) {
+                        failCount++;
+                        System.err.println("❌ Failed to reject " + request.getStudentId() + ": " + e.getMessage());
+                    }
+                }
+                
+                loadPendingRequests();
+                checkSelectAll.setSelected(false);
+                updateSelectedCount();
+                
+                showAlert("Bulk Rejection Complete", 
+                         "Successfully rejected: " + successCount + " student(s)\n" +
+                         "Failed: " + failCount + " student(s)\n\n" +
+                         (failCount > 0 ? "Check console for error details." : "All selected students have been rejected."));
+            } else {
+                System.out.println("Bulk rejection cancelled by user");
+            }
+        } else {
+            System.out.println("Bulk rejection cancelled - no reason provided");
+        }
+    }
+
+    private ObservableList<ClearanceRequest> getSelectedRequests() {
+        ObservableList<ClearanceRequest> selected = FXCollections.observableArrayList();
+        for (ClearanceRequest request : requestData) {
+            if (request.isSelected()) {
+                selected.add(request);
+            }
+        }
+        return selected;
+    }
+
+    private void updateSelectedCount() {
+        int selectedCount = getSelectedRequests().size();
+        if (lblSelectedCount != null) {
+            lblSelectedCount.setText("Selected: " + selectedCount);
+        }
+        
+        if (btnBulkApprove != null) {
+            btnBulkApprove.setDisable(selectedCount == 0);
+        }
+        if (btnBulkReject != null) {
+            btnBulkReject.setDisable(selectedCount == 0);
+        }
+    }
+
     public void setCurrentUser(User user) {
         this.currentUser = user;
         System.out.println("=== DEBUG: Setting current user for Cafeteria ===");
@@ -90,8 +297,6 @@ public class CafeteriaDashboardController implements Initializable {
         
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Cafeteria Office");
         loadPendingRequests();
-        
-        // Create test data if no requests exist
         checkAndCreateTestData();
     }
 
@@ -103,7 +308,35 @@ public class CafeteriaDashboardController implements Initializable {
         colCafeteriaStatus.setCellValueFactory(new PropertyValueFactory<>("cafeteriaStatus"));
         colRequestDate.setCellValueFactory(new PropertyValueFactory<>("requestDate"));
         
-        // Actions column with Approve/Reject buttons
+        TableColumn<ClearanceRequest, Boolean> colSelect = new TableColumn<>("");
+        colSelect.setPrefWidth(40);
+        colSelect.setCellFactory(param -> new TableCell<ClearanceRequest, Boolean>() {
+            private final CheckBox checkBox = new CheckBox();
+            
+            {
+                checkBox.setOnAction(event -> {
+                    ClearanceRequest request = getTableView().getItems().get(getIndex());
+                    request.setSelected(checkBox.isSelected());
+                    updateSelectedCount();
+                });
+            }
+            
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    ClearanceRequest request = getTableView().getItems().get(getIndex());
+                    checkBox.setSelected(request.isSelected());
+                    setGraphic(checkBox);
+                }
+            }
+        });
+        
+        colSelect.setCellValueFactory(cellData -> cellData.getValue().selectedProperty());
+        tableRequests.getColumns().add(0, colSelect);
+        
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
             private final Button btnApprove = new Button("✅ Approve");
             private final Button btnReject = new Button("❌ Reject");
@@ -157,7 +390,6 @@ public class CafeteriaDashboardController implements Initializable {
         colTransactionDate.setCellValueFactory(new PropertyValueFactory<>("transactionDate"));
         colRecordStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         
-        // Color code status
         colRecordStatus.setCellFactory(column -> new TableCell<CafeteriaRecord, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -178,7 +410,6 @@ public class CafeteriaDashboardController implements Initializable {
             }
         });
         
-        // Color code amounts (red for outstanding balances)
         colAmount.setCellFactory(column -> new TableCell<CafeteriaRecord, String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -213,7 +444,6 @@ public class CafeteriaDashboardController implements Initializable {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("✅ Database connection established for dashboard refresh");
             
-            // Get pending count
             String pendingSql = """
                 SELECT COUNT(*) as pending_count
                 FROM clearance_requests cr
@@ -230,11 +460,8 @@ public class CafeteriaDashboardController implements Initializable {
             int pendingCount = 0;
             if (pendingRs.next()) {
                 pendingCount = pendingRs.getInt("pending_count");
-                
-                // Update dashboard cards
                 updateDashboardCards(conn, pendingCount);
                 
-                // Also update the label in the top bar
                 if (lblPendingCount != null) {
                     lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
                 }
@@ -270,7 +497,6 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("User confirmed logout. Returning to login screen...");
             
             try {
-                // Try to log logout activity (ignore if table doesn't exist)
                 try (Connection conn = DatabaseConnection.getConnection()) {
                     String sql = """
                         INSERT INTO user_activity_log (user_id, activity_type, activity_details, timestamp)
@@ -285,21 +511,16 @@ public class CafeteriaDashboardController implements Initializable {
                     System.out.println("✅ Logged logout activity for user: " + currentUser.getUsername());
                 } catch (SQLException e) {
                     System.err.println("⚠️ Could not log logout activity (table may not exist): " + e.getMessage());
-                    // Continue with logout even if logging fails
                 }
                 
-                // Load the Login.fxml - try different possible paths
                 FXMLLoader loader = null;
                 URL loginUrl = null;
                 
-                // Try the most likely path first
                 loginUrl = getClass().getResource("/com/university/clearance/resources/views/Login.fxml");
                 if (loginUrl == null) {
-                    // Try alternative path
                     loginUrl = getClass().getResource("/com/university/clearance/view/Login.fxml");
                 }
                 if (loginUrl == null) {
-                    // Try relative path
                     loginUrl = getClass().getResource("../../resources/views/Login.fxml");
                 }
                 
@@ -311,10 +532,7 @@ public class CafeteriaDashboardController implements Initializable {
                 loader = new FXMLLoader(loginUrl);
                 Parent loginRoot = loader.load();
                 
-                // Get current stage
                 Stage stage = (Stage) lblWelcome.getScene().getWindow();
-                
-                // Preserve current window size
                 Scene currentScene = lblWelcome.getScene();
                 Scene newScene = new Scene(loginRoot, currentScene.getWidth(), currentScene.getHeight());
                 stage.setScene(newScene);
@@ -340,10 +558,8 @@ public class CafeteriaDashboardController implements Initializable {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("✅ Database connection established");
             
-            // Debug: Check what's in the database
             debugDatabaseStatus(conn);
             
-            // FIXED QUERY: Use LEFT JOIN and table aliases to avoid ambiguous columns
             String sql = """
                 SELECT 
                     cr.id as request_id,
@@ -400,12 +616,10 @@ public class CafeteriaDashboardController implements Initializable {
             
             tableRequests.setItems(requestData);
             
-            // Update top bar label
             if (lblPendingCount != null) {
                 lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
             }
             
-            // Update dashboard cards with the current data
             updateDashboardCards(conn, pendingCount);
             
             if (pendingCount == 0) {
@@ -425,12 +639,10 @@ public class CafeteriaDashboardController implements Initializable {
         try {
             System.out.println("\n=== DEBUG: Updating Dashboard Cards ===");
             
-            // 1. Pending Clearances card
             if (lblPendingCountCard != null) {
                 lblPendingCountCard.setText(String.valueOf(pendingCount));
                 System.out.println("Updated Pending Clearances card: " + pendingCount);
                 
-                // Update card color based on count
                 VBox pendingCard = (VBox) lblPendingCountCard.getParent();
                 if (pendingCount > 5) {
                     pendingCard.setStyle("-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;");
@@ -441,7 +653,6 @@ public class CafeteriaDashboardController implements Initializable {
                 }
             }
             
-            // 2. Cleared Students card
             String clearedSql = """
                 SELECT COUNT(DISTINCT u.username) as cleared_count
                 FROM clearance_approvals ca
@@ -459,7 +670,6 @@ public class CafeteriaDashboardController implements Initializable {
                 lblClearedStudentsCard.setText(String.valueOf(clearedCount));
                 System.out.println("Updated Cleared Students card: " + clearedCount);
                 
-                // Update card color based on count
                 VBox clearedCard = (VBox) lblClearedStudentsCard.getParent();
                 if (clearedCount > 10) {
                     clearedCard.setStyle("-fx-background-color: #27ae60; -fx-padding: 20; -fx-background-radius: 10;");
@@ -470,7 +680,6 @@ public class CafeteriaDashboardController implements Initializable {
                 }
             }
             
-            // 3. Outstanding Balances card
             String balanceSql = """
                 SELECT COUNT(DISTINCT u.username) as students_with_balance,
                        SUM(CASE WHEN cr.record_type IN ('OUTSTANDING_BALANCE', 'MEAL_PLAN_FEE') 
@@ -492,7 +701,6 @@ public class CafeteriaDashboardController implements Initializable {
                 System.out.println("Updated Outstanding Balances card: " + studentsWithBalance + 
                                  " students, Total: $" + totalBalance);
                 
-                // Update card color based on count
                 VBox balanceCard = (VBox) lblOutstandingBalancesCard.getParent();
                 if (studentsWithBalance > 5) {
                     balanceCard.setStyle("-fx-background-color: #c0392b; -fx-padding: 20; -fx-background-radius: 10;");
@@ -502,7 +710,6 @@ public class CafeteriaDashboardController implements Initializable {
                     balanceCard.setStyle("-fx-background-color: #95a5a6; -fx-padding: 20; -fx-background-radius: 10;");
                 }
                 
-                // Update tooltip with total amount
                 Tooltip balanceTooltip = new Tooltip(
                     String.format("%d students with outstanding balances\nTotal amount: $%.2f", 
                         studentsWithBalance, totalBalance)
@@ -521,7 +728,6 @@ public class CafeteriaDashboardController implements Initializable {
     private void debugDatabaseStatus(Connection conn) throws SQLException {
         System.out.println("\n=== DEBUG: Database Status Check ===");
         
-        // Check clearance_requests
         System.out.println("\n1. Total PENDING/IN_PROGRESS clearance_requests:");
         String checkRequestsSql = "SELECT COUNT(*) as count FROM clearance_requests WHERE status IN ('PENDING', 'IN_PROGRESS')";
         PreparedStatement requestsStmt = conn.prepareStatement(checkRequestsSql);
@@ -530,7 +736,6 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("   Count: " + requestsRs.getInt("count"));
         }
         
-        // Check clearance_approvals for CAFETERIA
         System.out.println("\n2. clearance_approvals for CAFETERIA:");
         String checkApprovalsSql = """
             SELECT ca.request_id, ca.status, u.username as student_id
@@ -549,7 +754,6 @@ public class CafeteriaDashboardController implements Initializable {
                              ", Status=" + approvalsRs.getString("status"));
         }
         
-        // Check requests missing CAFETERIA approvals
         System.out.println("\n3. Requests missing CAFETERIA approvals:");
         String missingSql = """
             SELECT cr.id, u.username, cr.status as request_status
@@ -580,10 +784,8 @@ public class CafeteriaDashboardController implements Initializable {
     private String checkStudentCafeteriaStatus(Connection conn, String studentId) throws SQLException {
         System.out.println("DEBUG: Checking cafeteria status for student: " + studentId);
         
-        // CHANGED: Only check, don't create
         checkCafeteriaRecords(conn, studentId);
         
-        // FIXED: Added table alias 'cr' to specify which table's 'status' column
         String cafeteriaSql = """
             SELECT 
                 COUNT(*) as total_records,
@@ -681,7 +883,6 @@ public class CafeteriaDashboardController implements Initializable {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("\n=== DEBUG: Checking if we need test data ===");
             
-            // Check how many students have CAFETERIA approvals
             String checkApprovalsSql = """
                 SELECT COUNT(*) as count 
                 FROM clearance_approvals 
@@ -708,7 +909,6 @@ public class CafeteriaDashboardController implements Initializable {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("\n=== DEBUG: Creating test clearance requests for Cafeteria ===");
             
-            // Get some random students
             String studentsSql = """
                 SELECT u.id, u.username, u.full_name 
                 FROM users u 
@@ -724,7 +924,6 @@ public class CafeteriaDashboardController implements Initializable {
                 int studentId = studentsRs.getInt("id");
                 String username = studentsRs.getString("username");
                 
-                // Check if student already has a pending clearance request
                 String checkRequestSql = """
                     SELECT cr.id 
                     FROM clearance_requests cr 
@@ -738,7 +937,6 @@ public class CafeteriaDashboardController implements Initializable {
                 ResultSet requestRs = checkRequestStmt.executeQuery();
                 
                 if (!requestRs.next()) {
-                    // Create clearance request
                     String insertRequestSql = """
                         INSERT INTO clearance_requests (student_id, request_date, status, remarks)
                         VALUES (?, NOW(), 'PENDING', 'Test clearance request for cafeteria')
@@ -752,7 +950,6 @@ public class CafeteriaDashboardController implements Initializable {
                     if (keys.next()) {
                         int requestId = keys.getInt(1);
                         
-                        // Create CAFETERIA approval record
                         String insertApprovalSql = """
                             INSERT INTO clearance_approvals (request_id, officer_role, officer_id, status, remarks)
                             VALUES (?, 'CAFETERIA', NULL, 'PENDING', 'Awaiting cafeteria clearance')
@@ -771,7 +968,6 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("✅ Created " + createdCount + " test clearance requests");
             
             if (createdCount > 0) {
-                // Refresh the table
                 loadPendingRequests();
                 showAlert("Test Data Created", "Created " + createdCount + " test clearance requests for cafeteria review.");
             }
@@ -793,7 +989,6 @@ public class CafeteriaDashboardController implements Initializable {
         
         updateCafeteriaSummary(request.getStudentId());
         
-        // Switch to Cafeteria Records tab
         if (mainTabPane != null) {
             for (Tab tab : mainTabPane.getTabs()) {
                 if (tab.getText() != null && tab.getText().contains("Records")) {
@@ -1001,7 +1196,6 @@ public class CafeteriaDashboardController implements Initializable {
         System.out.println("Remarks: " + remarks);
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Check if approval record exists
             String checkSql = """
                 SELECT COUNT(*) FROM clearance_approvals 
                 WHERE request_id = ? AND officer_role = 'CAFETERIA'
@@ -1014,7 +1208,6 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("Existing CAFETERIA approval records: " + count);
             
             if (count > 0) {
-                // Update existing record
                 String updateSql = """
                     UPDATE clearance_approvals 
                     SET status = ?, remarks = ?, officer_id = ?, approval_date = NOW()
@@ -1028,7 +1221,6 @@ public class CafeteriaDashboardController implements Initializable {
                 int updated = ps.executeUpdate();
                 System.out.println("Updated " + updated + " record(s)");
             } else {
-                // Insert new record
                 String insertSql = """
                     INSERT INTO clearance_approvals (request_id, officer_role, officer_id, status, remarks, approval_date)
                     VALUES (?, 'CAFETERIA', ?, ?, ?, NOW())
@@ -1118,7 +1310,6 @@ public class CafeteriaDashboardController implements Initializable {
         alert.showAndWait();
     }
 
-    // Inner classes for table data
     public static class ClearanceRequest {
         private final String studentId;
         private final String studentName;
@@ -1127,6 +1318,7 @@ public class CafeteriaDashboardController implements Initializable {
         private final String requestDate;
         private final String cafeteriaStatus;
         private final int requestId;
+        private final BooleanProperty selected = new SimpleBooleanProperty(false);
 
         public ClearanceRequest(String studentId, String studentName, String department, 
                                String mealPlan, String requestDate, String cafeteriaStatus, int requestId) {
@@ -1146,6 +1338,9 @@ public class CafeteriaDashboardController implements Initializable {
         public String getRequestDate() { return requestDate; }
         public String getCafeteriaStatus() { return cafeteriaStatus; }
         public int getRequestId() { return requestId; }
+        public boolean isSelected() { return selected.get(); }
+        public void setSelected(boolean selected) { this.selected.set(selected); }
+        public BooleanProperty selectedProperty() { return selected; }
     }
 
     public static class CafeteriaRecord {

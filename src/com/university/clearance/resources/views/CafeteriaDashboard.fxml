@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
@@ -74,6 +75,26 @@
                     <Tooltip text="Generate cafeteria report" />
                 </tooltip>
             </Button>
+            
+            <!-- Bulk Operations Section -->
+            <Separator style="-fx-padding: 10 0;" />
+            
+            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="BULK OPERATIONS" />
+            
+            <VBox spacing="8" style="-fx-background-color: #2c3e50; -fx-padding: 10; -fx-background-radius: 5;">
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Bulk Approve: Approve multiple students" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Bulk Reject: Reject multiple students" />
+                </HBox>
+                <HBox spacing="5" alignment="CENTER_LEFT">
+                    <Label style="-fx-text-fill: #3498db; -fx-font-weight: bold;" text="●" />
+                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Select All: Checkbox in requests table" />
+                </HBox>
+            </VBox>
             
             <Separator style="-fx-padding: 10 0;" />
             
@@ -206,6 +227,7 @@
                             <Label style="-fx-text-fill: #2c3e50;" text="• Click 'Refresh Requests' to update pending clearances" />
                             <Label style="-fx-text-fill: #2c3e50;" text="• Card colors change based on counts (Green=Good, Red=Action Needed)" />
                             <Label style="-fx-text-fill: #2c3e50;" text="• Use the logout button to securely exit the system" />
+                            <Label style="-fx-text-fill: #2c3e50;" text="• Use bulk operations in Clearance Requests tab for mass approvals/rejections" />
                         </VBox>
                     </VBox>
                 </ScrollPane>
@@ -221,11 +243,32 @@
                             <Label fx:id="lblPendingCount" style="-fx-text-fill: #3498db; -fx-font-weight: bold;" text="Pending Cafeteria Clearances: 0" />
                         </VBox>
                         
+                        <!-- Bulk Operations Header -->
+                        <VBox spacing="10" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-background-radius: 10;">
+                            <Label style="-fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Bulk Operations" />
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <CheckBox fx:id="checkSelectAll" text="Select All" style="-fx-font-weight: bold;" />
+                                <Label fx:id="lblSelectedCount" style="-fx-text-fill: #3498db; -fx-font-weight: bold;" text="Selected: 0" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button fx:id="btnBulkApprove" onAction="#handleBulkApprove" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15; -fx-cursor: hand;" text="✅ Bulk Approve">
+                                    <tooltip>
+                                        <Tooltip text="Approve all selected students" />
+                                    </tooltip>
+                                </Button>
+                                <Button fx:id="btnBulkReject" onAction="#handleBulkReject" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15; -fx-cursor: hand;" text="❌ Bulk Reject">
+                                    <tooltip>
+                                        <Tooltip text="Reject all selected students" />
+                                    </tooltip>
+                                </Button>
+                            </HBox>
+                            <Label style="-fx-text-fill: #7f8c8d; -fx-font-size: 12px;" text="Use checkboxes to select multiple students, then use bulk buttons to process them all at once." />
+                        </VBox>
+                        
                         <!-- Requests Table -->
                         <VBox spacing="10" VBox.vgrow="ALWAYS">
                             <HBox alignment="CENTER_LEFT" spacing="10">
                                 <Region HBox.hgrow="ALWAYS" />
-                                <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh">
+                                <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15; -fx-cursor: hand;" text="Refresh">
                                     <tooltip>
                                         <Tooltip text="Refresh requests list" />
                                     </tooltip>
@@ -245,9 +288,24 @@
                             </TableView>
                             
                             <!-- Instructions -->
-                            <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
-                                <Label style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" text="Click 'View Records' to see cafeteria details in Cafeteria Records tab" />
-                            </HBox>
+                            <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
+                                <Label style="-fx-text-fill: #7f8c8d; -fx-font-weight: bold;" text="Instructions:" />
+                                <HBox spacing="10">
+                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" text="• Click 'View Records' to see cafeteria details" />
+                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" text="• Use checkboxes for bulk operations" />
+                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" text="• Individual buttons for single approvals/rejections" />
+                                </HBox>
+                            </VBox>
+                            
+                            <!-- Bulk Operations Tips -->
+                            <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #e8f4f8; -fx-background-radius: 5;">
+                                <Label style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" text="💡 Bulk Operations Tips:" />
+                                <Label style="-fx-text-fill: #2c3e50; -fx-font-size: 12px;" text="1. Click 'Select All' checkbox to select/deselect all students" />
+                                <Label style="-fx-text-fill: #2c3e50; -fx-font-size: 12px;" text="2. Select individual students using checkboxes in the table" />
+                                <Label style="-fx-text-fill: #2c3e50; -fx-font-size: 12px;" text="3. Use 'Bulk Approve' to approve all selected students at once" />
+                                <Label style="-fx-text-fill: #2c3e50; -fx-font-size: 12px;" text="4. Use 'Bulk Reject' to reject all selected students with a common reason" />
+                                <Label style="-fx-text-fill: #2c3e50; -fx-font-size: 12px;" text="5. You'll be warned if selected students have cafeteria issues" />
+                            </VBox>
                         </VBox>
                     </VBox>
                 </ScrollPane>
@@ -268,6 +326,7 @@
                                 <Label style="-fx-text-fill: #2c3e50;" text="2. Click 'View Records' to see their cafeteria history" />
                                 <Label style="-fx-text-fill: #2c3e50;" text="3. Use Approve/Reject buttons in Clearance Requests tab" />
                                 <Label style="-fx-text-fill: #2c3e50;" text="4. Check for unpaid balances and meal plan status" />
+                                <Label style="-fx-text-fill: #2c3e50;" text="5. Use bulk operations to process multiple students efficiently" />
                             </VBox>
                         </VBox>
                         
@@ -300,6 +359,12 @@
                                 <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
                                 <Label text="Red: Outstanding Balances" />
                             </HBox>
+                            
+                            <!-- Bulk Operations Reminder -->
+                            <VBox spacing="5" style="-fx-padding: 10; -fx-background-color: #fff3cd; -fx-background-radius: 5;">
+                                <Label style="-fx-font-weight: bold; -fx-text-fill: #856404;" text="💡 Efficiency Tip:" />
+                                <Label style="-fx-text-fill: #856404; -fx-font-size: 12px;" text="Return to Clearance Requests tab to use bulk operations for faster processing of multiple students." />
+                            </VBox>
                         </VBox>
                     </VBox>
                 </ScrollPane>

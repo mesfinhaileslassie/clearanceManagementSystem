@@ -15,10 +15,8 @@ public class LoginController {
 
     @FXML private TextField txtUsername;
     @FXML private PasswordField txtPassword;
-    // NEW FXML COMPONENTS
     @FXML private TextField txtPasswordVisible;
     @FXML private CheckBox chkShowPassword;
-    
     @FXML private ComboBox<String> cmbRole;
     @FXML private Label lblMessage;
     @FXML private Button loginbtn;
@@ -29,38 +27,24 @@ public class LoginController {
     private void initialize() {
         cmbRole.setItems(javafx.collections.FXCollections.observableArrayList(
             "STUDENT", "LIBRARIAN", "CAFETERIA", "DORMITORY",
-             "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
+            "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
         ));
         
-        cmbRole.setStyle("-fx-prompt-text-fill: white;");
         cmbRole.setStyle("-fx-prompt-text-fill: white; -fx-font-size: 14px;");
         
-        // --- NEW LOGIC FOR SHOW/HIDE PASSWORD ---
-
-        // 1. Synchronize text content between the two fields
-        // Typing in one field updates the other instantly.
+        // Show/Hide Password logic
         txtPasswordVisible.textProperty().bindBidirectional(txtPassword.textProperty());
-
-        // 2. Bind visibility and management based on checkbox state
-        // When selected, hide PasswordField and show TextField
         txtPasswordVisible.visibleProperty().bind(chkShowPassword.selectedProperty());
         txtPasswordVisible.managedProperty().bind(chkShowPassword.selectedProperty());
-        
-        // When selected, show PasswordField and hide TextField
         txtPassword.visibleProperty().bind(chkShowPassword.selectedProperty().not());
         txtPassword.managedProperty().bind(chkShowPassword.selectedProperty().not());
-
-        // 3. Ensure the visible field has the same prompt text
         txtPasswordVisible.setPromptText(txtPassword.getPromptText());
     }
 
     @FXML
     private void handleLogin() {
         String username = txtUsername.getText().trim();
-        
-        // Get the password from the synchronized text property
         String password = txtPassword.getText();
-        
         String role = cmbRole.getValue();
 
         System.out.println("=== LOGIN ATTEMPT ===");
@@ -97,13 +81,8 @@ public class LoginController {
                     rs.getString("department")
                 );
 
-                // Direct navigation based on role
-                if ("ADMIN".equals(role)) {
-                    loadAdminDashboard();
-                } else {
-                    loadDashboard();
-                }
-
+                // Load the appropriate dashboard directly
+                loadRoleDashboard(currentUser);
                 clearForm();
 
             } else {
@@ -118,53 +97,103 @@ public class LoginController {
         }
     }
 
-    private void loadAdminDashboard() {
+    private void loadRoleDashboard(User user) {
         try {
-            System.out.println("Loading Admin Dashboard...");
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/university/clearance/resources/views/AdminDashboard.fxml"));
+            String role = user.getRole();
+            String fxmlPath;
+            String title;
+
+            // Determine which dashboard to load
+            switch (role) {
+                case "ADMIN":
+                    fxmlPath = "/com/university/clearance/resources/views/AdminDashboard.fxml";
+                    title = "Admin Dashboard";
+                    break;
+                case "STUDENT":
+                    fxmlPath = "/com/university/clearance/resources/views/StudentDashboard.fxml";
+                    title = "Student Dashboard";
+                    break;
+                case "LIBRARIAN":
+                    fxmlPath = "/com/university/clearance/resources/views/LibrarianDashboard.fxml";
+                    title = "Library Clearance Dashboard";
+                    break;
+                case "CAFETERIA":
+                    fxmlPath = "/com/university/clearance/resources/views/CafeteriaDashboard.fxml";
+                    title = "Cafeteria Clearance Dashboard";
+                    break;
+                case "DORMITORY":
+                    fxmlPath = "/com/university/clearance/resources/views/DormitoryDashboard.fxml";
+                    title = "Dormitory Clearance Dashboard";
+                    break;
+                case "REGISTRAR":
+                    fxmlPath = "/com/university/clearance/resources/views/RegistrarDashboard.fxml";
+                    title = "Registrar Clearance Dashboard";
+                    break;
+                case "DEPARTMENT_HEAD":
+                    fxmlPath = "/com/university/clearance/resources/views/DepartmentHeadDashboard.fxml";
+                    title = "Department Head Dashboard";
+                    break;
+                default:
+                    showError("Unsupported user role: " + role);
+                    return;
+            }
+
+            System.out.println("Loading dashboard: " + title);
+            System.out.println("FXML Path: " + fxmlPath);
+
+            // Load the FXML
+            FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+            if (loader.getLocation() == null) {
+                System.err.println("❌ FXML not found: " + fxmlPath);
+                showError("Dashboard file not found for role: " + role);
+                return;
+            }
+
             Parent root = loader.load();
-            
-            AdminDashboardController controller = loader.getController();
-            controller.setCurrentUser(currentUser);
-            
+
+            // Set current user on the controller
+            Object controller = loader.getController();
+            if (controller != null) {
+                // Try to call setCurrentUser method (common for most dashboards)
+                try {
+                    java.lang.reflect.Method method = controller.getClass()
+                        .getMethod("setCurrentUser", User.class);
+                    method.invoke(controller, user);
+                    System.out.println("✓ User set on controller: " + controller.getClass().getSimpleName());
+                } catch (NoSuchMethodException e) {
+                    System.out.println("⚠️ Controller doesn't have setCurrentUser method");
+                    // Try initUser method (for DashboardController compatibility)
+                    try {
+                        java.lang.reflect.Method method = controller.getClass()
+                            .getMethod("initUser", User.class);
+                        method.invoke(controller, user);
+                        System.out.println("✓ User set via initUser method");
+                    } catch (NoSuchMethodException e2) {
+                        System.out.println("⚠️ Controller doesn't have initUser method either");
+                    }
+                } catch (Exception e) {
+                    System.err.println("❌ Error setting user: " + e.getMessage());
+                }
+            } else {
+                System.err.println("❌ Controller is null!");
+            }
+
+            // Switch to the dashboard scene
             Stage stage = (Stage) loginbtn.getScene().getWindow();
             double width = stage.getWidth();
             double height = stage.getHeight();
             Scene scene = new Scene(root, width, height);
             stage.setScene(scene);
-            stage.setTitle("Admin Dashboard - University Clearance System");
+            stage.setTitle(title + " - University Clearance System");
             stage.centerOnScreen();
             stage.show();
-            
-            System.out.println("✓ Admin Dashboard loaded successfully!");
-            
+
+            System.out.println("✓ Dashboard loaded successfully!");
+
         } catch (Exception e) {
-            System.err.println("❌ Failed to load Admin Dashboard: " + e.getMessage());
+            System.err.println("❌ Failed to load dashboard: " + e.getMessage());
             e.printStackTrace();
-            showError("Cannot load admin interface: " + e.getMessage());
-        }
-    }
-
-    private void loadDashboard() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/university/clearance/resources/views/Dashboard.fxml"));
-            Parent root = loader.load();
-
-            DashboardController dashboardCtrl = loader.getController();
-            dashboardCtrl.initUser(currentUser);
-
-            Stage stage = (Stage) loginbtn.getScene().getWindow();
-            double width = stage.getWidth();
-            double height = stage.getHeight();
-            Scene scene = new Scene(root, width, height);
-            stage.setScene(scene);
-            stage.setTitle("University Clearance System - " + currentUser.getFullName());
-            stage.centerOnScreen();
-            stage.show();
-
-        } catch (Exception e) {
             showError("Cannot load dashboard: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -176,7 +205,6 @@ public class LoginController {
     private void clearForm() {
         txtUsername.clear();
         txtPassword.clear();
-        // Clearing txtPassword also clears txtPasswordVisible due to bidirectional binding
         cmbRole.setValue(null);
         lblMessage.setText("");
     }

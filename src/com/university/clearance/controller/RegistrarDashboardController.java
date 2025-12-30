@@ -147,8 +147,129 @@ public class RegistrarDashboardController implements Initializable {
         
         lblWelcome.setText("Welcome, " + user.getFullName() + " - Registrar Office");
         loadPendingRequests();
+        
+        // ADD THIS LINE: Update dashboard statistics
+        updateDashboardStats();
     }
-    
+
+    // Add this method to update the card statistics
+    private void updateDashboardStats() {
+        System.out.println("=== DEBUG: Updating registrar dashboard statistics ===");
+        
+        int pendingCount = requestData.size();
+        int approvedCount = countApprovedStudents();
+        int holdsCount = countAcademicHolds();
+        
+        // Update card labels
+        if (lblPendingCard != null) {
+            lblPendingCard.setText(String.valueOf(pendingCount));
+        }
+        if (lblApprovedCard != null) {
+            lblApprovedCard.setText(String.valueOf(approvedCount));
+        }
+        if (lblHoldsCard != null) {
+            lblHoldsCard.setText(String.valueOf(holdsCount));
+        }
+        
+        // Update card colors based on counts
+        updateCardStyles(pendingCount, approvedCount, holdsCount);
+        
+        System.out.println("Dashboard stats - Pending: " + pendingCount + 
+                          ", Approved: " + approvedCount + 
+                          ", Holds: " + holdsCount);
+    }
+
+    // Add this method to count approved students
+    private int countApprovedStudents() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT COUNT(DISTINCT cr.student_id) as approved_count
+                FROM clearance_approvals ca
+                JOIN clearance_requests cr ON ca.request_id = cr.id
+                WHERE ca.officer_role = 'REGISTRAR'
+                AND ca.status = 'APPROVED'
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("approved_count");
+            }
+        } catch (Exception e) {
+            System.err.println("Error counting approved students: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    // Add this method to count academic holds
+    private int countAcademicHolds() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            String sql = """
+                SELECT COUNT(*) as hold_count
+                FROM student_academic_records
+                WHERE academic_hold != 'NONE' 
+                AND academic_hold IS NOT NULL
+                """;
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("hold_count");
+            }
+        } catch (Exception e) {
+            System.err.println("Error counting academic holds: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    // Add this method to update card colors
+    private void updateCardStyles(int pendingCount, int approvedCount, int holdsCount) {
+        // Update Pending card style
+        if (lblPendingCard != null) {
+            HBox pendingCard = (HBox) lblPendingCard.getParent();
+            if (pendingCard != null) {
+                if (pendingCount > 10) {
+                    pendingCard.setStyle("-fx-background-color: #c0392b; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (pendingCount > 5) {
+                    pendingCard.setStyle("-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (pendingCount > 0) {
+                    pendingCard.setStyle("-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    pendingCard.setStyle("-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+            }
+        }
+        
+        // Update Approved card style
+        if (lblApprovedCard != null) {
+            HBox approvedCard = (HBox) lblApprovedCard.getParent();
+            if (approvedCard != null) {
+                if (approvedCount > 50) {
+                    approvedCard.setStyle("-fx-background-color: #27ae60; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (approvedCount > 20) {
+                    approvedCard.setStyle("-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (approvedCount > 0) {
+                    approvedCard.setStyle("-fx-background-color: #3498db; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    approvedCard.setStyle("-fx-background-color: #95a5a6; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+            }
+        }
+        
+        // Update Holds card style
+        if (lblHoldsCard != null) {
+            HBox holdsCard = (HBox) lblHoldsCard.getParent();
+            if (holdsCard != null) {
+                if (holdsCount > 20) {
+                    holdsCard.setStyle("-fx-background-color: #c0392b; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (holdsCount > 10) {
+                    holdsCard.setStyle("-fx-background-color: #e74c3c; -fx-padding: 20; -fx-background-radius: 10;");
+                } else if (holdsCount > 0) {
+                    holdsCard.setStyle("-fx-background-color: #f39c12; -fx-padding: 20; -fx-background-radius: 10;");
+                } else {
+                    holdsCard.setStyle("-fx-background-color: #2ecc71; -fx-padding: 20; -fx-background-radius: 10;");
+                }
+            }
+        }
+    }
     
     
     

@@ -12,232 +12,269 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.university.clearance.controller.RegistrarDashboardController">
-    
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.university.clearance.controller.RegistrarDashboardController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 15;">
-            <Label text="University Clearance System" textFill="WHITE">
-                <font>
-                    <Font name="System Bold" size="18.0" />
-                </font>
-            </Label>
-            
-            <!-- Status Message Banner -->
-            <HBox fx:id="statusBanner" alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #3498db; -fx-padding: 5 15; -fx-background-radius: 0 0 5 5;" visible="false">
-                <Label fx:id="lblStatusMessage" style="-fx-text-fill: white; -fx-font-weight: bold;" text="" />
+        <VBox>
+            <!-- Main Header -->
+            <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: linear-gradient(to right, #2c3e50, #34495e); -fx-padding: 15;">
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Label style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="🎓" />
+                    <Label text="DBU Clearance System" textFill="WHITE">
+                        <font>
+                            <Font name="System Bold" size="20.0" />
+                        </font>
+                    </Label>
+                </HBox>
+                
+                <Region HBox.hgrow="ALWAYS" />
+                
+                <!-- User Info and Actions -->
+                <HBox alignment="CENTER_RIGHT" spacing="15">
+                    <VBox alignment="CENTER_RIGHT" spacing="2">
+                        <Label fx:id="lblWelcome" style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;" text="" />
+                        <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Registrar Department" />
+                    </VBox>
+                    <Separator orientation="VERTICAL" style="-fx-padding: 0 5;" />
+                    <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-cursor: hand; -fx-background-radius: 5;" text="🔄 Refresh">
+                        <tooltip>
+                            <Tooltip text="Refresh academic clearance requests" />
+                        </tooltip>
+                    </Button>
+                    <Button onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-cursor: hand; -fx-background-radius: 5;" text="🚪 Logout">
+                        <tooltip>
+                            <Tooltip text="Logout from the system" />
+                        </tooltip>
+                    </Button>
+                </HBox>
             </HBox>
             
-            <Region HBox.hgrow="ALWAYS" />
-            
-            <HBox alignment="CENTER_RIGHT" spacing="10">
-                <VBox alignment="CENTER_RIGHT" spacing="2">
-                    <Label fx:id="lblWelcome" style="-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;" text="" />
-                    <Label fx:id="lblUserRole" style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" text="Registrar Department" />
-                </VBox>
-                <Button onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15; -fx-cursor: hand;" text="Logout">
-                    <tooltip>
-                        <Tooltip text="Logout from the system" />
-                    </tooltip>
-                </Button>
+            <!-- Status Banner -->
+            <HBox fx:id="statusBanner" alignment="CENTER" spacing="10" style="-fx-background-color: #3498db; -fx-padding: 8; -fx-background-radius: 0 0 10 10;" visible="false">
+                <Label fx:id="lblStatusMessage" style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;" text="" />
             </HBox>
-        </HBox>
+        </VBox>
     </top>
     
     <left>
-        <VBox minWidth="200" spacing="10" style="-fx-background-color: #34495e; -fx-padding: 15;">
-            <!-- User Info Section -->
-            <VBox spacing="5" style="-fx-padding: 0 0 15 0; -fx-border-color: #2c3e50; -fx-border-width: 0 0 1 0;">
-                <Label fx:id="lblUserNameSidebar" style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-font-size: 14px;" text="" wrapText="true" />
-                <Label fx:id="lblUserRoleSidebar" style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Registrar Department" />
+        <VBox minWidth="220" spacing="15" style="-fx-background-color: #2c3e50; -fx-padding: 20; -fx-border-color: #34495e; -fx-border-width: 0 1 0 0;">
+            <!-- User Profile Section -->
+            <VBox alignment="CENTER" spacing="10" style="-fx-padding: 15; -fx-background-color: #34495e; -fx-background-radius: 10;">
+                <StackPane>
+                    <Circle fill="#3498db" radius="40" />
+                    <Label style="-fx-font-size: 28px;" text="📋" />
+                </StackPane>
+                <Label fx:id="lblUserNameSidebar" style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-alignment: CENTER;" text="" wrapText="true" />
+                <Label fx:id="lblUserRoleSidebar" style="-fx-text-fill: #bdc3c7; -fx-font-size: 14px; -fx-alignment: CENTER;" text="Registrar Officer" />
             </VBox>
             
-            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="REGISTRAR ACTIONS" />
-            
-            <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Refresh Requests">
-                <tooltip>
-                    <Tooltip text="Refresh academic clearance requests" />
-                </tooltip>
-            </Button>
-            
-            <Button onAction="#generateAcademicReport" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-pref-width: 200; -fx-cursor: hand;" text="Generate Report">
-                <tooltip>
-                    <Tooltip text="Generate academic report" />
-                </tooltip>
-            </Button>
-            
-            <Separator style="-fx-padding: 10 0;" />
-            
-            <!-- Academic Status Guide -->
-            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="ACADEMIC STATUS GUIDE" />
-            
-            <VBox spacing="8" style="-fx-background-color: #2c3e50; -fx-padding: 10; -fx-background-radius: 5;">
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" text="●" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Approve: Academically Clear" />
-                </HBox>
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" text="●" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Warning: Low GPA" />
-                </HBox>
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 12px;" text="Reject: Holds/Fees/Incomplete" />
-                </HBox>
+            <!-- Quick Actions -->
+            <VBox spacing="10">
+                <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold; -fx-font-size: 14px;" text="⚡ Quick Actions" />
+                <VBox spacing="8">
+                    <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-pref-width: 180; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 10;" text="🔄 Refresh All">
+                        <tooltip>
+                            <Tooltip text="Refresh all dashboard data" />
+                        </tooltip>
+                    </Button>
+                </VBox>
             </VBox>
             
-            <Separator style="-fx-padding: 10 0;" />
+            <!-- Status Guide -->
+            <VBox spacing="8" />
             
-            <!-- Grade Color Coding -->
-            <Label style="-fx-text-fill: #ecf0f1; -fx-font-weight: bold;" text="GRADE COLOR CODING" />
-            
-            <VBox spacing="3" style="-fx-background-color: #2c3e50; -fx-padding: 10; -fx-background-radius: 5;">
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 12px;" text="A, A-, B+" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" text=": Excellent" />
-                </HBox>
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold; -fx-font-size: 12px;" text="B, B-, C+" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" text=": Good" />
-                </HBox>
-                <HBox spacing="5" alignment="CENTER_LEFT">
-                    <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 12px;" text="C, C-, D, F" />
-                    <Label style="-fx-text-fill: #bdc3c7; -fx-font-size: 11px;" text=": Below Average" />
-                </HBox>
-            </VBox>
-            
-            <Separator style="-fx-padding: 10 0;" />
+            <!-- Grade Guide -->
+            <VBox spacing="8" />
         </VBox>
     </left>
     
     <center>
-        <TabPane fx:id="mainTabPane" style="-fx-padding: 20; -fx-background-color: #3498db;" tabClosingPolicy="UNAVAILABLE">
+        <VBox spacing="0" style="-fx-background-color: #ecf0f1;">
+            <!-- Enhanced Tab Header -->
+            <VBox style="-fx-background-color: white; -fx-padding: 0 20; -fx-border-color: #ddd; -fx-border-width: 0 0 1 0;">
+                <TabPane fx:id="mainTabPane" style="-fx-tab-min-height: 50; -fx-tab-max-height: 50; -fx-tab-min-width: 120; -fx-tab-max-width: 120; -fx-background-color: #3498db;" tabClosingPolicy="UNAVAILABLE">
+                    
+                    <!-- Dashboard Tab -->
+                    <Tab style="-fx-background-color: #3498db; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15 25;" text="Dashboard">
+                        <content>
+                            <ScrollPane fitToWidth="true" prefHeight="750.0" prefWidth="1265.0" style="-fx-background-color: #ecf0f1;">
+                                <VBox spacing="20" style="-fx-padding: 25;">
+                                    <!-- Dashboard Header -->
+                                    <VBox spacing="10">
+                                        <Label style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Registrar Clearance Dashboard" />
+                                        <Label style="-fx-text-fill: #7f8c8d; -fx-font-size: 14px;" text="Comprehensive overview of academic clearance status and student records" />
+                                    </VBox>
+                                    
+                                    <!-- Stats Cards -->
+                                    <HBox spacing="20" style="-fx-padding: 10 0;">
+                                        <VBox prefWidth="200" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <Label style="-fx-text-fill: #3498db; -fx-font-size: 24px;" />
+                                                <VBox spacing="5">
+                                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-size: 14px;" text="Pending Verifications" />
+                                                    <Label fx:id="lblPendingCard" style="-fx-text-fill: #2c3e50; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                                </VBox>
+                                            </HBox>
+                                        </VBox>
+                                        
+                                        <VBox prefWidth="200" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <Label style="-fx-text-fill: #27ae60; -fx-font-size: 24px;" />
+                                                <VBox spacing="5">
+                                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-size: 14px;" text="Cleared Students" />
+                                                    <Label fx:id="lblApprovedCard" style="-fx-text-fill: #2c3e50; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                                </VBox>
+                                            </HBox>
+                                        </VBox>
+                                        
+                                        <VBox prefWidth="200" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                                <Label style="-fx-text-fill: #e74c3c; -fx-font-size: 24px;" />
+                                                <VBox spacing="5">
+                                                    <Label style="-fx-text-fill: #7f8c8d; -fx-font-size: 14px;" text="Academic Holds" />
+                                                    <Label fx:id="lblHoldsCard" style="-fx-text-fill: #2c3e50; -fx-font-size: 32px; -fx-font-weight: bold;" text="0" />
+                                                </VBox>
+                                            </HBox>
+                                        </VBox>
+                                    </HBox>
+                                    
+                                    <!-- Recent Activity -->
+                                    <VBox spacing="15" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                        <HBox alignment="CENTER_LEFT" spacing="10">
+                                            <Label style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="📝 Recent Activity" />
+                                            <Region HBox.hgrow="ALWAYS" />
+                                            <Label fx:id="lblStudentInfo" style="-fx-text-fill: #7f8c8d; -fx-font-size: 14px;" text="Select a student to view academic records" />
+                                        </HBox>
+                                        
+                                        <!-- Quick Actions -->
+                                        <HBox alignment="CENTER_LEFT" spacing="15">
+                                            <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8;" text="🔄 Refresh All">
+                                                <tooltip>
+                                                    <Tooltip text="Refresh all dashboard data" />
+                                                </tooltip>
+                                            </Button>
+                                            <Button onAction="#generateAcademicReport" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12 25; -fx-background-radius: 8;" text="📊 Generate Report">
+                                                <tooltip>
+                                                    <Tooltip text="Generate comprehensive academic report" />
+                                                </tooltip>
+                                            </Button>
+                                        </HBox>
+                                    </VBox>
+                                </VBox>
+                            </ScrollPane>
+                        </content>
+                    </Tab>
+                    
+                    <!-- Clearance Requests Tab -->
+                    <Tab style="-fx-background-color: #3498db; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15 25;" text="Clearance Requests  ">
+                        <content>
+                            <ScrollPane fitToWidth="true" style="-fx-background-color: #ecf0f1;">
+                                <VBox spacing="20" style="-fx-padding: 25;">
+                                    <!-- Header -->
+                                    <VBox spacing="15">
+                                        <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Academic Clearance Requests" />
+                                        <HBox alignment="CENTER_LEFT" spacing="15">
+                                            <Label fx:id="lblPendingCount" style="-fx-text-fill: #3498db; -fx-font-weight: bold; -fx-font-size: 16px; -fx-background-color: #e8f4f8; -fx-padding: 8 15; -fx-background-radius: 8;" text="Pending Verifications: 0" />
+                                            <Region HBox.hgrow="ALWAYS" />
+                                            <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 25; -fx-background-radius: 8;" text="🔄 Refresh">
+                                                <tooltip>
+                                                    <Tooltip text="Refresh requests list" />
+                                                </tooltip>
+                                            </Button>
+                                        </HBox>
+                                    </VBox>
+                                    
+                                    <!-- Requests Table -->
+                                    <VBox spacing="15" style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                        <TableView fx:id="tableRequests" style="-fx-background-color: transparent;">
+                                            <columns>
+                                                <TableColumn fx:id="colStudentId" prefWidth="120" text="Student ID" />
+                                                <TableColumn fx:id="colStudentName" prefWidth="180" text="Student Name" />
+                                                <TableColumn fx:id="colDepartment" prefWidth="140" text="Department" />
+                                                <TableColumn fx:id="colYearLevel" prefWidth="100" text="Year Level" />
+                                                <TableColumn fx:id="colAcademicStatus" prefWidth="220" text="Academic Status" />
+                                                <TableColumn fx:id="colRequestDate" prefWidth="140" text="Request Date" />
+                                                <TableColumn fx:id="colActions" prefWidth="280" text="Actions" />
+                                            </columns>
+                                            <style>
+                                                -fx-font-size: 13px;
+                                            </style>
+                                        </TableView>
+                                    </VBox>
+                                </VBox>
+                            </ScrollPane>
+                        </content>
+                    </Tab>
+                    
+                    <!-- Academic Records Tab -->
+                    <Tab style="-fx-background-color: #3498db; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 15 55;" text="Academic Records  ">
+                        <content>
+                            <ScrollPane fitToWidth="true" style="-fx-background-color: #ecf0f1;">
+                                <VBox spacing="20" style="-fx-padding: 25;">
+                                    <!-- Header -->
+                                    <VBox spacing="15">
+                                        <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Student Academic Records" />
+                                        
+                                        <!-- Instructions -->
+                                        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #e8f4f8; -fx-padding: 15; -fx-background-radius: 10;">
+                                            <Label style="-fx-font-weight: bold; -fx-text-fill: #2980b9; -fx-font-size: 16px;" text="💡" />
+                                            <VBox spacing="5">
+                                                <Label style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" text="Instructions:" />
+                                                <Label style="-fx-text-fill: #2c3e50;" text="1. Select a student from the Clearance Requests tab" />
+                                                <Label style="-fx-text-fill: #2c3e50;" text="2. Click 'View Records' to see their academic history" />
+                                                <Label style="-fx-text-fill: #2c3e50;" text="3. Review grades and academic performance" />
+                                            </VBox>
+                                        </HBox>
+                                    </VBox>
+                                    
+                                    <!-- Academic Records Table -->
+                                    <VBox spacing="15" style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
+                                        <TableView fx:id="tableAcademicRecords" style="-fx-background-color: transparent;">
+                                            <columns>
+                                                <TableColumn fx:id="colCourse" prefWidth="250" text="Course" />
+                                                <TableColumn fx:id="colGrade" prefWidth="100" text="Grade" />
+                                                <TableColumn fx:id="colCredits" prefWidth="100" text="Credits" />
+                                                <TableColumn fx:id="colSemester" prefWidth="150" text="Semester" />
+                                            </columns>
+                                            <style>
+                                                -fx-font-size: 13px;
+                                            </style>
+                                        </TableView>
+                                        
+                                        <!-- Grade Legend -->
+                                        <HBox alignment="CENTER" spacing="20" style="-fx-padding: 15; -fx-background-color: #f8f9fa; -fx-background-radius: 10;">
+                                            <HBox alignment="CENTER" spacing="8">
+                                                <Label style="-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 16px;" text="●" />
+                                                <Label style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" text="A, A-, B+" />
+                                                <Label style="-fx-text-fill: #95a5a6;" text="Excellent" />
+                                            </HBox>
+                                            <HBox alignment="CENTER" spacing="8">
+                                                <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold; -fx-font-size: 16px;" text="●" />
+                                                <Label style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" text="B, B-, C+" />
+                                                <Label style="-fx-text-fill: #95a5a6;" text="Good" />
+                                            </HBox>
+                                            <HBox alignment="CENTER" spacing="8">
+                                                <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 16px;" text="●" />
+                                                <Label style="-fx-text-fill: #2c3e50; -fx-font-weight: bold;" text="C, C-, D, F" />
+                                                <Label style="-fx-text-fill: #95a5a6;" text="Below Average" />
+                                            </HBox>
+                                        </HBox>
+                                    </VBox>
+                                </VBox>
+                            </ScrollPane>
+                        </content>
+                    </Tab>
+                    
+                </TabPane>
+            </VBox>
             
-            <!-- Dashboard Tab -->
-            <Tab style="-fx-background-color: #3498db; -fx-font-weight: bold; -fx-pref-width: 100; -fx-pref-height: 30; -fx-text-fill: white;" text="Dashboard">
-                <ScrollPane fitToWidth="true">
-                    <VBox spacing="15" style="-fx-padding: 20;">
-                        <!-- Dashboard Header -->
-                        <Label style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" text="Registrar Clearance Overview" />
-                        
-                        <!-- Status Cards -->
-                        <HBox prefHeight="83.0" prefWidth="748.0" spacing="15">
-                            <VBox prefWidth="180" style="-fx-background-color: #3498db; -fx-padding: 15; -fx-background-radius: 8;">
-                                <Label style="-fx-text-fill: white;" text="Pending Verifications" />
-                                <Label fx:id="lblPendingCard" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
-                            </VBox>
-                            
-                            <VBox prefWidth="180.0" style="-fx-background-color: #27ae60; -fx-padding: 15; -fx-background-radius: 8;">
-                                <Label style="-fx-text-fill: white;" text="Cleared Students" />
-                                <Label fx:id="lblApprovedCard" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
-                            </VBox>
-                            
-                            <VBox prefWidth="180.0" style="-fx-background-color: #e74c3c; -fx-padding: 15; -fx-background-radius: 8;">
-                                <Label style="-fx-text-fill: white;" text="Academic Holds" />
-                                <Label fx:id="lblHoldsCard" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;" text="0" />
-                            </VBox>
-                        </HBox>
-                        
-                        <!-- Quick Actions Section -->
-                        <VBox spacing="10" style="-fx-background-color: #f8f9fa; -fx-padding: 20; -fx-background-radius: 10;">
-                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Quick Actions" />
-                            <HBox spacing="10">
-                                <Button onAction="#refreshRequests" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh All">
-                                    <tooltip>
-                                        <Tooltip text="Refresh all data" />
-                                    </tooltip>
-                                </Button>
-                                <Button onAction="#generateAcademicReport" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;" text="Generate Report">
-                                    <tooltip>
-                                        <Tooltip text="Generate academic report" />
-                                    </tooltip>
-                                </Button>
-                            </HBox>
-                            <Label fx:id="lblStudentInfo" style="-fx-text-fill: #7f8c8d; -fx-padding: 10;" text="Select a student to view academic records" />
-                        </VBox>
-                    </VBox>
-                </ScrollPane>
-            </Tab>
-            
-            <!-- Clearance Requests Tab -->
-            <Tab style="-fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 100; -fx-background-color: #3498db; -fx-pref-height: 30;" text="Clearance Requests">
-                <ScrollPane fitToWidth="true">
-                    <VBox spacing="15" style="-fx-padding: 20;">
-                        <!-- Header Section -->
-                        <VBox spacing="10">
-                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Pending Academic Clearances" />
-                            <Label fx:id="lblPendingCount" style="-fx-text-fill: #3498db; -fx-font-weight: bold;" text="Pending Verifications: 0" />
-                        </VBox>
-                        
-                        <!-- Requests Table -->
-                        <VBox spacing="10" VBox.vgrow="ALWAYS">
-                            <TableView fx:id="tableRequests" VBox.vgrow="ALWAYS">
-                                <columns>
-                                    <TableColumn fx:id="colStudentId" prefWidth="100" text="Student ID" />
-                                    <TableColumn fx:id="colStudentName" prefWidth="150" text="Student Name" />
-                                    <TableColumn fx:id="colDepartment" prefWidth="120" text="Department" />
-                                    <TableColumn fx:id="colYearLevel" prefWidth="80" text="Year Level" />
-                                    <TableColumn fx:id="colAcademicStatus" prefWidth="200" text="Academic Status" />
-                                    <TableColumn fx:id="colRequestDate" prefWidth="120" text="Request Date" />
-                                    <TableColumn fx:id="colActions" prefWidth="250" text="Actions" />
-                                </columns>
-                            </TableView>
-                            
-                            <!-- Instructions -->
-                            <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
-                                <Label style="-fx-text-fill: #7f8c8d; -fx-font-style: italic;" text="Click 'View Records' to see academic details in Academic Records tab" />
-                            </HBox>
-                        </VBox>
-                    </VBox>
-                </ScrollPane>
-            </Tab>
-            
-            <!-- Academic Records Tab -->
-            <Tab style="-fx-text-fill: white; -fx-font-weight: bold; -fx-pref-width: 100; -fx-background-color: #3498db; -fx-pref-height: 30;" text="Academic Records">
-                <ScrollPane fitToWidth="true">
-                    <VBox spacing="15" style="-fx-padding: 20;">
-                        <!-- Header Section -->
-                        <VBox spacing="10">
-                            <Label style="-fx-font-size: 18px; -fx-font-weight: bold;" text="Student Academic Records" />
-                            
-                            <!-- Instructions Card -->
-                            <VBox spacing="5" style="-fx-background-color: #e8f4f8; -fx-padding: 15; -fx-background-radius: 5;">
-                                <Label style="-fx-font-weight: bold; -fx-text-fill: #2980b9;" text="Instructions:" />
-                                <Label style="-fx-text-fill: #2c3e50;" text="1. Select a student from the Clearance Requests tab" />
-                                <Label style="-fx-text-fill: #2c3e50;" text="2. Click 'View Records' to see their academic history" />
-                                <Label style="-fx-text-fill: #2c3e50;" text="3. Use Verify/Hold buttons in Clearance Requests tab" />
-                            </VBox>
-                        </VBox>
-                        
-                        <!-- Academic Records Table -->
-                        <VBox spacing="10" VBox.vgrow="ALWAYS">
-                            <TableView fx:id="tableAcademicRecords" VBox.vgrow="ALWAYS">
-                                <columns>
-                                    <TableColumn fx:id="colCourse" prefWidth="200" text="Course" />
-                                    <TableColumn fx:id="colGrade" prefWidth="80" text="Grade" />
-                                    <TableColumn fx:id="colCredits" prefWidth="80" text="Credits" />
-                                    <TableColumn fx:id="colSemester" prefWidth="120" text="Semester" />
-                                </columns>
-                            </TableView>
-                            
-                            <!-- Grade Legend -->
-                            <HBox spacing="15" style="-fx-padding: 10; -fx-background-color: #ecf0f1; -fx-background-radius: 5;">
-                                <Label style="-fx-text-fill: #27ae60; -fx-font-weight: bold;" text="●" />
-                                <Label text="A, A-, B+" />
-                                <Label style="-fx-text-fill: #f39c12; -fx-font-weight: bold;" text="●" />
-                                <Label text="B, B-, C+" />
-                               <Label style="-fx-text-fill: #e74c3c; -fx-font-weight: bold;" text="●" />
-                                <Label text="C, C-, D, F" />
-                            </HBox>
-                        </VBox>
-                    </VBox>
-                </ScrollPane>
-            </Tab>
-            
-        </TabPane>
+            <!-- Tab Indicator -->
+            <StackPane style="-fx-background-color: #3498db; -fx-pref-height: 3;" />
+        </VBox>
     </center>
     
 </BorderPane>

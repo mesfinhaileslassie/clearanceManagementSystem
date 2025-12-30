@@ -21,7 +21,7 @@ public class DashboardController {
 
     @FXML
     private void initialize() {
-        // Set tab closing policy programmatically
+      
         if (tabPane != null) {
             tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         }
@@ -31,8 +31,7 @@ public class DashboardController {
     @FXML
     private void refreshDashboard() {
         System.out.println("Refresh Dashboard clicked");
-        // Add your refresh logic here
-        // For example: refreshWelcomeTab();
+        
     }
 
     @FXML
@@ -252,7 +251,7 @@ public class DashboardController {
             Scene scene = tabPane.getScene();
             Stage stage = (Stage) scene.getWindow();
             scene.setRoot(login);
-            stage.setTitle("Login - University Clearance System");
+            stage.setTitle("Login - DBU Clearance System");
             stage.centerOnScreen();
         } catch (Exception e) {
             e.printStackTrace();

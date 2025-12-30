@@ -32,6 +32,9 @@ public class LoginController {
              "REGISTRAR", "DEPARTMENT_HEAD", "ADMIN"
         ));
         
+        cmbRole.setStyle("-fx-prompt-text-fill: white;");
+        cmbRole.setStyle("-fx-prompt-text-fill: white; -fx-font-size: 14px;");
+        
         // --- NEW LOGIC FOR SHOW/HIDE PASSWORD ---
 
         // 1. Synchronize text content between the two fields

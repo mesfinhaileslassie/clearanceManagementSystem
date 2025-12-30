@@ -260,9 +260,9 @@ public class LibrarianDashboardController implements Initializable {
             @Override
             public TableCell<ClearanceRequest, Void> call(TableColumn<ClearanceRequest, Void> param) {
                 return new TableCell<ClearanceRequest, Void>() {
-                    private final Button btnDetails = new Button("📋 Details");
-                    private final Button btnApprove = new Button("✅ Approve");
-                    private final Button btnReject = new Button("❌ Reject");
+                    private final Button btnDetails = new Button("Details");
+                    private final Button btnApprove = new Button("Approve");
+                    private final Button btnReject = new Button(" Reject");
                     private final HBox buttonBox = new HBox(5, btnDetails, btnApprove, btnReject);
                     
                     {
@@ -438,6 +438,58 @@ public class LibrarianDashboardController implements Initializable {
         refreshBorrowingHistory();
     }
     
+    
+    private void loadBorrowingHistory() {
+        borrowingHistory.clear();
+        try {
+            // Query borrowed_books with proper joins
+            String query = """
+                SELECT 
+                    bb.id,
+                    u.username as student_id,
+                    u.full_name,
+                    u.department,
+                    b.title as book_title,
+                    DATE(bb.borrow_date) as borrow_date,
+                    DATE(bb.due_date) as due_date,
+                    DATE(bb.return_date) as return_date,
+                    bb.status,
+                    bb.fine
+                FROM borrowed_books bb
+                JOIN users u ON bb.student_id = u.id
+                JOIN book_copies bc ON bb.book_copy_id = bc.id
+                JOIN books b ON bc.book_id = b.id
+                ORDER BY bb.borrow_date DESC
+                LIMIT 50
+                """;
+            
+            PreparedStatement pstmt = connection.prepareStatement(query);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                BorrowingRecord record = new BorrowingRecord(
+                    rs.getInt("id"),
+                    rs.getString("student_id"),
+                    rs.getString("full_name"),
+                    rs.getString("department"),
+                    rs.getString("book_title"),
+                    rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
+                    rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
+                    rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
+                    rs.getString("status"),
+                    rs.getDouble("fine")
+                );
+                
+                borrowingHistory.add(record);
+            }
+            
+        } catch (SQLException e) {
+            System.out.println("Error loading borrowing history: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    
     private void loadClearanceRequests() {
         clearanceRequests.clear();
         try {
@@ -519,20 +571,20 @@ public class LibrarianDashboardController implements Initializable {
         int overdueCount = 0;
         double totalFine = 0;
         
-        // Check if book_borrowings table exists
+        // Check if borrowed_books table exists (this is the correct table based on your BorrowDAO)
         try {
-            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
+            String checkTableQuery = "SHOW TABLES LIKE 'borrowed_books'";
             PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
             ResultSet checkRs = checkStmt.executeQuery();
             
             if (checkRs.next()) {
-                // Table exists, query it
+                // Query the borrowed_books table
                 String query = """
                     SELECT 
                         COUNT(*) as total_borrowed,
-                        SUM(CASE WHEN due_date < CURDATE() AND return_date IS NULL THEN 1 ELSE 0 END) as overdue_count,
-                        COALESCE(SUM(fine_amount), 0) as total_fine
-                    FROM book_borrowings 
+                        SUM(CASE WHEN status = 'OVERDUE' THEN 1 ELSE 0 END) as overdue_count,
+                        COALESCE(SUM(fine), 0) as total_fine
+                    FROM borrowed_books 
                     WHERE student_id = ?
                     """;
                 
@@ -545,10 +597,11 @@ public class LibrarianDashboardController implements Initializable {
                     overdueCount = rs.getInt("overdue_count");
                     totalFine = rs.getDouble("total_fine");
                 }
+            } else {
+                System.out.println("Note: borrowed_books table not found");
             }
         } catch (Exception e) {
-            // Table doesn't exist or error, return zeros
-            System.out.println("Note: book_borrowings table not found or error: " + e.getMessage());
+            System.out.println("Error checking borrowed_books table: " + e.getMessage());
         }
         
         return new int[] {totalBorrowed, overdueCount, (int) totalFine};
@@ -564,125 +617,68 @@ public class LibrarianDashboardController implements Initializable {
         }
     }
     
-    private void loadBorrowingHistory() {
-        borrowingHistory.clear();
-        try {
-            // Check if book_borrowings table exists
-            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
-            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
-            ResultSet checkRs = checkStmt.executeQuery();
-            
-            if (checkRs.next()) {
-                String query = """
-                    SELECT 
-                        bb.id,
-                        u.username as student_id,
-                        u.full_name,
-                        u.department,
-                        bb.book_title,
-                        DATE(bb.borrow_date) as borrow_date,
-                        DATE(bb.due_date) as due_date,
-                        DATE(bb.return_date) as return_date,
-                        bb.status,
-                        bb.fine_amount
-                    FROM book_borrowings bb
-                    JOIN users u ON bb.student_id = u.id
-                    ORDER BY bb.borrow_date DESC
-                    LIMIT 50
-                    """;
-                
-                PreparedStatement pstmt = connection.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery();
-                
-                while (rs.next()) {
-                    BorrowingRecord record = new BorrowingRecord(
-                        rs.getInt("id"),
-                        rs.getString("student_id"),
-                        rs.getString("full_name"),
-                        rs.getString("department"),
-                        rs.getString("book_title"),
-                        rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
-                        rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
-                        rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
-                        rs.getString("status"),
-                        rs.getDouble("fine_amount")
-                    );
-                    
-                    borrowingHistory.add(record);
-                }
-            } else {
-                System.out.println("Note: book_borrowings table doesn't exist yet");
-            }
-            
-        } catch (SQLException e) {
-            System.out.println("Note: Could not load borrowing history: " + e.getMessage());
-        }
-    }
+   
     
     private void loadStudentBookDetails(int studentId) {
         studentBookDetails.clear();
         currentStudentId = studentId;
         
         try {
-            // Check if book_borrowings table exists
-            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
-            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
-            ResultSet checkRs = checkStmt.executeQuery();
+            String query = """
+                SELECT 
+                    b.title as book_title,
+                    b.author,
+                    DATE(bb.borrow_date) as borrow_date,
+                    DATE(bb.due_date) as due_date,
+                    DATE(bb.return_date) as return_date,
+                    bb.status,
+                    bb.fine
+                FROM borrowed_books bb
+                JOIN book_copies bc ON bb.book_copy_id = bc.id
+                JOIN books b ON bc.book_id = b.id
+                WHERE bb.student_id = ?
+                ORDER BY bb.borrow_date DESC
+                """;
             
-            if (checkRs.next()) {
-                String query = """
-                    SELECT 
-                        bb.book_title,
-                        'Unknown' as author,
-                        DATE(bb.borrow_date) as borrow_date,
-                        DATE(bb.due_date) as due_date,
-                        DATE(bb.return_date) as return_date,
-                        bb.status,
-                        bb.fine_amount
-                    FROM book_borrowings bb
-                    WHERE bb.student_id = ?
-                    ORDER BY bb.borrow_date DESC
-                    """;
+            PreparedStatement pstmt = connection.prepareStatement(query);
+            pstmt.setInt(1, studentId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            int totalBorrowed = 0, currentBorrowed = 0, overdue = 0;
+            double totalFines = 0;
+            
+            while (rs.next()) {
+                totalBorrowed++;
                 
-                PreparedStatement pstmt = connection.prepareStatement(query);
-                pstmt.setInt(1, studentId);
-                ResultSet rs = pstmt.executeQuery();
+                BookDetail detail = new BookDetail(
+                    rs.getString("book_title"),
+                    rs.getString("author"),
+                    rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
+                    rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
+                    rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
+                    rs.getString("status"),
+                    rs.getDouble("fine")
+                );
                 
-                int totalBorrowed = 0, currentBorrowed = 0, overdue = 0;
-                double totalFines = 0;
+                studentBookDetails.add(detail);
                 
-                while (rs.next()) {
-                    totalBorrowed++;
-                    
-                    BookDetail detail = new BookDetail(
-                        rs.getString("book_title"),
-                        rs.getString("author"),
-                        rs.getDate("borrow_date") != null ? rs.getDate("borrow_date").toLocalDate() : null,
-                        rs.getDate("due_date") != null ? rs.getDate("due_date").toLocalDate() : null,
-                        rs.getDate("return_date") != null ? rs.getDate("return_date").toLocalDate() : null,
-                        rs.getString("status"),
-                        rs.getDouble("fine_amount")
-                    );
-                    
-                    studentBookDetails.add(detail);
-                    
-                    if ("BORROWED".equals(detail.getStatus()) || "OVERDUE".equals(detail.getStatus())) {
-                        currentBorrowed++;
-                    }
-                    if ("OVERDUE".equals(detail.getStatus())) {
-                        overdue++;
-                    }
-                    totalFines += detail.getFine();
+                if ("BORROWED".equals(detail.getStatus()) || "OVERDUE".equals(detail.getStatus())) {
+                    currentBorrowed++;
                 }
-                
-                if (lblDetailTotalBorrowed != null) lblDetailTotalBorrowed.setText(String.valueOf(totalBorrowed));
-                if (lblDetailCurrentBorrowed != null) lblDetailCurrentBorrowed.setText(String.valueOf(currentBorrowed));
-                if (lblDetailOverdue != null) lblDetailOverdue.setText(String.valueOf(overdue));
-                if (lblDetailTotalFines != null) lblDetailTotalFines.setText(String.format("ETB%.2f", totalFines));
+                if ("OVERDUE".equals(detail.getStatus())) {
+                    overdue++;
+                }
+                totalFines += detail.getFine();
             }
             
+            if (lblDetailTotalBorrowed != null) lblDetailTotalBorrowed.setText(String.valueOf(totalBorrowed));
+            if (lblDetailCurrentBorrowed != null) lblDetailCurrentBorrowed.setText(String.valueOf(currentBorrowed));
+            if (lblDetailOverdue != null) lblDetailOverdue.setText(String.valueOf(overdue));
+            if (lblDetailTotalFines != null) lblDetailTotalFines.setText(String.format("ETB%.2f", totalFines));
+            
         } catch (SQLException e) {
-            System.out.println("Note: Could not load student book details: " + e.getMessage());
+            System.out.println("Error loading student book details: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
@@ -1096,44 +1092,42 @@ public class LibrarianDashboardController implements Initializable {
     
     private void updateDashboardStats() {
         try {
-            // Check if book_borrowings table exists
-            String checkTableQuery = "SHOW TABLES LIKE 'book_borrowings'";
-            PreparedStatement checkStmt = connection.prepareStatement(checkTableQuery);
-            ResultSet checkRs = checkStmt.executeQuery();
+            String totalBooksQuery = """
+                SELECT COUNT(*) as count 
+                FROM borrowed_books bb
+                WHERE bb.return_date IS NULL
+                """;
+            PreparedStatement pstmt1 = connection.prepareStatement(totalBooksQuery);
+            ResultSet rs1 = pstmt1.executeQuery();
+            if (rs1.next() && lblTotalBooks != null) {
+                lblTotalBooks.setText(String.valueOf(rs1.getInt("count")));
+            }
             
-            if (checkRs.next()) {
-                String totalBooksQuery = "SELECT COUNT(*) as count FROM book_borrowings";
-                PreparedStatement pstmt1 = connection.prepareStatement(totalBooksQuery);
-                ResultSet rs1 = pstmt1.executeQuery();
-                if (rs1.next() && lblTotalBooks != null) {
-                    lblTotalBooks.setText(String.valueOf(rs1.getInt("count")));
-                }
-                
-                String activeBorrowersQuery = """
-                    SELECT COUNT(DISTINCT student_id) as count 
-                    FROM book_borrowings 
-                    WHERE status IN ('BORROWED', 'OVERDUE')
-                    """;
-                PreparedStatement pstmt2 = connection.prepareStatement(activeBorrowersQuery);
-                ResultSet rs2 = pstmt2.executeQuery();
-                if (rs2.next() && lblActiveBorrowers != null) {
-                    lblActiveBorrowers.setText(String.valueOf(rs2.getInt("count")));
-                }
-                
-                String overdueQuery = """
-                    SELECT COUNT(*) as count 
-                    FROM book_borrowings 
-                    WHERE due_date < CURDATE() AND return_date IS NULL
-                    """;
-                PreparedStatement pstmt3 = connection.prepareStatement(overdueQuery);
-                ResultSet rs3 = pstmt3.executeQuery();
-                if (rs3.next() && lblOverdueCount != null) {
-                    lblOverdueCount.setText(String.valueOf(rs3.getInt("count")));
-                }
+            String activeBorrowersQuery = """
+                SELECT COUNT(DISTINCT student_id) as count 
+                FROM borrowed_books 
+                WHERE status IN ('BORROWED', 'OVERDUE') AND return_date IS NULL
+                """;
+            PreparedStatement pstmt2 = connection.prepareStatement(activeBorrowersQuery);
+            ResultSet rs2 = pstmt2.executeQuery();
+            if (rs2.next() && lblActiveBorrowers != null) {
+                lblActiveBorrowers.setText(String.valueOf(rs2.getInt("count")));
+            }
+            
+            String overdueQuery = """
+                SELECT COUNT(*) as count 
+                FROM borrowed_books 
+                WHERE status = 'OVERDUE' AND return_date IS NULL
+                """;
+            PreparedStatement pstmt3 = connection.prepareStatement(overdueQuery);
+            ResultSet rs3 = pstmt3.executeQuery();
+            if (rs3.next() && lblOverdueCount != null) {
+                lblOverdueCount.setText(String.valueOf(rs3.getInt("count")));
             }
             
         } catch (SQLException e) {
-            System.out.println("Note: Could not load dashboard stats: " + e.getMessage());
+            System.out.println("Error updating dashboard stats: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     

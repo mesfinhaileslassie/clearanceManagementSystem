@@ -3,6 +3,8 @@ package com.university.clearance.controller;
 import java.io.File;
 import java.io.IOException;
 import com.university.clearance.model.User;
+
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -21,12 +23,17 @@ public class DashboardController {
 
     @FXML
     private void initialize() {
-      
+        System.out.println("=== DEBUG: DashboardController initialized ===");
+        
         if (tabPane != null) {
             tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
+            
+            // Ensure no Welcome tab exists
+            Platform.runLater(() -> {
+                tabPane.getTabs().removeIf(tab -> "Welcome".equals(tab.getText()));
+            });
         }
-    }
-       
+    }  
     
     @FXML
     private void refreshDashboard() {

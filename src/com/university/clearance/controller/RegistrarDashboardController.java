@@ -13,6 +13,11 @@ import javafx.scene.layout.HBox;
 
 import java.net.URL;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -389,6 +394,46 @@ public class RegistrarDashboardController implements Initializable {
         loadPendingRequests();
         showAlert("Refreshed", "Registrar clearance requests refreshed successfully!");
     }
+    
+    
+    private List<String> getAllDepartmentRoles(Connection conn) throws SQLException {
+        List<String> roles = new ArrayList<>();
+        String sql = """
+            SELECT DISTINCT officer_role 
+            FROM clearance_approvals 
+            WHERE officer_role != 'REGISTRAR' 
+            AND officer_role IS NOT NULL
+            ORDER BY officer_role
+            """;
+        
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery();
+        
+        System.out.println("=== DEBUG: Found department roles in database ===");
+        while (rs.next()) {
+            String role = rs.getString("officer_role");
+            roles.add(role);
+            System.out.println("Department Role: " + role);
+        }
+        
+        // If no records found, show a different approach
+        if (roles.isEmpty()) {
+            System.out.println("WARNING: No department roles found in clearance_approvals table!");
+            System.out.println("Checking users table for department names...");
+            
+            // Try to get department names from users table
+            sql = "SELECT DISTINCT department FROM users WHERE department IS NOT NULL";
+            ps = conn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                String dept = rs.getString("department");
+                System.out.println("User Department: " + dept);
+            }
+        }
+        
+        return roles;
+    }
 
     private void loadPendingRequests() {
         System.out.println("\n=== DEBUG: Loading pending registrar requests ===");
@@ -397,10 +442,16 @@ public class RegistrarDashboardController implements Initializable {
         try (Connection conn = DatabaseConnection.getConnection()) {
             System.out.println("✅ Database connection established");
             
-            // DEBUG: Check database status
-            debugDatabaseStatus(conn);
+            // DEBUG: First, let's see what department roles actually exist
+            List<String> departmentRoles = getAllDepartmentRoles(conn);
+            System.out.println("Will check for approvals from these departments: " + departmentRoles);
             
-            // Main query - FIXED: Added proper JOIN condition
+            // If no roles found, use a default list
+            if (departmentRoles.isEmpty()) {
+                System.out.println("Using default department list");
+                departmentRoles = Arrays.asList("LIBRARY", "ACCOUNTING", "LABORATORY", "SPORTS");
+            }
+            
             String sql = """
                 SELECT 
                     cr.id as request_id,
@@ -425,42 +476,72 @@ public class RegistrarDashboardController implements Initializable {
             ResultSet rs = ps.executeQuery();
 
             int pendingCount = 0;
+            int skippedCount = 0;
             System.out.println("Query executed, processing results...");
             
             while (rs.next()) {
-                pendingCount++;
+                int requestId = rs.getInt("request_id");
                 String studentId = rs.getString("student_id");
-                System.out.println("\nFound student #" + pendingCount + ": " + studentId);
-                System.out.println("Student Name: " + rs.getString("student_name"));
-                System.out.println("Department: " + rs.getString("department"));
-                System.out.println("Year Level: " + rs.getString("year_level"));
-                System.out.println("Request Date: " + rs.getString("request_date"));
-                System.out.println("Approval Status: " + rs.getString("approval_status"));
                 
-                String academicStatus = checkStudentAcademicStatus(conn, studentId);
+                // DEBUG: Show what approvals this student has
+                System.out.println("\n=== DEBUG: Checking student " + studentId + " (Request ID: " + requestId + ") ===");
+                Map<String, String> studentApprovals = getStudentApprovals(conn, requestId);
+                System.out.println("Approvals found: " + studentApprovals);
                 
-                ClearanceRequest request = new ClearanceRequest(
-                    rs.getString("student_id"),
-                    rs.getString("student_name"),
-                    rs.getString("department"),
-                    rs.getString("year_level"),
-                    rs.getString("request_date"),
-                    academicStatus,
-                    rs.getInt("request_id")
-                );
+                // Check if all required departments have approved
+                boolean allApproved = true;
+                for (String department : departmentRoles) {
+                    String status = studentApprovals.get(department);
+                    System.out.println("Checking " + department + ": " + status);
+                    if (status == null || !"APPROVED".equals(status)) {
+                        System.out.println("❌ Missing or not approved: " + department);
+                        allApproved = false;
+                    }
+                }
                 
-                requestData.add(request);
+                if (allApproved) {
+                    pendingCount++;
+                    System.out.println("✅ Student " + studentId + " is approved by all departments!");
+                    System.out.println("Student Name: " + rs.getString("student_name"));
+                    System.out.println("Department: " + rs.getString("department"));
+                    System.out.println("Year Level: " + rs.getString("year_level"));
+                    System.out.println("Request Date: " + rs.getString("request_date"));
+                    System.out.println("Approval Status: " + rs.getString("approval_status"));
+                    
+                    String academicStatus = checkStudentAcademicStatus(conn, studentId);
+                    
+                    ClearanceRequest request = new ClearanceRequest(
+                        rs.getString("student_id"),
+                        rs.getString("student_name"),
+                        rs.getString("department"),
+                        rs.getString("year_level"),
+                        rs.getString("request_date"),
+                        academicStatus,
+                        requestId
+                    );
+                    
+                    requestData.add(request);
+                } else {
+                    skippedCount++;
+                    System.out.println("⏭️ Skipping student " + studentId + " - Not all departments approved yet");
+                }
             }
             
             System.out.println("\n=== DEBUG: Query Results Summary ===");
-            System.out.println("Total records found: " + pendingCount);
+            System.out.println("Total students processed: " + (pendingCount + skippedCount));
+            System.out.println("Students ready for registrar: " + pendingCount);
+            System.out.println("Students skipped (not fully approved): " + skippedCount);
             
             tableRequests.setItems(requestData);
             lblPendingCount.setText("Pending Verifications: " + pendingCount);
             
             if (pendingCount == 0) {
                 System.out.println("⚠️ WARNING: No registrar clearance requests found!");
-                showAlert("No Requests", "No pending registrar clearance requests found.");
+                showAlert("No Requests", 
+                    "No students are ready for registrar approval.\n\n" +
+                    "Students must be approved by all departments first:\n" +
+                    departmentRoles.toString() + "\n\n" +
+                    "Please check that other departments have approved these students.");
             }
             
         } catch (Exception e) {
@@ -469,6 +550,56 @@ public class RegistrarDashboardController implements Initializable {
             e.printStackTrace();
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
         }
+    }
+
+    // Helper method to get all approvals for a student
+    private Map<String, String> getStudentApprovals(Connection conn, int requestId) throws SQLException {
+        Map<String, String> approvals = new HashMap<>();
+        
+        String sql = """
+            SELECT officer_role, status 
+            FROM clearance_approvals 
+            WHERE request_id = ?
+            """;
+        
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, requestId);
+        ResultSet rs = ps.executeQuery();
+        
+        while (rs.next()) {
+            String role = rs.getString("officer_role");
+            String status = rs.getString("status");
+            approvals.put(role, status);
+        }
+        
+        return approvals;
+    }
+    
+    
+    // Helper method to check if all departments have approved
+    private boolean allDepartmentsApproved(Connection conn, int requestId) throws SQLException {
+        // Get list of all departments that need to approve
+        // You can hardcode these or get them from your database
+        String[] requiredDepartments = {"LIBRARY", "ACCOUNTING", "LABORATORY", "SPORTS"};
+        
+        for (String department : requiredDepartments) {
+            String checkSql = """
+                SELECT COUNT(*) as approved 
+                FROM clearance_approvals 
+                WHERE request_id = ? 
+                AND officer_role = ? 
+                AND status = 'APPROVED'
+                """;
+            PreparedStatement ps = conn.prepareStatement(checkSql);
+            ps.setInt(1, requestId);
+            ps.setString(2, department);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next() && rs.getInt("approved") == 0) {
+                return false; // This department hasn't approved
+            }
+        }
+        return true; // All departments have approved
     }
     
     private void debugDatabaseStatus(Connection conn) throws SQLException {

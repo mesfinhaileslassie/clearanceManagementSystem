@@ -572,7 +572,7 @@ public class PDFCertificateService {
             addDetailRow(detailsTable, "Student ID:", studentId);
             addDetailRow(detailsTable, "Department:", department != null ? department : "Not specified");
             addDetailRow(detailsTable, "Academic Level:", yearLevel != null ? yearLevel : "Not specified");
-            addDetailRow(detailsTable, "Faculty:", getFacultyName(department));
+            addDetailRow(detailsTable, "College:", getFacultyName(department));
             
             if (email != null && !email.isEmpty()) {
                 addDetailRow(detailsTable, "Email:", email);
@@ -618,7 +618,7 @@ public class PDFCertificateService {
             timelineTable.addCell(headerCell3);
             
             Cell dataCell1 = createTableCell(requestDateStr);
-            Cell dataCell2 = createTableCell("✓ Approved");
+            Cell dataCell2 = createTableCell("Approved");
             Cell dataCell3 = createTableCell(completionDateStr);
             
             timelineTable.addCell(dataCell1);
@@ -690,7 +690,7 @@ public class PDFCertificateService {
             String verificationCode = generateVerificationCode(studentId, certificateId);
             
             Paragraph verificationText = new Paragraph()
-                    .add("🔐 This is an electronically generated certificate.\n")
+                    .add("This is an electronically generated certificate.\n")
                     .add("Verification Code: ")
                     .add(new Text(verificationCode).setBold())
                     .add(" | Verify at: https://verify.dbu.edu.et")

@@ -46,12 +46,10 @@ public class DashboardController {
         System.out.println("Show System Info clicked");
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("System Information");
-        alert.setHeaderText("University Clearance System");
-        alert.setContentText("Version 2.0\n\nDeveloped for University Clearance Management\n© 2025");
+        alert.setHeaderText("DBU CMS");
+        alert.setContentText("Version 2.0\n\nDeveloped for DBU Clearance Management \n© 2018 E.C");
         alert.showAndWait();
     }
-    
-    
     
     
     
@@ -144,7 +142,7 @@ public class DashboardController {
                     java.nio.file.Paths.get(java.net.URI.create(url.toString().replace(" ", "%20")))
                 );
                 
-                System.out.println("✅ FXML file read successfully (" + lines.size() + " lines)");
+                System.out.println(" FXML file read successfully (" + lines.size() + " lines)");
                 
                 // Display lines around the error (line 105)
                 System.out.println("\n=== FXML CONTENT AROUND LINE 105 ===");
@@ -158,7 +156,7 @@ public class DashboardController {
                 }
                 
             } catch (Exception readError) {
-                System.err.println("⚠️  Cannot read FXML file content: " + readError.getMessage());
+                System.err.println("  Cannot read FXML file content: " + readError.getMessage());
             }
             
             System.out.println("\n=== ATTEMPTING TO LOAD FXML ===");
@@ -166,21 +164,21 @@ public class DashboardController {
             
             // Try to load
             javafx.scene.Parent content = loader.load();
-            System.out.println("✅ SUCCESS: FXML loaded!");
+            System.out.println("SUCCESS: FXML loaded!");
             
             // Set the current user for the loaded controller
             Object controller = loader.getController();
             if (controller != null) {
-                System.out.println("✅ Controller found: " + controller.getClass().getName());
+                System.out.println(" Controller found: " + controller.getClass().getName());
                 try {
                     java.lang.reflect.Method method = controller.getClass()
                         .getMethod("setCurrentUser", User.class);
                     method.invoke(controller, currentUser);
-                    System.out.println("✅ User set for controller");
+                    System.out.println(" User set for controller");
                 } catch (NoSuchMethodException e) {
-                    System.out.println("⚠️  Controller doesn't have setCurrentUser method");
+                    System.out.println("  Controller doesn't have setCurrentUser method");
                 } catch (Exception e) {
-                    System.err.println("❌ Error setting user: " + e.getMessage());
+                    System.err.println(" Error setting user: " + e.getMessage());
                 }
             } else {
                 System.err.println("❌ Controller is NULL!");
@@ -191,7 +189,7 @@ public class DashboardController {
             tabPane.getTabs().add(tab);
             tabPane.getSelectionModel().select(tab);
             
-            System.out.println("✅ Tab created and added successfully!");
+            System.out.println(" Tab created and added successfully!");
 
         } catch (Exception e) {
             System.err.println("\n❌❌❌ FXML LOADING FAILED ❌❌❌");

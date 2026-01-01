@@ -16,7 +16,7 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("resources/views/Login.fxml"));
         Scene scene = new Scene(loader.load(), 1200, 750);
         stage.setScene(scene);
-        stage.setTitle("University Clearance Management System");
+        stage.setTitle("DBU CMS");
         stage.centerOnScreen();
         stage.setResizable(true);
         stage.show();

@@ -1,0 +1,101 @@
+/* dormitory.css - Custom styling for Dormitory Dashboard */
+
+/* Tab Pane Styling */
+.custom-tab-pane {
+    -fx-background-color: #3498db;
+    -fx-tab-min-height: 50px;
+    -fx-tab-max-height: 50px;
+    -fx-tab-min-width: 120px;
+    -fx-tab-max-width: 200px;
+    -fx-padding: 0;
+}
+
+/* Tab Header Area */
+.custom-tab-pane > .tab-header-area {
+    -fx-padding: 0;
+    -fx-background-color: #3498db;
+}
+
+.custom-tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-padding: 0 25px;
+    -fx-border-width: 0;
+    -fx-cursor: hand;
+}
+
+/* Selected Tab */
+.custom-tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: #2980b9;
+    -fx-background-radius: 0;
+    -fx-border-width: 0 0 3px 0;
+    -fx-border-color: white;
+}
+
+/* Tab Label */
+.custom-tab-pane > .tab-header-area > .headers-region > .tab .tab-label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 15px 0;
+}
+
+/* Hover Effect */
+.custom-tab-pane > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Focused Tab */
+.custom-tab-pane > .tab-header-area > .headers-region > .tab:selected:focus {
+    -fx-background-color: #2980b9;
+}
+
+/* Tab Content Area */
+.custom-tab-pane > .tab-content-area {
+    -fx-background-color: #ecf0f1;
+    -fx-padding: 0;
+}
+
+/* Tab Header Background */
+.custom-tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: #3498db;
+    -fx-effect: null;
+}
+
+/* Control Buttons (if tabs overflow) */
+.custom-tab-pane > .tab-header-area > .control-buttons-tab {
+    -fx-background-color: #2980b9;
+}
+
+/* Tab Close Button (if applicable) */
+.custom-tab-pane > .tab-header-area > .headers-region > .tab .tab-close-button {
+    -fx-background-color: transparent;
+    -fx-shape: null;
+    -fx-graphic: null;
+}
+
+/* Custom Tab Style for specific tabs */
+.custom-tab {
+    -fx-background-color: transparent;
+    -fx-padding: 15px 25px;
+    -fx-cursor: hand;
+}
+
+.custom-tab:selected {
+    -fx-background-color: #2980b9;
+    -fx-border-width: 0 0 3px 0;
+    -fx-border-color: white;
+}
+
+/* Tab pane borders */
+.custom-tab-pane {
+    -fx-border-color: #ddd;
+    -fx-border-width: 0 0 1px 0;
+}
+
+/* Tab indicator line */
+.tab-indicator {
+    -fx-background-color: #3498db;
+    -fx-pref-height: 3px;
+}

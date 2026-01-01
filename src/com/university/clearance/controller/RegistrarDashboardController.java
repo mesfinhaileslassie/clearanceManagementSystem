@@ -124,7 +124,7 @@ public class RegistrarDashboardController implements Initializable {
                 // Preserve current window size
                 Scene newScene = new Scene(root, currentScene.getWidth(), currentScene.getHeight());
                 stage.setScene(newScene);
-                stage.setTitle("University Clearance System - Login");
+                stage.setTitle("DBU Clearance System - Login");
                 stage.centerOnScreen();
                 
                 System.out.println("[DEBUG] Successfully logged out and returned to login screen.");
@@ -290,8 +290,8 @@ public class RegistrarDashboardController implements Initializable {
         
         // Actions column with Verify/Hold buttons
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
-            private final Button btnApprove = new Button("✅ Verify Clear");
-            private final Button btnReject = new Button("❌ Hold Records");
+            private final Button btnApprove = new Button(" Verify Clear");
+            private final Button btnReject = new Button("  Hold Records");
             private final Button btnViewDetails = new Button("📋 View Records");
             private final HBox buttons = new HBox(5, btnViewDetails, btnApprove, btnReject);
 

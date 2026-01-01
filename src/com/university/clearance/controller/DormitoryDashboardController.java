@@ -118,9 +118,9 @@ public class DormitoryDashboardController implements Initializable {
         
         // Enhanced Actions column with See Details button
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
-            private final Button btnSeeDetails = new Button("👁️ Details");
-            private final Button btnApprove = new Button("✅ Approve");
-            private final Button btnReject = new Button("❌ Reject");
+            private final Button btnSeeDetails = new Button("Details");
+            private final Button btnApprove = new Button("Approve");
+            private final Button btnReject = new Button("Reject");
             private final HBox buttons = new HBox(5, btnSeeDetails, btnApprove, btnReject);
 
             {
@@ -340,8 +340,8 @@ public class DormitoryDashboardController implements Initializable {
                     WHEN sdc.key_returned = FALSE AND sdc.damage_paid = FALSE THEN '❌ Key not returned & Damage not paid'
                     WHEN sdc.key_returned = FALSE THEN '❌ Key not returned'
                     WHEN sdc.damage_paid = FALSE THEN '❌ Damage not paid'
-                    WHEN sdc.clearance_status = 'APPROVED' THEN '✅ Approved'
-                    WHEN sdc.clearance_status = 'REJECTED' THEN '❌ Rejected'
+                    WHEN sdc.clearance_status = 'APPROVED' THEN ' Approved'
+                    WHEN sdc.clearance_status = 'REJECTED' THEN ' Rejected'
                     ELSE '⏳ Pending review'
                 END as status_display
             FROM student_dormitory_credentials sdc
@@ -422,7 +422,7 @@ public class DormitoryDashboardController implements Initializable {
                 boolean keyReturned = rs.getBoolean("key_returned");
                 Date keyReturnDate = rs.getDate("key_return_date");
                 if (keyReturned) {
-                    lblDetailKeyReturned.setText("Key Returned: ✅ Yes" + (keyReturnDate != null ? " (on " + keyReturnDate + ")" : ""));
+                    lblDetailKeyReturned.setText("Key Returned:  Yes" + (keyReturnDate != null ? " (on " + keyReturnDate + ")" : ""));
                     lblDetailKeyReturned.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                 } else {
                     lblDetailKeyReturned.setText("Key Returned: ❌ No");
@@ -436,14 +436,14 @@ public class DormitoryDashboardController implements Initializable {
                 
                 if (damageDescription != null && !damageDescription.isEmpty()) {
                     if (damagePaid) {
-                        lblDetailDamageStatus.setText("Damage Status: ✅ Paid - $" + damageAmount + " (" + damageDescription + ")");
+                        lblDetailDamageStatus.setText("Damage Status:  Paid - $" + damageAmount + " (" + damageDescription + ")");
                         lblDetailDamageStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                     } else {
-                        lblDetailDamageStatus.setText("Damage Status: ❌ Unpaid - $" + damageAmount + " (" + damageDescription + ")");
+                        lblDetailDamageStatus.setText("Damage Status:  Unpaid - $" + damageAmount + " (" + damageDescription + ")");
                         lblDetailDamageStatus.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
                     }
                 } else {
-                    lblDetailDamageStatus.setText("Damage Status: ✅ No damage reported");
+                    lblDetailDamageStatus.setText("Damage Status: No damage reported");
                     lblDetailDamageStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                 }
                 
@@ -474,19 +474,19 @@ public class DormitoryDashboardController implements Initializable {
     
     private String determineOverallStatus(boolean keyReturned, boolean damagePaid, String clearanceStatus) {
         if ("APPROVED".equals(clearanceStatus)) {
-            return "✅ Approved";
+            return " Approved";
         } else if ("REJECTED".equals(clearanceStatus)) {
-            return "❌ Rejected";
+            return " Rejected";
         } else if (keyReturned && damagePaid) {
-            return "✅ Eligible for approval";
+            return " Eligible for approval";
         } else if (!keyReturned && !damagePaid) {
-            return "❌ Reject (Key not returned & Damage not paid)";
+            return " Reject (Key not returned & Damage not paid)";
         } else if (!keyReturned) {
-            return "❌ Reject (Key not returned)";
+            return " Reject (Key not returned)";
         } else if (!damagePaid) {
-            return "❌ Reject (Damage not paid)";
+            return " Reject (Damage not paid)";
         } else {
-            return "⏳ Pending review";
+            return " Pending review";
         }
     }
 

@@ -223,7 +223,7 @@ public class DepartmentHeadDashboardController implements Initializable {
                         updateClearanceStatus(request.getRequestId(), "REJECTED", 
                                             "Department clearance rejected via bulk operation: " + rejectionReason);
                         successCount++;
-                        System.out.println("✅ Rejected: " + request.getStudentId());
+                        System.out.println(" Rejected: " + request.getStudentId());
                     } catch (Exception e) {
                         failCount++;
                         System.err.println("❌ Failed to reject " + request.getStudentId() + ": " + e.getMessage());
@@ -469,9 +469,9 @@ public class DepartmentHeadDashboardController implements Initializable {
         tableRequests.getColumns().add(0, colSelect);
         
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
-            private final Button btnApprove = new Button("✅ Approve");
-            private final Button btnReject = new Button("❌ Reject");
-            private final Button btnViewRequirements = new Button("📋 Requirements");
+            private final Button btnApprove = new Button("Approve");
+            private final Button btnReject = new Button(" Reject");
+            private final Button btnViewRequirements = new Button("Requirements");
             private final HBox buttons = new HBox(5, btnViewRequirements, btnApprove, btnReject);
 
             {

@@ -750,7 +750,7 @@ public class AdminDashboardController {
         // Show results
         StringBuilder resultMessage = new StringBuilder();
         resultMessage.append("Bulk status toggle completed!\n\n");
-        resultMessage.append("✅ Successfully updated: ").append(successCount).append(" users\n");
+        resultMessage.append(" Successfully updated: ").append(successCount).append(" users\n");
         
         if (failCount > 0) {
             resultMessage.append("❌ Failed to update: ").append(failCount).append(" users\n");
@@ -995,8 +995,8 @@ public class AdminDashboardController {
         // Show results
         StringBuilder resultMessage = new StringBuilder();
         resultMessage.append("Bulk resubmission completed!\n\n");
-        resultMessage.append("✅ Successfully allowed: ").append(successCount).append(" students\n");
-        resultMessage.append("❌ Failed: ").append(failCount).append(" students\n");
+        resultMessage.append(" Successfully allowed: ").append(successCount).append(" students\n");
+        resultMessage.append(" Failed: ").append(failCount).append(" students\n");
         
         if (successCount > 0) {
             resultMessage.append("\nSuccesses:\n").append(successes.toString());

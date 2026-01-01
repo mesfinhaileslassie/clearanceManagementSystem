@@ -849,7 +849,7 @@ public class LibrarianDashboardController implements Initializable {
             } else {
                 Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Confirm Approval");
-                alert.setHeaderText("✅ Student is clear");
+                alert.setHeaderText("Student is clear");
                 alert.setContentText(String.format(
                     "Student: %s (%s)\n\nStatus: No borrowed books, overdue items, or fines.\n\nApprove library clearance?",
                     studentName, studentId
@@ -1148,7 +1148,7 @@ public class LibrarianDashboardController implements Initializable {
     private void showSuccessAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
-        alert.setHeaderText("✅ Success");
+        alert.setHeaderText("Success");
         alert.setContentText(message);
         alert.showAndWait();
     }
@@ -1172,7 +1172,7 @@ public class LibrarianDashboardController implements Initializable {
     private void showInfoAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
-        alert.setHeaderText("ℹ Information");
+        alert.setHeaderText("Information");
         alert.setContentText(message);
         alert.showAndWait();
     }

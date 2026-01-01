@@ -178,10 +178,10 @@ public class CafeteriaDashboardController implements Initializable {
                     updateClearanceStatus(request.getRequestId(), "APPROVED", 
                                         "Cafeteria clearance approved via bulk operation. All charges cleared.");
                     successCount++;
-                    System.out.println("✅ Approved: " + request.getStudentId());
+                    System.out.println(" Approved: " + request.getStudentId());
                 } catch (Exception e) {
                     failCount++;
-                    System.err.println("❌ Failed to approve " + request.getStudentId() + ": " + e.getMessage());
+                    System.err.println(" Failed to approve " + request.getStudentId() + ": " + e.getMessage());
                 }
             }
             
@@ -338,9 +338,9 @@ public class CafeteriaDashboardController implements Initializable {
         tableRequests.getColumns().add(0, colSelect);
         
         colActions.setCellFactory(param -> new TableCell<ClearanceRequest, String>() {
-            private final Button btnApprove = new Button("✅ Approve");
-            private final Button btnReject = new Button("❌ Reject");
-            private final Button btnViewDetails = new Button("🍽️ View Records");
+            private final Button btnApprove = new Button(" Approve");
+            private final Button btnReject = new Button(", Reject");
+            private final Button btnViewDetails = new Button(" View Records");
             private final HBox buttons = new HBox(5, btnViewDetails, btnApprove, btnReject);
 
             {
@@ -442,7 +442,7 @@ public class CafeteriaDashboardController implements Initializable {
     private void refreshDashboard() {
         System.out.println("=== DEBUG: Refresh Dashboard button clicked ===");
         try (Connection conn = DatabaseConnection.getConnection()) {
-            System.out.println("✅ Database connection established for dashboard refresh");
+            System.out.println(" Database connection established for dashboard refresh");
             
             String pendingSql = """
                 SELECT COUNT(*) as pending_count
@@ -466,13 +466,13 @@ public class CafeteriaDashboardController implements Initializable {
                     lblPendingCount.setText("Pending Cafeteria Clearances: " + pendingCount);
                 }
                 
-                System.out.println("✅ Dashboard refreshed. Pending count: " + pendingCount);
+                System.out.println(" Dashboard refreshed. Pending count: " + pendingCount);
             }
             
             showAlert("Dashboard Refreshed", "Dashboard statistics updated successfully!");
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR in refreshDashboard:");
+            System.err.println(" ERROR in refreshDashboard:");
             System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
             showAlert("Error", "Failed to refresh dashboard: " + e.getMessage());
@@ -508,9 +508,9 @@ public class CafeteriaDashboardController implements Initializable {
                     ps.setString(2, "Cafeteria officer logged out from dashboard");
                     ps.executeUpdate();
                     
-                    System.out.println("✅ Logged logout activity for user: " + currentUser.getUsername());
+                    System.out.println(" Logged logout activity for user: " + currentUser.getUsername());
                 } catch (SQLException e) {
-                    System.err.println("⚠️ Could not log logout activity (table may not exist): " + e.getMessage());
+                    System.err.println(" Could not log logout activity (table may not exist): " + e.getMessage());
                 }
                 
                 FXMLLoader loader = null;
@@ -539,10 +539,10 @@ public class CafeteriaDashboardController implements Initializable {
                 stage.setTitle("University Clearance System - Login");
                 stage.centerOnScreen();
                 
-                System.out.println("✅ Successfully logged out and returned to login screen");
+                System.out.println(" Successfully logged out and returned to login screen");
                 
             } catch (Exception e) {
-                System.err.println("❌ ERROR during logout:");
+                System.err.println(" ERROR during logout:");
                 e.printStackTrace();
                 showAlert("Logout Error", "Failed to logout: " + e.getMessage());
             }
@@ -556,7 +556,7 @@ public class CafeteriaDashboardController implements Initializable {
         requestData.clear();
         
         try (Connection conn = DatabaseConnection.getConnection()) {
-            System.out.println("✅ Database connection established");
+            System.out.println(" Database connection established");
             
             debugDatabaseStatus(conn);
             
@@ -623,12 +623,12 @@ public class CafeteriaDashboardController implements Initializable {
             updateDashboardCards(conn, pendingCount);
             
             if (pendingCount == 0) {
-                System.out.println("⚠️ WARNING: No cafeteria clearance requests found!");
+                System.out.println(" WARNING: No cafeteria clearance requests found!");
                 showAlert("No Requests", "No pending cafeteria clearance requests found.");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR in loadPendingRequests:");
+            System.err.println(" ERROR in loadPendingRequests:");
             System.err.println("Message: " + e.getMessage());
             e.printStackTrace();
             showAlert("Error", "Failed to load clearance requests: " + e.getMessage());
@@ -717,10 +717,10 @@ public class CafeteriaDashboardController implements Initializable {
                 lblOutstandingBalancesCard.setTooltip(balanceTooltip);
             }
             
-            System.out.println("✅ Dashboard cards updated successfully");
+            System.out.println(" Dashboard cards updated successfully");
             
         } catch (SQLException e) {
-            System.err.println("❌ ERROR updating dashboard cards: " + e.getMessage());
+            System.err.println(" ERROR updating dashboard cards: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -814,13 +814,13 @@ public class CafeteriaDashboardController implements Initializable {
                              ", Total balance: $" + totalBalance);
             
             if (unpaidBalances > 0 && totalBalance > 0) {
-                return "❌ Outstanding Balance: $" + String.format("%.2f", totalBalance);
+                return " Outstanding Balance: $" + String.format("%.2f", totalBalance);
             } else if (unpaidMealPlans > 0) {
-                return "❌ Unpaid Meal Plan Fee";
+                return " Unpaid Meal Plan Fee";
             } else if (remainingMeals > 0) {
-                return "⚠️ " + remainingMeals + " Unused Meals Remaining";
+                return " " + remainingMeals + " Unused Meals Remaining";
             } else {
-                return "✅ Cafeteria Clear";
+                return " Cafeteria Clear";
             }
         }
         
@@ -873,7 +873,7 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("  Found " + recordCount + " cafeteria records");
             
             if (recordCount == 0) {
-                System.out.println("  ⚠️ No cafeteria records exist for this student.");
+                System.out.println("  No cafeteria records exist for this student.");
                 System.out.println("  Cafeteria officer should manually create records if needed.");
             }
         }
@@ -897,7 +897,7 @@ public class CafeteriaDashboardController implements Initializable {
             System.out.println("Pending CAFETERIA approvals: " + pendingCount);
             
             if (pendingCount == 0) {
-                System.out.println("⚠️ No pending CAFETERIA approvals found. Creating test data...");
+                System.out.println(" No pending CAFETERIA approvals found. Creating test data...");
                 createTestClearanceRequests();
             }
         } catch (Exception e) {
@@ -960,12 +960,12 @@ public class CafeteriaDashboardController implements Initializable {
                         insertApprovalStmt.executeUpdate();
                         
                         createdCount++;
-                        System.out.println("✅ Created test request for: " + username + " (ID: " + requestId + ")");
+                        System.out.println(" Created test request for: " + username + " (ID: " + requestId + ")");
                     }
                 }
             }
             
-            System.out.println("✅ Created " + createdCount + " test clearance requests");
+            System.out.println(" Created " + createdCount + " test clearance requests");
             
             if (createdCount > 0) {
                 loadPendingRequests();
@@ -1065,11 +1065,11 @@ public class CafeteriaDashboardController implements Initializable {
 
     private String formatRecordType(String recordType) {
         return switch (recordType) {
-            case "OUTSTANDING_BALANCE" -> "💰 Outstanding Balance";
-            case "MEAL_PLAN" -> "🍽️ Meal Plan";
-            case "MEAL_PLAN_FEE" -> "💳 Meal Plan Fee";
-            case "MEAL_SWIPES" -> "🎫 Meal Swipes";
-            case "PAYMENT" -> "✅ Payment";
+            case "OUTSTANDING_BALANCE" -> " Outstanding Balance";
+            case "MEAL_PLAN" -> " Meal Plan";
+            case "MEAL_PLAN_FEE" -> " Meal Plan Fee";
+            case "MEAL_SWIPES" -> " Swipes";
+            case "PAYMENT" -> " Payment";
             default -> recordType;
         };
     }
@@ -1098,7 +1098,7 @@ public class CafeteriaDashboardController implements Initializable {
                 
                 String summary;
                 if (pendingItems == 0) {
-                    summary = "✅ No pending cafeteria issues";
+                    summary = " No pending cafeteria issues";
                     if (lblCafeteriaStatus != null) {
                         lblCafeteriaStatus.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
                     }
